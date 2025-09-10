@@ -1,0 +1,24 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SatOps", "SatOps.csproj", "{DD7C01D1-1D4B-1174-2469-407DAFCF43F3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{DD7C01D1-1D4B-1174-2469-407DAFCF43F3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD7C01D1-1D4B-1174-2469-407DAFCF43F3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD7C01D1-1D4B-1174-2469-407DAFCF43F3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD7C01D1-1D4B-1174-2469-407DAFCF43F3}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5B517AE2-1D93-4F34-9A8D-3F03D4CCC2E6}
+	EndGlobalSection
+EndGlobal

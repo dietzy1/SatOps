@@ -1,0 +1,10 @@
+services:
+  postgres:
+    image: "postgis/postgis:14-3.3-alpine"
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: satops
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: satops
+    ports:
+      - "5432:5432"
