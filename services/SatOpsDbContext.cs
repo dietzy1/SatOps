@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using NetTopologySuite.Geometries;
 using GroundStationEntity = SatOps.Services.GroundStation.GroundStation;
 using FlightPlanEntity = SatOps.Services.FlightPlan.FlightPlan;
 
@@ -49,6 +50,21 @@ namespace SatOps.Services
                 // Index for faster lookups by status
                 entity.HasIndex(e => e.Status);
             });
+
+            // Seed data for Ground Stations
+            var geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
+
+            modelBuilder.Entity<GroundStationEntity>().HasData(
+                new GroundStationEntity
+                {
+                    Id = 1,
+                    Name = "Aarhus",
+                    HttpUrl = "http://aarhus-groundstation.example.com",
+                    Location = geometryFactory.CreatePoint(new Coordinate(10.2039, 56.1629)), // Aarhus coordinates
+                    IsActive = false,
+                    CreatedAt = DateTime.UtcNow
+                }
+            );
         }
     }
 }
