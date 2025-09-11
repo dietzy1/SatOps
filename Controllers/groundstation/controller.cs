@@ -39,7 +39,7 @@ namespace SatOps.Controllers
             var entity = new GroundStation
             {
                 Name = input.Name,
-                Location = CreatePoint(input.Longitude, input.Latitude),
+                Location = CreatePoint(input.Location.Longitude, input.Location.Latitude),
                 HttpUrl = input.HttpUrl,
             };
             var created = await _service.CreateAsync(entity);
@@ -53,9 +53,9 @@ namespace SatOps.Controllers
             if (existing == null) return NotFound();
 
             if (!string.IsNullOrWhiteSpace(input.Name)) existing.Name = input.Name!;
-            if (input.Latitude.HasValue && input.Longitude.HasValue)
+            if (input.Location != null)
             {
-                existing.Location = CreatePoint(input.Longitude.Value, input.Latitude.Value);
+                existing.Location = CreatePoint(input.Location.Longitude, input.Location.Latitude);
             }
             if (!string.IsNullOrWhiteSpace(input.HttpUrl)) existing.HttpUrl = input.HttpUrl!;
 
@@ -78,8 +78,11 @@ namespace SatOps.Controllers
             {
                 Id = entity.Id,
                 Name = entity.Name,
-                Latitude = entity.Location?.Y ?? 0,
-                Longitude = entity.Location?.X ?? 0,
+                Location = new LocationDto
+                {
+                    Latitude = entity.Location?.Y ?? 0,
+                    Longitude = entity.Location?.X ?? 0
+                },
                 HttpUrl = entity.HttpUrl,
                 CreatedAt = entity.CreatedAt,
                 IsActive = entity.IsActive
@@ -96,5 +99,3 @@ namespace SatOps.Controllers
         }
     }
 }
-
-
