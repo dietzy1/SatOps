@@ -1,0 +1,55 @@
+using Microsoft.EntityFrameworkCore;
+
+namespace SatOps.Services.FlightPlan
+{
+    public interface IFlightPlanRepository
+    {
+        Task<List<FlightPlan>> GetAllAsync();
+        Task<FlightPlan?> GetByIdAsync(Guid id); // For updates (tracked)
+        Task<FlightPlan?> GetByIdReadOnlyAsync(Guid id); // For reads (untracked)
+        Task<FlightPlan> AddAsync(FlightPlan entity);
+        Task<bool> UpdateAsync(FlightPlan entity);
+    }
+
+    public class FlightPlanRepository : IFlightPlanRepository
+    {
+        private readonly SatOpsDbContext _dbContext;
+
+        public FlightPlanRepository(SatOpsDbContext dbContext)
+        {
+            _dbContext = dbContext;
+        }
+
+        public Task<List<FlightPlan>> GetAllAsync()
+        {
+            return _dbContext.FlightPlans.AsNoTracking()
+                .OrderByDescending(fp => fp.CreatedAt).ToListAsync();
+        }
+
+        // Use this method when you intend to modify the entity
+        public Task<FlightPlan?> GetByIdAsync(Guid id)
+        {
+            return _dbContext.FlightPlans.FirstOrDefaultAsync(fp => fp.Id == id);
+        }
+
+        // Use this method for read-only operations to improve performance
+        public Task<FlightPlan?> GetByIdReadOnlyAsync(Guid id)
+        {
+            return _dbContext.FlightPlans.AsNoTracking().FirstOrDefaultAsync(fp => fp.Id == id);
+        }
+
+        public async Task<FlightPlan> AddAsync(FlightPlan entity)
+        {
+            _dbContext.FlightPlans.Add(entity);
+            await _dbContext.SaveChangesAsync();
+            return entity;
+        }
+
+        public async Task<bool> UpdateAsync(FlightPlan entity)
+        {
+            entity.UpdatedAt = DateTime.UtcNow;
+            _dbContext.FlightPlans.Update(entity);
+            return await _dbContext.SaveChangesAsync() > 0;
+        }
+    }
+}

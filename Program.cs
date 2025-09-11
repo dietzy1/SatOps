@@ -1,10 +1,10 @@
-
-
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using SatOps.Services.GroundStation;
 using SatOps.Services;
+using SatOps.Services.FlightPlan;
+using SatOps.Controllers.FlightPlan;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -34,6 +34,8 @@ builder.Services.AddDbContext<SatOpsDbContext>(options =>
 // DI
 builder.Services.AddScoped<IGroundStationRepository, GroundStationRepository>();
 builder.Services.AddScoped<IGroundStationService, GroundStationService>();
+builder.Services.AddScoped<IFlightPlanRepository, FlightPlanRepository>();
+builder.Services.AddScoped<IFlightPlanService, FlightPlanService>();
 
 var app = builder.Build();
 

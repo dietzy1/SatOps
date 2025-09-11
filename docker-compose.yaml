@@ -8,3 +8,28 @@ services:
       POSTGRES_DB: satops
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U satops -d satops"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  satops-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "7889:8080" 
+    environment:
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=satops;Username=satops;Password=secret
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
