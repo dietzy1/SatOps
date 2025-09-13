@@ -1,6 +1,18 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+// Other stuff we must figure out how to support.
+// Groundstations will send data to us, imageformat, logs etc we must have some sort of reciever endpoints for that that isn't exposed to the public
+// We must also have some sender endpoints for us to send commands to the groundstations
+// - Sender service for sending commands to groundstations
+// - Reciever service for receiving data from groundstations
+
+// What other stuff is needed for groundstations?
+// - Telemetry data processing
+// - Command scheduling
+// - Health monitoring
+// - Configuration management
+
 namespace SatOps.Services.GroundStation
 {
     public interface IGroundStationService
@@ -11,6 +23,7 @@ namespace SatOps.Services.GroundStation
         Task<GroundStation?> UpdateAsync(int id, GroundStation entity);
         Task<GroundStation?> PatchAsync(int id, GroundStation partial);
         Task<bool> DeleteAsync(int id);
+        Task<bool> UpdateHealthStatusAsync(int id, bool isActive);
     }
 
     public class GroundStationService : IGroundStationService
@@ -48,6 +61,24 @@ namespace SatOps.Services.GroundStation
         }
 
         public Task<bool> DeleteAsync(int id) => _repository.DeleteAsync(id);
+
+        public async Task<List<GroundStation>> GetActiveStationsAsync()
+        {
+            var allStations = await _repository.GetAllAsync();
+            return allStations.Where(s => s.IsActive).ToList();
+        }
+
+        public async Task<bool> UpdateHealthStatusAsync(int id, bool isActive)
+        {
+            var existing = await _repository.GetByIdAsync(id);
+            if (existing == null) return false;
+
+            existing.IsActive = isActive;
+            existing.UpdatedAt = DateTime.UtcNow;
+
+            var updated = await _repository.UpdateAsync(existing);
+            return updated != null;
+        }
     }
 }
 

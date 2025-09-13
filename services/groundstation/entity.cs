@@ -20,6 +20,8 @@ namespace SatOps.Services.GroundStation
         [Required]
         public string HttpUrl { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public bool IsActive { get; set; } = false;
+
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public bool IsActive { get; set; } = false; // Maybe rename to IsHealthy or similar
     }
 }

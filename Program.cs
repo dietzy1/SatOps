@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using SatOps.Services.GroundStation;
 using SatOps.Services;
 using SatOps.Services.FlightPlan;
+using SatOps.Services.Satellite;
 using SatOps.Controllers.FlightPlan;
 using System.Text.Json;
 
@@ -43,6 +44,12 @@ builder.Services.AddScoped<IGroundStationRepository, GroundStationRepository>();
 builder.Services.AddScoped<IGroundStationService, GroundStationService>();
 builder.Services.AddScoped<IFlightPlanRepository, FlightPlanRepository>();
 builder.Services.AddScoped<IFlightPlanService, FlightPlanService>();
+builder.Services.AddScoped<SatOps.Services.Satellite.ISatelliteRepository, SatOps.Services.Satellite.SatelliteRepository>();
+builder.Services.AddScoped<SatOps.Services.Satellite.ISatelliteService, SatOps.Services.Satellite.SatelliteService>();
+
+// Health check services
+builder.Services.AddHttpClient<IGroundStationHealthService, GroundStationHealthService>();
+builder.Services.AddHostedService<GroundStationHealthCheckService>();
 
 var app = builder.Build();
 

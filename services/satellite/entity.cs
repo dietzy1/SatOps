@@ -1,12 +1,38 @@
-/* CREATE TABLE IF NOT EXISTS
-    Satellites (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        norad_id INT UNIQUE, -- Standard satellite identifier
-        tle_line1 VARCHAR(69), -- Two-Line Element set
-        tle_line2 VARCHAR(69),
-        tle_updated_at TIMESTAMP,
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP DEFAULT NOW()
-    ); */
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
+namespace SatOps.Services.Satellite
+{
+    [Table("satellites")]
+    public class Satellite
+    {
+        public int Id { get; set; }
+
+        [Required]
+        public string Name { get; set; } = string.Empty;
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        // Core Satellite Information
+        [Required]
+        public string NoradId { get; set; } = string.Empty;
+
+        public SatelliteStatus Status { get; set; } = SatelliteStatus.Inactive;
+
+        public string? TleLine1 { get; set; }
+        public string? TleLine2 { get; set; }
+
+        public DateTime? LastTleUpdate { get; set; }
+    }
+
+    public enum SatelliteStatus
+    {
+        Active = 0,
+        Inactive = 1,
+        Deorbited = 2,
+        Unknown = 3,
+        Decayed = 4,
+        Launched = 5
+    }
+}
