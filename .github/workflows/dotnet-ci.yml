@@ -1,0 +1,34 @@
+name: SatOps CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Checks out the repository's code onto the virtual machine.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Sets up the required .NET SDK version.
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # Restores all the NuGet packages for solution.
+      - name: Restore dependencies
+        run: dotnet restore SatOps.sln
+
+      # Builds the entire solution in 'Release' mode.
+      - name: Build
+        run: dotnet build SatOps.sln --configuration Release --no-restore
+
+      # Runs all the tests found in solution.
+      - name: Test
+        run: dotnet test SatOps.sln --no-build --verbosity normal
