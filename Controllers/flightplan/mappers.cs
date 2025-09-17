@@ -1,5 +1,4 @@
 using System.Text.Json;
-using SatOps.Services.FlightPlan;
 
 namespace SatOps.Controllers.FlightPlan
 {

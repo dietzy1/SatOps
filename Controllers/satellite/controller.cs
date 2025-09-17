@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using SatOps.Services.Satellite;
 using SatOps.Controllers.Satellite;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace SatOps.Controllers
 {

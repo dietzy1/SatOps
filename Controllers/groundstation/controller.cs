@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using NetTopologySuite.Geometries;
 using SatOps.Services.GroundStation;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace SatOps.Controllers
 {

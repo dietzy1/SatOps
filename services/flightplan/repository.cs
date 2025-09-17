@@ -26,13 +26,13 @@ namespace SatOps.Services.FlightPlan
                 .OrderByDescending(fp => fp.CreatedAt).ToListAsync();
         }
 
-        // Use this method when you intend to modify the entity
+        // When modifying entity
         public Task<FlightPlan?> GetByIdAsync(Guid id)
         {
             return _dbContext.FlightPlans.FirstOrDefaultAsync(fp => fp.Id == id);
         }
 
-        // Use this method for read-only operations to improve performance
+        // When only reading entity
         public Task<FlightPlan?> GetByIdReadOnlyAsync(Guid id)
         {
             return _dbContext.FlightPlans.AsNoTracking().FirstOrDefaultAsync(fp => fp.Id == id);

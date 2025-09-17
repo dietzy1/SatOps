@@ -4,7 +4,6 @@ using SatOps.Services.FlightPlan;
 namespace SatOps.Controllers.FlightPlan
 {
     [ApiController]
-    // The route must match the frontend's API_URL
     [Route("api/plugins/flight-plans")]
     public class FlightPlansController : ControllerBase
     {

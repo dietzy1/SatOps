@@ -1,7 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using SatOps.Services;
-using System.Collections.Generic;
-using System.Threading.Tasks;
 
 namespace SatOps.Services.Satellite
 {

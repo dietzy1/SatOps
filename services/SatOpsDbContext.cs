@@ -12,7 +12,7 @@ namespace SatOps.Services
         {
         }
 
-        // Use  aliases for the DbSet properties
+        // Use aliases for the DbSet properties
         public DbSet<GroundStationEntity> GroundStations => Set<GroundStationEntity>();
         public DbSet<FlightPlanEntity> FlightPlans => Set<FlightPlanEntity>();
         public DbSet<SatelliteEntity> Satellites => Set<SatelliteEntity>();
@@ -38,7 +38,7 @@ namespace SatOps.Services
                 entity.Property(e => e.IsActive).HasDefaultValue(false);
             });
 
-            // Use  alias for the FlightPlan entity configuration
+            // Use alias for the FlightPlan entity configuration
             modelBuilder.Entity<FlightPlanEntity>(entity =>
             {
                 entity.ToTable("flight_plans");
