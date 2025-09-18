@@ -31,4 +31,4 @@ jobs:
 
       # Runs all the tests found in solution.
       - name: Test
-        run: dotnet test SatOps.sln --no-build --verbosity normal
+        run: dotnet test SatOps.sln --configuration Release --no-build --verbosity normal
