@@ -17,6 +17,7 @@ namespace SatOps.Overpass
     public interface IService
     {
         Task<List<OverpassWindowDto>> CalculateOverpassesAsync(OverpassWindowsCalculationRequestDto request);
+        Task<OverpassWindowDto> CalculateNextOverpassAsync(NextOverpassCalculationRequestDto request);
     }
 
     public class Service : IService
@@ -28,6 +29,109 @@ namespace SatOps.Overpass
         {
             _satelliteService = satelliteService;
             _groundStationService = groundStationService;
+        }
+
+        public async Task<OverpassWindowDto> CalculateNextOverpassAsync(NextOverpassCalculationRequestDto request)
+        {
+            try
+            {
+                // Get satellite data
+                var satellite = await _satelliteService.GetAsync(request.SatelliteId);
+                if (satellite == null)
+                {
+                    throw new Exception($"Satellite with ID {request.SatelliteId} not found.");
+                }
+
+                // Get ground station data
+                var groundStationEntity = await _groundStationService.GetAsync(request.GroundStationId);
+                if (groundStationEntity == null)
+                {
+                    throw new Exception($"Ground station with ID {request.GroundStationId} not found.");
+                }
+
+                if (string.IsNullOrEmpty(satellite.TleLine1) || string.IsNullOrEmpty(satellite.TleLine2))
+                {
+                    throw new Exception("Satellite TLE data is not available.");
+                }
+
+                // Create TLE strings
+                var tle1 = satellite.Name;
+                var tle2 = satellite.TleLine1;
+                var tle3 = satellite.TleLine2;
+
+                // Create a TLE and then satellite from the TLEs
+                var tle = new Tle(tle1, tle2, tle3);
+                var sat = new SGPdotNET.Observation.Satellite(tle);
+
+                // Set up ground station location from stored coordinates
+                var latitude = groundStationEntity.Location.Y;
+                var longitude = groundStationEntity.Location.X;
+                var location = new GeodeticCoordinate(
+                    Angle.FromDegrees(latitude),
+                    Angle.FromDegrees(longitude),
+                    0.0); // Assuming sea level for stored ground stations
+
+                // Create a ground station
+                var groundStation = new SGPdotNET.Observation.GroundStation(location);
+                var overpassWindows = new List<OverpassWindowDto>();
+                var timeStep = TimeSpan.FromMinutes(1); // Check every minute
+                var currentTime = request.StartTime;
+                var inOverpass = false;
+                var overpassStart = DateTime.MinValue;
+                var maxElevation = 0.0;
+                var maxElevationTime = DateTime.MinValue;
+                var startAzimuth = 0.0;
+
+                while (true)
+                {
+                    var observation = groundStation.Observe(sat, currentTime);
+                    var elevation = observation.Elevation.Degrees;
+                    var azimuth = observation.Azimuth.Degrees;
+
+                    if (!inOverpass && elevation > request.MinimumElevation)
+                    {
+                        // Starting an overpass
+                        inOverpass = true;
+                        overpassStart = currentTime;
+                        maxElevation = elevation;
+                        maxElevationTime = currentTime;
+                        startAzimuth = azimuth;
+                    }
+                    else if (inOverpass && elevation > request.MinimumElevation)
+                    {
+                        // Continuing overpass, check if this is the maximum elevation
+                        if (elevation > maxElevation)
+                        {
+                            maxElevation = elevation;
+                            maxElevationTime = currentTime;
+                        }
+                    }
+                    else if (inOverpass && elevation <= request.MinimumElevation)
+                    {
+                        // return the first one found
+                        return new OverpassWindowDto
+                        {
+                            SatelliteId = satellite.Id,
+                            SatelliteName = satellite.Name,
+                            GroundStationId = groundStationEntity.Id,
+                            GroundStationName = groundStationEntity.Name,
+                            StartTime = overpassStart,
+                            EndTime = currentTime,
+                            MaxElevationTime = maxElevationTime,
+                            MaxElevation = maxElevation,
+                            Duration = (currentTime - overpassStart).TotalSeconds,
+                            StartAzimuth = startAzimuth,
+                            EndAzimuth = azimuth
+                        };
+                    }
+
+                    currentTime = currentTime.Add(timeStep);
+                }
+            }
+            catch
+            {
+                throw new InvalidOperationException("Internal server error");
+            }
         }
 
         public async Task<List<OverpassWindowDto>> CalculateOverpassesAsync(OverpassWindowsCalculationRequestDto request)
@@ -53,8 +157,6 @@ namespace SatOps.Overpass
                     throw new Exception("Satellite TLE data is not available.");
                 }
 
-                
-
                 // Create TLE strings
                 var tle1 = satellite.Name;
                 var tle2 = satellite.TleLine1;
@@ -76,20 +178,20 @@ namespace SatOps.Overpass
                 var groundStation = new SGPdotNET.Observation.GroundStation(location);
                 var overpassWindows = new List<OverpassWindowDto>();
                 var timeStep = TimeSpan.FromMinutes(1); // Check every minute
-                var currentTime = startTime;
+                var currentTime = request.StartTime;
                 var inOverpass = false;
                 var overpassStart = DateTime.MinValue;
                 var maxElevation = 0.0;
                 var maxElevationTime = DateTime.MinValue;
                 var startAzimuth = 0.0;
 
-                while (currentTime <= endTime)
+                while (currentTime <= request.EndTime)
                 {
-                    var observation = groundStation.Observe(sat, startTime);
+                    var observation = groundStation.Observe(sat, currentTime);
                     var elevation = observation.Elevation.Degrees;
                     var azimuth = observation.Azimuth.Degrees;
 
-                    if (!inOverpass && elevation > minimumElevation)
+                    if (!inOverpass && elevation > request.MinimumElevation)
                     {
                         // Starting an overpass
                         inOverpass = true;
@@ -98,7 +200,7 @@ namespace SatOps.Overpass
                         maxElevationTime = currentTime;
                         startAzimuth = azimuth;
                     }
-                    else if (inOverpass && elevation > minimumElevation)
+                    else if (inOverpass && elevation > request.MinimumElevation)
                     {
                         // Continuing overpass, check if this is the maximum elevation
                         if (elevation > maxElevation)
@@ -107,7 +209,7 @@ namespace SatOps.Overpass
                             maxElevationTime = currentTime;
                         }
                     }
-                    else if (inOverpass && elevation <= minimumElevation)
+                    else if (inOverpass && elevation <= request.MinimumElevation)
                     {
                         // Ending an overpass
                         inOverpass = false;
