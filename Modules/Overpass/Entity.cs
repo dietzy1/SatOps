@@ -10,7 +10,9 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace SatOps.Overpass
+//TODO: Make sure sceduler uses this entity to store overpass data and handle cascated delete
+
+namespace SatOps.Modules.Overpass
 {
     [Table("overpasses")]
     public class Entity
@@ -18,11 +20,12 @@ namespace SatOps.Overpass
         public int Id { get; set; }
         public int SatelliteId { get; set; }
         public int GroundStationId { get; set; }
-
-        public int flightPlanID { get; set; }
-
-        //TODO: two solutions big jsonb column with all data dumped into or just add seperate columns Terkel will figure out
-        public string? OverpassData { get; set; }
-
+        public DateTime StartTime { get; set; }
+        public DateTime EndTime { get; set; }
+        public DateTime MaxElevationTime { get; set; }
+        public double MaxElevation { get; set; }
+        public int DurationSeconds { get; set; }
+        public double StartAzimuth { get; set; }
+        public double EndAzimuth { get; set; }
     }
 }

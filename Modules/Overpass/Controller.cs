@@ -11,10 +11,10 @@ using SGPdotNET.Util;
 // GET Endpoint that retrieves the next overpass window for a given ground station and satellite provided in the path
 
 
-namespace SatOps.Overpass
+namespace SatOps.Modules.Overpass
 {
     [ApiController]
-    [Route("api/v1/overpass")]
+    [Route("api/v1/overpasses")]
     public class Controller : ControllerBase
     {
         private readonly IService _overpassService;
@@ -25,13 +25,15 @@ namespace SatOps.Overpass
         }
 
         // GET Endpoint that retrieves overpasses within a time window for a given ground station and satellite provided in the path
-        [HttpGet("windows/satellite/{satelliteId:int}/groundstation/{groundStationId:int}")]
+        [HttpGet("/satellite/{satelliteId:int}/groundstation/{groundStationId:int}")]
         public async Task<ActionResult<List<OverpassWindowDto>>> GetOverpassWindows(
             int satelliteId,
             int groundStationId,
             [FromQuery] DateTime? startTime = null,
             [FromQuery] DateTime? endTime = null,
-            [FromQuery] double minimumElevation = 0.0)
+            [FromQuery] double minimumElevation = 0.0,
+            [FromQuery] int? maxResults = null,
+            [FromQuery] int? minimumDuration = null)
         {
             startTime ??= DateTime.UtcNow;
             endTime ??= startTime.Value.AddDays(7);
@@ -49,39 +51,9 @@ namespace SatOps.Overpass
                     GroundStationId = groundStationId,
                     StartTime = startTime.Value,
                     EndTime = endTime.Value,
-                    MinimumElevation = minimumElevation
-                });
-
-                return Ok(result);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return StatusCode(500, $"{ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"{ex.Message}");
-            }
-        }
-
-        // GET Endpoint that retrieves the next overpass window for a given ground station and satellite provided in the path
-        [HttpGet("next/satellite/{satelliteId:int}/groundstation/{groundStationId:int}")]
-        public async Task<ActionResult<OverpassWindowDto>> GetNextOverpass(
-            int satelliteId,
-            int groundStationId,
-            [FromQuery] DateTime? startTime = null,
-            [FromQuery] double minimumElevation = 0.0)
-        {
-            startTime ??= DateTime.UtcNow;
-
-            try
-            {
-                var result = await _overpassService.CalculateNextOverpassAsync(new NextOverpassCalculationRequestDto
-                {
-                    SatelliteId = satelliteId,
-                    GroundStationId = groundStationId,
-                    StartTime = startTime.Value,
-                    MinimumElevation = minimumElevation
+                    MinimumElevation = minimumElevation,
+                    MaxResults = maxResults,
+                    MinimumDurationSeconds = minimumDuration,
                 });
 
                 return Ok(result);
