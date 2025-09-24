@@ -65,7 +65,7 @@ namespace SatOps.Data
                 entity.Property(e => e.NoradId).IsRequired();
                 entity.Property(e => e.Status).IsRequired();
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
-                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("timezone('utc', now())");
+                entity.Property(e => e.LastUpdate).HasDefaultValueSql("timezone('utc', now())");
 
                 // Index for faster lookups by NORAD ID and status
                 entity.HasIndex(e => e.NoradId).IsUnique();
@@ -131,14 +131,13 @@ namespace SatOps.Data
                 {
                     Id = 1,
                     Name = "International Space Station (ISS)",
-                    NoradId = "25544",
+                    NoradId = 25544,
                     Status = SatOps.Modules.Satellite.SatelliteStatus.Active,
                     CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
+                    LastUpdate = DateTime.UtcNow,
                     // TLE data for ISS (example - should be updated with current data)
                     TleLine1 = "1 25544U 98067A   23256.90616898  .00020137  00000-0  35438-3 0  9992",
-                    TleLine2 = "2 25544  51.6416 339.0970 0003835  48.3825  73.2709 15.50030022414673",
-                    LastTleUpdate = DateTime.UtcNow
+                    TleLine2 = "2 25544  51.6416 339.0970 0003835  48.3825  73.2709 15.50030022414673"
                 }
             );
         }

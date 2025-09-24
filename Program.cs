@@ -136,6 +136,7 @@ builder.Services.AddScoped<IFlightPlanRepository, FlightPlanRepository>();
 builder.Services.AddScoped<IFlightPlanService, FlightPlanService>();
 builder.Services.AddScoped<ISatelliteRepository, SatelliteRepository>();
 builder.Services.AddScoped<ISatelliteService, SatelliteService>();
+builder.Services.AddScoped<ICelestrackClient, CelestrackClient>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 
