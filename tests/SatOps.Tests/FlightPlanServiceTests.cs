@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
 using SatOps.Controllers.FlightPlan;
 using SatOps.Services;
 using SatOps.Services.FlightPlan;
@@ -9,22 +10,36 @@ using Xunit;
 
 namespace SatOps.Tests
 {
-    public class FlightPlanServiceTests
+    public class FlightPlanServiceTests : IDisposable
     {
-        private SatOpsDbContext GetInMemoryDbContext()
+        private readonly SqliteConnection _connection;
+        private readonly DbContextOptions<SatOpsDbContext> _contextOptions;
+
+        public FlightPlanServiceTests()
         {
-            var options = new DbContextOptionsBuilder<SatOpsDbContext>()
-                .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()) // Unique DB for each test
+            _connection = new SqliteConnection("Filename=:memory:");
+            _connection.Open();
+
+            _contextOptions = new DbContextOptionsBuilder<SatOpsDbContext>()
+                .UseSqlite(_connection)
                 .Options;
-            var dbContext = new SatOpsDbContext(options);
-            return dbContext;
+
+            using var context = new SatOpsDbContext(_contextOptions);
+            context.Database.EnsureCreated();
+        }
+
+        private SatOpsDbContext CreateContext() => new SatOpsDbContext(_contextOptions);
+
+        public void Dispose()
+        {
+            _connection.Dispose();
         }
 
         [Fact]
         public async Task CreateAsync_ShouldCreateAndReturnPendingFlightPlan()
         {
             // Arrange
-            var dbContext = GetInMemoryDbContext();
+            await using var dbContext = CreateContext();
             var repository = new FlightPlanRepository(dbContext);
             var service = new FlightPlanService(repository, dbContext);
 
@@ -58,7 +73,7 @@ namespace SatOps.Tests
         public async Task CreateNewVersionAsync_ShouldSupersedeOldPlanAndCreateNewOne()
         {
             // Arrange
-            var dbContext = GetInMemoryDbContext();
+            await using var dbContext = CreateContext();
             var repository = new FlightPlanRepository(dbContext);
             var service = new FlightPlanService(repository, dbContext);
             var groundStationId = Guid.NewGuid();
@@ -107,7 +122,7 @@ namespace SatOps.Tests
         public async Task CreateNewVersionAsync_ShouldReturnNull_WhenPlanIsNotPending()
         {
             // Arrange
-            var dbContext = GetInMemoryDbContext();
+            await using var dbContext = CreateContext();
             var repository = new FlightPlanRepository(dbContext);
             var service = new FlightPlanService(repository, dbContext);
 
@@ -115,7 +130,11 @@ namespace SatOps.Tests
             {
                 Id = Guid.NewGuid(),
                 Status = "approved", // Not pending
-                Body = JsonDocument.Parse("{}")
+                Body = JsonDocument.Parse("{}"),
+                Name = "Approved Plan",
+                GroundStationId = Guid.NewGuid(),
+                ScheduledAt = DateTime.UtcNow,
+                SatelliteName = "SAT-1"
             };
             await dbContext.FlightPlans.AddAsync(approvedPlan);
             await dbContext.SaveChangesAsync();
@@ -136,7 +155,7 @@ namespace SatOps.Tests
         {
             // Arrange
             var mockRepository = new Mock<IFlightPlanRepository>();
-            var service = new FlightPlanService(mockRepository.Object, null!); // DbContext not used in this method
+            var service = new FlightPlanService(mockRepository.Object, null!);
 
             var planId = Guid.NewGuid();
             var pendingPlan = new FlightPlan
