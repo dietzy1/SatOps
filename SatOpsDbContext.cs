@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using NetTopologySuite.Geometries;
 using GroundStationEntity = SatOps.Modules.Groundstation.GroundStation;
 using FlightPlanEntity = SatOps.Modules.Schedule.FlightPlan;
 using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
@@ -23,19 +22,21 @@ namespace SatOps
         {
             base.OnModelCreating(modelBuilder);
 
-            // Ensure PostGIS extension is enabled and geometry types are configured
-            modelBuilder.HasPostgresExtension("postgis");
-
             modelBuilder.Entity<GroundStationEntity>(entity =>
             {
                 entity.ToTable("ground_stations");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.HttpUrl).IsRequired();
-                // Store as geometry(Point, 4326)
-                entity.Property(e => e.Location)
-                    .HasColumnType("geometry(Point,4326)")
-                    .IsRequired();
+
+                // Configure Location as owned entity
+                entity.OwnsOne(e => e.Location, location =>
+                {
+                    location.Property(l => l.Latitude).IsRequired().HasColumnName("latitude");
+                    location.Property(l => l.Longitude).IsRequired().HasColumnName("longitude");
+                    location.Property(l => l.Altitude).HasColumnName("altitude").HasDefaultValue(0);
+                });
+
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
                 entity.Property(e => e.IsActive).HasDefaultValue(false);
             });
@@ -72,20 +73,28 @@ namespace SatOps
             });
 
             // Seed data for Ground Stations
-            var geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
-
             modelBuilder.Entity<GroundStationEntity>().HasData(
                 new GroundStationEntity
                 {
                     Id = 1,
                     Name = "Aarhus",
                     HttpUrl = "http://aarhus-groundstation.example.com",
-                    Location = geometryFactory.CreatePoint(new Coordinate(10.2039, 56.1629)), // Aarhus coordinates
                     IsActive = false,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 }
             );
+
+            // Configure seed data for Location using OwnsOne
+            modelBuilder.Entity<GroundStationEntity>()
+                .OwnsOne(e => e.Location)
+                .HasData(new
+                {
+                    GroundStationId = 1,
+                    Latitude = 56.1629, // Aarhus coordinates
+                    Longitude = 10.2039,
+                    Altitude = 0.0
+                });
 
             // Configure Users entity
             modelBuilder.Entity<UserEntity>(entity =>

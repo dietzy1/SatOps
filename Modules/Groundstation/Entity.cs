@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using NetTopologySuite.Geometries;
 
 namespace SatOps.Modules.Groundstation
 {
@@ -15,7 +14,7 @@ namespace SatOps.Modules.Groundstation
         public string Name { get; set; } = string.Empty;
 
         [Required]
-        public Point Location { get; set; } = default!;
+        public Location Location { get; set; } = default!;
 
         [Required]
         public string HttpUrl { get; set; } = string.Empty;
@@ -23,5 +22,16 @@ namespace SatOps.Modules.Groundstation
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         public bool IsActive { get; set; } = false; // Maybe rename to IsHealthy or similar
+    }
+
+    public class Location
+    {
+        [Required]
+        public double Latitude { get; set; }
+
+        [Required]
+        public double Longitude { get; set; }
+
+        public double Altitude { get; set; } = 0;
     }
 }
