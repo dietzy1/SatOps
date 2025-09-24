@@ -3,7 +3,6 @@ using System;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NetTopologySuite.Geometries;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
@@ -11,14 +10,12 @@ using SatOps;
 
 #nullable disable
 
-namespace SatOps.Migrations
+namespace SatOps.Data.Migrations
 {
     [DbContext(typeof(SatOpsDbContext))]
-    [Migration("20250911184624_InitialCreate")]
-    partial class InitialCreate
+    partial class SatOpsDbContextModelSnapshot : ModelSnapshot
     {
-        /// <inheritdoc />
-        protected override void BuildTargetModel(ModelBuilder modelBuilder)
+        protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -112,6 +109,9 @@ namespace SatOps.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.HasKey("Id");
 
                     b.ToTable("ground_stations", (string)null);
@@ -120,11 +120,74 @@ namespace SatOps.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 9, 11, 18, 46, 24, 406, DateTimeKind.Utc).AddTicks(7320),
+                            CreatedAt = new DateTime(2025, 9, 13, 15, 59, 36, 990, DateTimeKind.Utc).AddTicks(9730),
                             HttpUrl = "http://aarhus-groundstation.example.com",
                             IsActive = false,
                             Location = (NetTopologySuite.Geometries.Point)new NetTopologySuite.IO.WKTReader().Read("SRID=4326;POINT (10.2039 56.1629)"),
-                            Name = "Aarhus"
+                            Name = "Aarhus",
+                            UpdatedAt = new DateTime(2025, 9, 13, 15, 59, 36, 990, DateTimeKind.Utc).AddTicks(9740)
+                        });
+                });
+
+            modelBuilder.Entity("SatOps.Services.Satellite.Satellite", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("timezone('utc', now())");
+
+                    b.Property<DateTime?>("LastTleUpdate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("NoradId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TleLine1")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TleLine2")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("timezone('utc', now())");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NoradId")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("satellites", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CreatedAt = new DateTime(2025, 9, 13, 15, 59, 36, 990, DateTimeKind.Utc).AddTicks(9800),
+                            LastTleUpdate = new DateTime(2025, 9, 13, 15, 59, 36, 990, DateTimeKind.Utc).AddTicks(9800),
+                            Name = "International Space Station (ISS)",
+                            NoradId = "25544",
+                            Status = 0,
+                            TleLine1 = "1 25544U 98067A   23256.90616898  .00020137  00000-0  35438-3 0  9992",
+                            TleLine2 = "2 25544  51.6416 339.0970 0003835  48.3825  73.2709 15.50030022414673",
+                            UpdatedAt = new DateTime(2025, 9, 13, 15, 59, 36, 990, DateTimeKind.Utc).AddTicks(9800)
                         });
                 });
 #pragma warning restore 612, 618

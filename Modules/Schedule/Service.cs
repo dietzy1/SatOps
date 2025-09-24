@@ -1,5 +1,5 @@
 using System.Text.Json;
-using SatOps.Modules.Schedule;
+using SatOps.Data;
 
 namespace SatOps.Modules.Schedule
 {

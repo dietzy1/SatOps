@@ -12,7 +12,7 @@ using SatOps.Modules.Groundstation.Health;
 using SatOps.Authorization;
 using System.Text.Json;
 using Microsoft.OpenApi.Models;
-using SatOps;
+using SatOps.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 

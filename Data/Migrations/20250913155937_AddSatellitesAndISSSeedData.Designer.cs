@@ -11,7 +11,7 @@ using SatOps;
 
 #nullable disable
 
-namespace SatOps.Migrations
+namespace SatOps.Data.Migrations
 {
     [DbContext(typeof(SatOpsDbContext))]
     [Migration("20250913155937_AddSatellitesAndISSSeedData")]
