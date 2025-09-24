@@ -1,10 +1,38 @@
-/* CREATE TYPE user_role AS ENUM('admin', 'scientist', 'viewer');
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
-CREATE TABLE IF NOT EXISTS
-    Users (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL UNIQUE,
-        role user_role NOT NULL
-    ); */
+namespace SatOps.Services.User
+{
+    [Table("users")]
+    public class User
+    {
+        public int Id { get; set; }
+
+        [Required]
+        [StringLength(255)]
+        public string Name { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(255)]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        public UserRole Role { get; set; } = UserRole.Viewer;
+
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        // Additional properties for RBAC tracking
+        public List<string> AdditionalScopes { get; set; } = new List<string>();
+        public List<string> AdditionalRoles { get; set; } = new List<string>();
+    }
+
+    public enum UserRole
+    {
+        Viewer = 0,   // Lowest permission level - can only view
+        Operator = 1, // Can create/modify flight plans
+        Admin = 2     // Full access
+    }
+}
 
