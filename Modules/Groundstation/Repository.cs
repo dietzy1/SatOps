@@ -1,8 +1,6 @@
 
 using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-// Import db context
+using SatOps.Data;
 
 namespace SatOps.Modules.Groundstation
 {

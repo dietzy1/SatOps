@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using SatOps.Data;
 
 namespace SatOps.Modules.User
 {

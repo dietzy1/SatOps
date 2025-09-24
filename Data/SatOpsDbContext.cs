@@ -4,7 +4,7 @@ using FlightPlanEntity = SatOps.Modules.Schedule.FlightPlan;
 using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 using UserEntity = SatOps.Modules.User.User;
 
-namespace SatOps
+namespace SatOps.Data
 {
     public class SatOpsDbContext : DbContext
     {

@@ -6,7 +6,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace SatOps.Migrations
+namespace SatOps.Data.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration
