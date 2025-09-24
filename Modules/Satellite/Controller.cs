@@ -40,11 +40,13 @@ namespace SatOps.Modules.Satellite
                 Name = entity.Name,
                 NoradId = entity.NoradId,
                 Status = entity.Status,
-                TleLine1 = entity.TleLine1,
-                TleLine2 = entity.TleLine2,
-                LastTleUpdate = entity.LastTleUpdate,
+                TleDto = new TleDto
+                {
+                    TleLine1 = entity.TleLine1,
+                    TleLine2 = entity.TleLine2,
+                },
                 CreatedAt = entity.CreatedAt,
-                UpdatedAt = entity.UpdatedAt
+                LastUpdate = entity.LastUpdate,
             };
         }
     }

@@ -12,6 +12,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 //TODO: Make sure sceduler uses this entity to store overpass data and handle cascated delete
 
+//TODO: Add Tle update time so it is possible to know if it was old tle data
 namespace SatOps.Modules.Overpass
 {
     [Table("overpasses")]

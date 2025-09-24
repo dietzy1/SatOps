@@ -12,18 +12,15 @@ namespace SatOps.Modules.Satellite
         public string Name { get; set; } = string.Empty;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime LastUpdate { get; set; } = DateTime.UtcNow;
 
         // Core Satellite Information
         [Required]
-        public string NoradId { get; set; } = string.Empty;
-
+        [Range(1, 999999999, ErrorMessage = "NoradId must be positive and 1 to 9 digits long")]
+        public int NoradId { get; set; }
         public SatelliteStatus Status { get; set; } = SatelliteStatus.Inactive;
-
-        public string? TleLine1 { get; set; }
-        public string? TleLine2 { get; set; }
-
-        public DateTime? LastTleUpdate { get; set; }
+        public string TleLine1 { get; set; } = string.Empty;
+        public string TleLine2 { get; set; } = string.Empty;
     }
 
     public enum SatelliteStatus
