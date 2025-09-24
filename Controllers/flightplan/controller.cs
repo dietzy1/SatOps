@@ -1,10 +1,11 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SatOps.Services.FlightPlan;
 
 namespace SatOps.Controllers.FlightPlan
 {
     [ApiController]
-    [Route("api/plugins/flight-plans")]
+    [Route("api/v1/flight-plans")]
     public class FlightPlansController : ControllerBase
     {
         private readonly IFlightPlanService _service;
@@ -14,6 +15,8 @@ namespace SatOps.Controllers.FlightPlan
             _service = service;
         }
 
+
+        [Authorize(Policy = "ReadFlightPlans")]
         [HttpGet]
         public async Task<ActionResult<List<FlightPlanDto>>> List()
         {
