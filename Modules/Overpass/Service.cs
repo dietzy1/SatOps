@@ -63,12 +63,10 @@ namespace SatOps.Modules.Overpass
                 var sat = new SGPdotNET.Observation.Satellite(tle);
 
                 // Set up ground station location from stored coordinates
-                var latitude = groundStationEntity.Location.Y;
-                var longitude = groundStationEntity.Location.X;
                 var location = new GeodeticCoordinate(
-                    Angle.FromDegrees(latitude),
-                    Angle.FromDegrees(longitude),
-                    0.0); // Assuming sea level for stored ground stations
+                    Angle.FromDegrees(groundStationEntity.Location.Latitude),
+                    Angle.FromDegrees(groundStationEntity.Location.Longitude),
+                    groundStationEntity.Location.Altitude); // Assuming sea level for stored ground stations
 
                 // Create a ground station
                 var groundStation = new SGPdotNET.Observation.GroundStation(location);
