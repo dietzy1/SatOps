@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using SatOps.Services.Satellite;
+using SatOps.Modules.Satellite;
 
-namespace SatOps.Controllers.Satellite
+namespace SatOps.Modules.Satellite
 {
     public class SatelliteDto
     {

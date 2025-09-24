@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 
-namespace SatOps.Controllers
+namespace SatOps.Modules.Health
 {
     [ApiController]
     [Route("api/v1/[controller]")]

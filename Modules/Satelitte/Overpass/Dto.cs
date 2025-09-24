@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace SatOps.Controllers.Satellite.Overpass
+namespace SatOps.Modules.Satellite.Overpass
 {
     public class SatelliteObservationDto
     {

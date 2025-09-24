@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace SatOps.Services.FlightPlan
+namespace SatOps.Modules.Schedule
 {
     public interface IFlightPlanRepository
     {

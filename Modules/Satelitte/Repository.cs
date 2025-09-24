@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace SatOps.Services.Satellite
+namespace SatOps.Modules.Satellite
 {
     public interface ISatelliteRepository
     {

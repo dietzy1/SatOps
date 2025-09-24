@@ -1,8 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Data.Sqlite;
-using SatOps.Controllers.FlightPlan;
-using SatOps.Services;
-using SatOps.Services.FlightPlan;
+using SatOps.Modules.Schedule;
 using System.Text.Json;
 using Moq;
 using FluentAssertions;

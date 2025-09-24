@@ -1,11 +1,11 @@
 using Microsoft.EntityFrameworkCore;
 using NetTopologySuite.Geometries;
-using GroundStationEntity = SatOps.Services.GroundStation.GroundStation;
-using FlightPlanEntity = SatOps.Services.FlightPlan.FlightPlan;
-using SatelliteEntity = SatOps.Services.Satellite.Satellite;
-using UserEntity = SatOps.Services.User.User;
+using GroundStationEntity = SatOps.Modules.Groundstation.GroundStation;
+using FlightPlanEntity = SatOps.Modules.Schedule.FlightPlan;
+using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
+using UserEntity = SatOps.Modules.User.User;
 
-namespace SatOps.Services
+namespace SatOps
 {
     public class SatOpsDbContext : DbContext
     {
@@ -123,7 +123,7 @@ namespace SatOps.Services
                     Id = 1,
                     Name = "International Space Station (ISS)",
                     NoradId = "25544",
-                    Status = SatOps.Services.Satellite.SatelliteStatus.Active,
+                    Status = SatOps.Modules.Satellite.SatelliteStatus.Active,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow,
                     // TLE data for ISS (example - should be updated with current data)

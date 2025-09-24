@@ -1,4 +1,4 @@
-namespace SatOps.Services.GroundStation
+namespace SatOps.Modules.Groundstation.Health
 {
     public class GroundStationHealthCheckService : BackgroundService
     {

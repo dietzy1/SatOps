@@ -4,16 +4,15 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
-using SatOps.Services.GroundStation;
-using SatOps.Services;
-using SatOps.Services.FlightPlan;
-using SatOps.Services.Satellite;
-using SatOps.Services.User;
-using SatOps.Services.Authorization;
+using SatOps.Modules.Groundstation;
+using SatOps.Modules.Schedule;
+using SatOps.Modules.Satellite;
+using SatOps.Modules.User;
+using SatOps.Modules.Groundstation.Health;
+using SatOps.Authorization;
 using System.Text.Json;
-using System.Text;
-using System.Security.Claims;
 using Microsoft.OpenApi.Models;
+using SatOps;
 
 var builder = WebApplication.CreateBuilder(args);
 

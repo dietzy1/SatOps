@@ -6,15 +6,15 @@ using SGPdotNET.Propagation;
 using SGPdotNET.TLE;
 using SGPdotNET.Util;
 
-using SatOps.Services.Satellite;
-using SatOps.Services.GroundStation;
+using SatOps.Modules.Satellite;
+using SatOps.Modules.Groundstation;
 
 
 // GET Endpoint that retrieves overpasses within a time window for a given ground station and satellite provided in the path
 // GET Endpoint that retrieves the next overpass window for a given ground station and satellite provided in the path
 
 
-namespace SatOps.Controllers.Satellite.Overpass
+namespace SatOps.Modules.Satellite.Overpass
 {
     [ApiController]
     [Route("api/v1/satellites/{satelliteId:int}/overpass")]

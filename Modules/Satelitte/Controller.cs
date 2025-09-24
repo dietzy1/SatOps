@@ -1,8 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using SatOps.Services.Satellite;
-using SatOps.Controllers.Satellite;
+using SatOps.Modules.Satellite;
 
-namespace SatOps.Controllers
+namespace SatOps.Modules.Satellite
 {
     [ApiController]
     [Route("api/v1/satellites")]
@@ -33,7 +32,7 @@ namespace SatOps.Controllers
             return Ok(MapToDto(item));
         }
 
-        private static SatelliteDto MapToDto(Services.Satellite.Satellite entity)
+        private static SatelliteDto MapToDto(Satellite entity)
         {
             return new SatelliteDto
             {

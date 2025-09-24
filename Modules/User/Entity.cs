@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace SatOps.Services.User
+namespace SatOps.Modules.User
 {
     [Table("users")]
     public class User

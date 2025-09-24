@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SatOps.Services.FlightPlan;
+using SatOps.Modules.Schedule;
 
-namespace SatOps.Controllers.FlightPlan
+namespace SatOps.Modules.Schedule
 {
     [ApiController]
     [Route("api/v1/flight-plans")]

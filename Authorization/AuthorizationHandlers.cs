@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
-using SatOps.Services.User;
+using SatOps.Modules.User;
 using System.Security.Claims;
 
-namespace SatOps.Services.Authorization
+namespace SatOps.Authorization
 {
     public class ScopeRequirement : IAuthorizationRequirement
     {

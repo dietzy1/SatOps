@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace SatOps.Controllers
+namespace SatOps.Modules.Groundstation
 {
     public class LocationDto
     {

@@ -13,7 +13,7 @@ using System.Threading.Tasks;
 // - Health monitoring
 // - Configuration management
 
-namespace SatOps.Services.GroundStation
+namespace SatOps.Modules.Groundstation
 {
     public interface IGroundStationService
     {

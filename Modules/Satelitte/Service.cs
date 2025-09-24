@@ -1,4 +1,4 @@
-namespace SatOps.Services.Satellite
+namespace SatOps.Modules.Satellite
 {
     public interface ISatelliteService
     {

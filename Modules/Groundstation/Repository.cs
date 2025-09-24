@@ -2,8 +2,9 @@
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+// Import db context
 
-namespace SatOps.Services.GroundStation
+namespace SatOps.Modules.Groundstation
 {
     public interface IGroundStationRepository
     {

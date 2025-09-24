@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
 
-namespace SatOps.Services.FlightPlan
+namespace SatOps.Modules.Schedule
 {
     [Table("flight_plans")]
     public class FlightPlan

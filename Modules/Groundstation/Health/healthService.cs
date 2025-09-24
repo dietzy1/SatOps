@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace SatOps.Services.GroundStation
+namespace SatOps.Modules.Groundstation.Health
 {
     public interface IGroundStationHealthService
     {

@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace SatOps.Services.User
+namespace SatOps.Modules.User
 {
     public interface IUserRepository
     {

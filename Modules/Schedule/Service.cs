@@ -1,7 +1,7 @@
 using System.Text.Json;
-using SatOps.Controllers.FlightPlan;
+using SatOps.Modules.Schedule;
 
-namespace SatOps.Services.FlightPlan
+namespace SatOps.Modules.Schedule
 {
     public interface IFlightPlanService
     {

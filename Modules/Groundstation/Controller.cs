@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using NetTopologySuite.Geometries;
-using SatOps.Services.GroundStation;
+using SatOps.Modules.Groundstation;
 
-namespace SatOps.Controllers
+namespace SatOps.Modules.Groundstation
 {
     [ApiController]
     [Route("api/v1/ground-stations")]

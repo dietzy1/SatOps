@@ -1,6 +1,8 @@
 using System.Text.Json.Serialization;
 
-namespace SatOps.Controllers.FlightPlan
+using System.ComponentModel.DataAnnotations;
+
+namespace SatOps.Modules.Schedule
 {
     // The main DTO for GET requests
     public class FlightPlanDto

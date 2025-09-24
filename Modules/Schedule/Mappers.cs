@@ -1,10 +1,10 @@
 using System.Text.Json;
 
-namespace SatOps.Controllers.FlightPlan
+namespace SatOps.Modules.Schedule
 {
     public static class Mappers
     {
-        public static FlightPlanDto ToDto(this Services.FlightPlan.FlightPlan entity)
+        public static FlightPlanDto ToDto(this FlightPlan entity)
         {
             return new FlightPlanDto
             {

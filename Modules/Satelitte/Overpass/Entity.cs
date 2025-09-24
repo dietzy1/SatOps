@@ -10,7 +10,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace SatOps.Services.Satellite
+namespace SatOps.Modules.Satellite.Overpass
 {
     [Table("overpasses")]
     public class Overpass
