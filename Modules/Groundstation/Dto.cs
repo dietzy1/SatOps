@@ -11,6 +11,9 @@ namespace SatOps.Modules.Groundstation
         [Required(ErrorMessage = "Longitude is required")]
         [Range(-180, 180, ErrorMessage = "Longitude must be between -180 and 180 degrees")]
         public double? Longitude { get; set; }
+
+        [Range(0, double.MaxValue, ErrorMessage = "Altitude must be a positive number")]
+        public double? Altitude { get; set; } = 0;
     }
 
     public class GroundStationDto

@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using NetTopologySuite.Geometries;
 using SatOps.Modules.Groundstation;
 
 namespace SatOps.Modules.Groundstation
@@ -36,7 +35,12 @@ namespace SatOps.Modules.Groundstation
             var entity = new GroundStation
             {
                 Name = input.Name,
-                Location = CreatePoint(input.Location.Longitude ?? 0, input.Location.Latitude ?? 0),
+                Location = new Location
+                {
+                    Latitude = input.Location.Latitude ?? 0,
+                    Longitude = input.Location.Longitude ?? 0,
+                    Altitude = input.Location.Altitude ?? 0
+                },
                 HttpUrl = input.HttpUrl,
             };
             var created = await _service.CreateAsync(entity);
@@ -52,7 +56,12 @@ namespace SatOps.Modules.Groundstation
             if (!string.IsNullOrWhiteSpace(input.Name)) existing.Name = input.Name!;
             if (input.Location != null)
             {
-                existing.Location = CreatePoint(input.Location.Longitude ?? 0, input.Location.Latitude ?? 0);
+                existing.Location = new Location
+                {
+                    Latitude = input.Location.Latitude ?? existing.Location.Latitude,
+                    Longitude = input.Location.Longitude ?? existing.Location.Longitude,
+                    Altitude = input.Location.Altitude ?? existing.Location.Altitude
+                };
             }
             if (!string.IsNullOrWhiteSpace(input.HttpUrl)) existing.HttpUrl = input.HttpUrl!;
 
@@ -77,22 +86,14 @@ namespace SatOps.Modules.Groundstation
                 Name = entity.Name,
                 Location = new LocationDto
                 {
-                    Latitude = entity.Location?.Y ?? 0,
-                    Longitude = entity.Location?.X ?? 0
+                    Latitude = entity.Location?.Latitude ?? 0,
+                    Longitude = entity.Location?.Longitude ?? 0,
+                    Altitude = entity.Location?.Altitude ?? 0
                 },
                 HttpUrl = entity.HttpUrl,
                 CreatedAt = entity.CreatedAt,
                 IsActive = entity.IsActive
             };
-        }
-
-        private static Point CreatePoint(double longitude, double latitude)
-        {
-            var point = new Point(longitude, latitude)
-            {
-                SRID = 4326
-            };
-            return point;
         }
     }
 }
