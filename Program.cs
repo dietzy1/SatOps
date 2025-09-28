@@ -9,10 +9,12 @@ using SatOps.Modules.Schedule;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.User;
 using SatOps.Modules.Groundstation.Health;
+using SatOps.Modules.Operation;
 using SatOps.Authorization;
 using System.Text.Json;
 using Microsoft.OpenApi.Models;
 using SatOps.Data;
+using Minio;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -27,27 +29,72 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
+    // Public API documentation
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Version = "v1",
-        Title = "SatOps API",
+        Title = "SatOps Public API",
         Description = @"
 A comprehensive **ASP.NET Core Web API** for managing satellite operations including:
 
 - 🛰️ Satellite tracking and monitoring
 - 📡 Communication scheduling  
 - 🔧 Maintenance operations
-- 📊 Telemetry data processing
+- 📊 Data access and reporting
 
 ## Features
 - Real-time satellite status updates
 - Automated orbit calculations
 - Mission planning tools
-- Integration with ground stations
 - Role-Based Access Control (RBAC) with scope and role-based permissions
+
+**Note**: This is the public-facing API. Internal operations are available on a separate endpoint.
         ".Trim()
     });
+
+    // Internal API documentation
+    options.SwaggerDoc("internal", new OpenApiInfo
+    {
+        Version = "v1",
+        Title = "SatOps Internal API",
+        Description = @"
+**Internal Operations API** for satellite communications and data processing:
+
+- 📤 Command transmission to satellites
+- 📥 Telemetry data reception from satellites
+- 🖼️ Image data reception and processing
+- 🔄 Real-time operational status updates
+
+## Features
+- Command lifecycle management (Pending → Sent → Acknowledged)
+- Large file handling for telemetry and images
+- MinIO object storage integration
+- Ground station communication endpoints
+
+**Note**: These endpoints are intended for internal ground station operations and satellite communications.
+        ".Trim()
+    });
+
+    // Configure which controllers belong to which API
+    options.DocInclusionPredicate((docName, apiDesc) =>
+    {
+        var controllerName = apiDesc.ActionDescriptor.RouteValues["controller"];
+
+        return docName switch
+        {
+            "v1" => !IsInternalController(controllerName),
+            "internal" => IsInternalController(controllerName),
+            _ => false
+        };
+    });
 });
+
+// Helper method to determine if a controller is internal
+static bool IsInternalController(string? controllerName)
+{
+    var internalControllers = new[] { "Operations" };
+    return controllerName != null && internalControllers.Contains(controllerName);
+}
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -139,6 +186,28 @@ builder.Services.AddScoped<ISatelliteService, SatelliteService>();
 builder.Services.AddScoped<ICelestrackClient, CelestrackClient>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<SatOps.Modules.Overpass.IService, SatOps.Modules.Overpass.Service>();
+
+// MinIO Configuration
+builder.Services.AddSingleton<IMinioClient>(sp =>
+{
+    var configuration = sp.GetRequiredService<IConfiguration>();
+    var endpoint = configuration.GetValue<string>("MinIO:Endpoint") ?? "localhost:9000";
+    var accessKey = configuration.GetValue<string>("MinIO:AccessKey") ?? "minioadmin";
+    var secretKey = configuration.GetValue<string>("MinIO:SecretKey") ?? "minioadmin";
+    var secure = configuration.GetValue<bool>("MinIO:Secure");
+
+    return new MinioClient()
+        .WithEndpoint(endpoint)
+        .WithCredentials(accessKey, secretKey)
+        .WithSSL(secure)
+        .Build();
+});
+
+// Operation Services
+builder.Services.AddScoped<IMinioService, MinioService>();
+builder.Services.AddScoped<ITelemetryService, TelemetryService>();
+builder.Services.AddScoped<IImageService, ImageService>();
 
 // Authorization handlers
 builder.Services.AddScoped<IAuthorizationHandler, ScopeAuthorizationHandler>();
@@ -187,7 +256,16 @@ app.UseExceptionHandler(errorApp =>
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "SatOps Public API v1");
+        c.SwaggerEndpoint("/swagger/internal/swagger.json", "SatOps Internal API v1");
+        c.RoutePrefix = "swagger";
+        c.DocumentTitle = "SatOps API Documentation";
+        c.DefaultModelsExpandDepth(-1); // Hide schemas section by default
+        c.DisplayRequestDuration();
+        c.EnableTryItOutByDefault();
+    });
 }
 
 app.UseHttpsRedirection();

@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using SatOps.Modules.Satellite;
 
 namespace SatOps.Modules.Satellite
 {
@@ -13,7 +12,7 @@ namespace SatOps.Modules.Satellite
         [Range(1, 999999999, ErrorMessage = "NoradId must be positive and 1 to 9 digits long")]
         public int NoradId { get; set; }
         public SatelliteStatus Status { get; set; }
-        public TleDto TleDto { get; set; } = new TleDto();
+        public TleDto Tle { get; set; } = new TleDto();
         public DateTime CreatedAt { get; set; }
         public DateTime LastUpdate { get; set; }
     }
@@ -21,9 +20,9 @@ namespace SatOps.Modules.Satellite
     public class TleDto
     {
         [Required]
-        public string TleLine1 { get; set; } = string.Empty;
+        public string Line1 { get; set; } = string.Empty;
         [Required]
-        public string TleLine2 { get; set; } = string.Empty;
+        public string Line2 { get; set; } = string.Empty;
     }
 }
 

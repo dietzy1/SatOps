@@ -7,7 +7,7 @@ namespace SatOps.Modules.Satellite
     {
         Task<List<Satellite>> GetAllAsync();
         Task<Satellite?> GetByIdAsync(int id);
-        void UpdateAsync(int id, TleDto tleDto);
+        Task UpdateTleAsync(int id, string tleLine1, string tleLine2);
     }
 
     public class SatelliteRepository : ISatelliteRepository
@@ -29,18 +29,17 @@ namespace SatOps.Modules.Satellite
             return _dbContext.Satellites.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id);
         }
 
-        public async void UpdateAsync(int id, TleDto tleDto)
+        public async Task UpdateTleAsync(int id, string tleLine1, string tleLine2)
         {
             var existing = await _dbContext.Satellites.FirstOrDefaultAsync(s => s.Id == id);
             if (existing == null) return;
 
-            existing.TleLine1 = tleDto.TleLine1;
-            existing.TleLine2 = tleDto.TleLine2;
+            existing.TleLine1 = tleLine1;
+            existing.TleLine2 = tleLine2;
             existing.LastUpdate = DateTime.UtcNow;
 
-            _dbContext.Entry(existing).CurrentValues.SetValues(existing);
+            _dbContext.Satellites.Update(existing);
             await _dbContext.SaveChangesAsync();
-            return;
         }
     }
 }

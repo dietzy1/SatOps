@@ -38,14 +38,12 @@ namespace SatOps.Modules.Satellite
                     var lines = tleData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
                     if (lines.Length >= 3)
                     {
-                        var tleDto = new TleDto
-                        {
-                            TleLine1 = lines[1].Trim(),
-                            TleLine2 = lines[2].Trim()
-                        };
-                        _repository.UpdateAsync(id, tleDto);
-                        satellite.TleLine1 = tleDto.TleLine1;
-                        satellite.TleLine2 = tleDto.TleLine2;
+                        var tleLine1 = lines[1].Trim();
+                        var tleLine2 = lines[2].Trim();
+
+                        await _repository.UpdateTleAsync(id, tleLine1, tleLine2);
+                        satellite.TleLine1 = tleLine1;
+                        satellite.TleLine2 = tleLine2;
                         satellite.LastUpdate = DateTime.UtcNow;
                     }
                 }

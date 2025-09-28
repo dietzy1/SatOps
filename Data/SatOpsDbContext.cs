@@ -3,6 +3,8 @@ using GroundStationEntity = SatOps.Modules.Groundstation.GroundStation;
 using FlightPlanEntity = SatOps.Modules.Schedule.FlightPlan;
 using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 using UserEntity = SatOps.Modules.User.User;
+using TelemetryDataEntity = SatOps.Modules.Operation.TelemetryData;
+using ImageDataEntity = SatOps.Modules.Operation.ImageData;
 
 namespace SatOps.Data
 {
@@ -17,6 +19,8 @@ namespace SatOps.Data
         public DbSet<FlightPlanEntity> FlightPlans => Set<FlightPlanEntity>();
         public DbSet<SatelliteEntity> Satellites => Set<SatelliteEntity>();
         public DbSet<UserEntity> Users => Set<UserEntity>();
+        public DbSet<TelemetryDataEntity> TelemetryData => Set<TelemetryDataEntity>();
+        public DbSet<ImageDataEntity> ImageData => Set<ImageDataEntity>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -91,9 +95,9 @@ namespace SatOps.Data
                 .HasData(new
                 {
                     GroundStationId = 1,
-                    Latitude = 56.1629, // Aarhus coordinates
-                    Longitude = 10.2039,
-                    Altitude = 0.0
+                    Latitude = 56.17197289799066, // Aarhus coordinates
+                    Longitude = 10.191659216036516,
+                    Altitude = 62.0 // 205ft might need to add more to account for building height
                 });
 
             // Configure Users entity
@@ -123,6 +127,54 @@ namespace SatOps.Data
                 // Unique constraint on email
                 entity.HasIndex(e => e.Email).IsUnique();
                 entity.HasIndex(e => e.Role);
+            });
+
+            // Configure TelemetryData entity
+            modelBuilder.Entity<TelemetryDataEntity>(entity =>
+            {
+                entity.ToTable("telemetry_data");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.GroundStationId).IsRequired();
+                entity.Property(e => e.SatelliteId).IsRequired();
+                entity.Property(e => e.FlightPlanId).IsRequired();
+                entity.Property(e => e.Timestamp).IsRequired();
+                entity.Property(e => e.S3ObjectPath).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.FileSize).IsRequired();
+                entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.ReceivedAt).HasDefaultValueSql("timezone('utc', now())");
+
+                // Indexes for faster lookups
+                entity.HasIndex(e => e.GroundStationId);
+                entity.HasIndex(e => e.SatelliteId);
+                entity.HasIndex(e => e.FlightPlanId);
+                entity.HasIndex(e => e.Timestamp);
+                entity.HasIndex(e => e.ReceivedAt);
+            });
+
+            // Configure ImageData entity
+            modelBuilder.Entity<ImageDataEntity>(entity =>
+            {
+                entity.ToTable("image_data");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.SatelliteId).IsRequired();
+                entity.Property(e => e.GroundStationId).IsRequired();
+                entity.Property(e => e.CaptureTime).IsRequired();
+                entity.Property(e => e.S3ObjectPath).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.FileSize).IsRequired();
+                entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.ReceivedAt).HasDefaultValueSql("timezone('utc', now())");
+                entity.Property(e => e.Latitude).HasPrecision(9, 6);
+                entity.Property(e => e.Longitude).HasPrecision(9, 6);
+                entity.Property(e => e.Metadata).HasColumnType("jsonb");
+
+                // Indexes for faster lookups
+                entity.HasIndex(e => e.SatelliteId);
+                entity.HasIndex(e => e.GroundStationId);
+                entity.HasIndex(e => e.CaptureTime);
+                entity.HasIndex(e => e.ReceivedAt);
+                entity.HasIndex(e => new { e.Latitude, e.Longitude });
             });
 
             // Seed data for Satellites - ISS

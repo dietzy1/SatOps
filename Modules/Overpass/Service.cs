@@ -38,19 +38,19 @@ namespace SatOps.Modules.Overpass
                 var satellite = await _satelliteService.GetAsync(request.SatelliteId);
                 if (satellite == null)
                 {
-                    throw new Exception($"Satellite with ID {request.SatelliteId} not found.");
+                    throw new ArgumentException($"Satellite with ID {request.SatelliteId} not found.");
                 }
 
                 // Get ground station data
                 var groundStationEntity = await _groundStationService.GetAsync(request.GroundStationId);
                 if (groundStationEntity == null)
                 {
-                    throw new Exception($"Ground station with ID {request.GroundStationId} not found.");
+                    throw new ArgumentException($"Ground station with ID {request.GroundStationId} not found.");
                 }
 
                 if (string.IsNullOrEmpty(satellite.TleLine1) || string.IsNullOrEmpty(satellite.TleLine2))
                 {
-                    throw new Exception("Satellite TLE data is not available.");
+                    throw new InvalidOperationException("Satellite TLE data is not available.");
                 }
 
                 // Create TLE strings
@@ -143,9 +143,13 @@ namespace SatOps.Modules.Overpass
 
                 return overpassWindows;
             }
-            catch
+            catch (InvalidOperationException)
             {
-                throw new InvalidOperationException("Internal server error");
+                throw; // Re-throw InvalidOperationException to be handled by the controller
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"Error calculating overpasses: {ex.Message}", ex);
             }
         }
     }

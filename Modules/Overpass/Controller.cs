@@ -1,31 +1,19 @@
 using Microsoft.AspNetCore.Mvc;
-using SGPdotNET.CoordinateSystem;
-using SGPdotNET.Exception;
-using SGPdotNET.Observation;
-using SGPdotNET.Propagation;
-using SGPdotNET.TLE;
-using SGPdotNET.Util;
-
-
-// GET Endpoint that retrieves overpasses within a time window for a given ground station and satellite provided in the path
-// GET Endpoint that retrieves the next overpass window for a given ground station and satellite provided in the path
-
 
 namespace SatOps.Modules.Overpass
 {
     [ApiController]
     [Route("api/v1/overpasses")]
-    public class Controller : ControllerBase
+    public class OverpassesController : ControllerBase
     {
         private readonly IService _overpassService;
 
-        public Controller(IService overpassService)
+        public OverpassesController(IService overpassService)
         {
             _overpassService = overpassService;
         }
 
-        // GET Endpoint that retrieves overpasses within a time window for a given ground station and satellite provided in the path
-        [HttpGet("/satellite/{satelliteId:int}/groundstation/{groundStationId:int}")]
+        [HttpGet("satellite/{satelliteId:int}/groundstation/{groundStationId:int}")]
         public async Task<ActionResult<List<OverpassWindowDto>>> GetOverpassWindows(
             int satelliteId,
             int groundStationId,
@@ -58,13 +46,17 @@ namespace SatOps.Modules.Overpass
 
                 return Ok(result);
             }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
             catch (InvalidOperationException ex)
             {
-                return StatusCode(500, $"{ex.Message}");
+                return StatusCode(500, ex.Message);
             }
             catch (Exception ex)
             {
-                return BadRequest($"{ex.Message}");
+                return StatusCode(500, $"An unexpected error occurred: {ex.Message}");
             }
         }
     }

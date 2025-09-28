@@ -3,6 +3,7 @@ using System;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SatOps.Data;
@@ -12,9 +13,11 @@ using SatOps.Data;
 namespace SatOps.Data.Migrations
 {
     [DbContext(typeof(SatOpsDbContext))]
-    partial class SatOpsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250924200730_AddTelemetryDataEntity")]
+    partial class AddTelemetryDataEntity
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -61,147 +64,15 @@ namespace SatOps.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 9, 25, 12, 6, 51, 711, DateTimeKind.Utc).AddTicks(2060),
+                            CreatedAt = new DateTime(2025, 9, 24, 20, 7, 29, 834, DateTimeKind.Utc).AddTicks(8000),
                             HttpUrl = "http://aarhus-groundstation.example.com",
                             IsActive = false,
                             Name = "Aarhus",
-                            UpdatedAt = new DateTime(2025, 9, 25, 12, 6, 51, 711, DateTimeKind.Utc).AddTicks(2060)
+                            UpdatedAt = new DateTime(2025, 9, 24, 20, 7, 29, 834, DateTimeKind.Utc).AddTicks(8000)
                         });
                 });
 
-            modelBuilder.Entity("SatOps.Modules.Operation.CommandData", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("AcknowledgedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CommandPayload")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("CommandType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("timezone('utc', now())");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("GroundStationId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("SatelliteId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("SentAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("ExpiresAt");
-
-                    b.HasIndex("GroundStationId");
-
-                    b.HasIndex("SatelliteId");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("command_data", (string)null);
-                });
-
-            modelBuilder.Entity("SatOps.Modules.Operation.ImageData", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CaptureTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<string>("FileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
-
-                    b.Property<int>("GroundStationId")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("ImageHeight")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("ImageWidth")
-                        .HasColumnType("integer");
-
-                    b.Property<double?>("Latitude")
-                        .HasPrecision(9, 6)
-                        .HasColumnType("double precision");
-
-                    b.Property<double?>("Longitude")
-                        .HasPrecision(9, 6)
-                        .HasColumnType("double precision");
-
-                    b.Property<string>("Metadata")
-                        .HasColumnType("jsonb");
-
-                    b.Property<DateTime>("ReceivedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("timezone('utc', now())");
-
-                    b.Property<string>("S3ObjectPath")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<int>("SatelliteId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CaptureTime");
-
-                    b.HasIndex("GroundStationId");
-
-                    b.HasIndex("ReceivedAt");
-
-                    b.HasIndex("SatelliteId");
-
-                    b.HasIndex("Latitude", "Longitude");
-
-                    b.ToTable("image_data", (string)null);
-                });
-
-            modelBuilder.Entity("SatOps.Modules.Operation.TelemetryData", b =>
+            modelBuilder.Entity("SatOps.Modules.Groundstation.Reciever.TelemetryData", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -308,8 +179,8 @@ namespace SatOps.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 9, 25, 12, 6, 51, 711, DateTimeKind.Utc).AddTicks(7100),
-                            LastUpdate = new DateTime(2025, 9, 25, 12, 6, 51, 711, DateTimeKind.Utc).AddTicks(7100),
+                            CreatedAt = new DateTime(2025, 9, 24, 20, 7, 29, 835, DateTimeKind.Utc).AddTicks(480),
+                            LastUpdate = new DateTime(2025, 9, 24, 20, 7, 29, 835, DateTimeKind.Utc).AddTicks(480),
                             Name = "International Space Station (ISS)",
                             NoradId = 25544,
                             Status = 0,

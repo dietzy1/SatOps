@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using SatOps.Modules.Satellite;
 
 namespace SatOps.Modules.Satellite
 {
@@ -40,10 +39,10 @@ namespace SatOps.Modules.Satellite
                 Name = entity.Name,
                 NoradId = entity.NoradId,
                 Status = entity.Status,
-                TleDto = new TleDto
+                Tle = new TleDto
                 {
-                    TleLine1 = entity.TleLine1,
-                    TleLine2 = entity.TleLine2,
+                    Line1 = entity.TleLine1,
+                    Line2 = entity.TleLine2,
                 },
                 CreatedAt = entity.CreatedAt,
                 LastUpdate = entity.LastUpdate,

@@ -16,7 +16,7 @@ namespace SatOps.Modules.Schedule
         }
 
 
-        [Authorize(Policy = "ReadFlightPlans")]
+        //        [Authorize(Policy = "ReadFlightPlans")]
         [HttpGet]
         public async Task<ActionResult<List<FlightPlanDto>>> List()
         {
