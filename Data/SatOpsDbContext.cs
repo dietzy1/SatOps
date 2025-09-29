@@ -184,12 +184,22 @@ namespace SatOps.Data
                     Id = 1,
                     Name = "International Space Station (ISS)",
                     NoradId = 25544,
-                    Status = SatOps.Modules.Satellite.SatelliteStatus.Active,
+                    Status = Modules.Satellite.SatelliteStatus.Active,
                     CreatedAt = DateTime.UtcNow,
                     LastUpdate = DateTime.UtcNow,
-                    // TLE data for ISS (example - should be updated with current data)
                     TleLine1 = "1 25544U 98067A   23256.90616898  .00020137  00000-0  35438-3 0  9992",
                     TleLine2 = "2 25544  51.6416 339.0970 0003835  48.3825  73.2709 15.50030022414673"
+                },
+                new SatelliteEntity
+                {
+                    Id = 2,
+                    Name = "SENTINEL-2C",
+                    NoradId = 60989,
+                    Status = Modules.Satellite.SatelliteStatus.Active,
+                    CreatedAt = DateTime.UtcNow,
+                    LastUpdate = DateTime.UtcNow,
+                    TleLine1 = "1 60989U 24157A   25270.79510520  .00000303  00000-0  13232-3 0  9996",
+                    TleLine2 = "2 60989  98.5675 344.4033 0001006  86.9003 273.2295 14.30815465 55465"
                 }
             );
         }

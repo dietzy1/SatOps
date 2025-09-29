@@ -21,7 +21,6 @@ namespace SatOps.Data.Migrations
                 .HasAnnotation("ProductVersion", "8.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "postgis");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("SatOps.Modules.Groundstation.GroundStation", b =>
@@ -61,72 +60,12 @@ namespace SatOps.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 9, 25, 12, 6, 51, 711, DateTimeKind.Utc).AddTicks(2060),
+                            CreatedAt = new DateTime(2025, 9, 29, 6, 50, 1, 766, DateTimeKind.Utc).AddTicks(8070),
                             HttpUrl = "http://aarhus-groundstation.example.com",
                             IsActive = false,
                             Name = "Aarhus",
-                            UpdatedAt = new DateTime(2025, 9, 25, 12, 6, 51, 711, DateTimeKind.Utc).AddTicks(2060)
+                            UpdatedAt = new DateTime(2025, 9, 29, 6, 50, 1, 766, DateTimeKind.Utc).AddTicks(8070)
                         });
-                });
-
-            modelBuilder.Entity("SatOps.Modules.Operation.CommandData", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("AcknowledgedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("CommandPayload")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("CommandType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasDefaultValueSql("timezone('utc', now())");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("GroundStationId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("SatelliteId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("SentAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt");
-
-                    b.HasIndex("ExpiresAt");
-
-                    b.HasIndex("GroundStationId");
-
-                    b.HasIndex("SatelliteId");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("command_data", (string)null);
                 });
 
             modelBuilder.Entity("SatOps.Modules.Operation.ImageData", b =>
@@ -308,13 +247,24 @@ namespace SatOps.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 9, 25, 12, 6, 51, 711, DateTimeKind.Utc).AddTicks(7100),
-                            LastUpdate = new DateTime(2025, 9, 25, 12, 6, 51, 711, DateTimeKind.Utc).AddTicks(7100),
+                            CreatedAt = new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1750),
+                            LastUpdate = new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1750),
                             Name = "International Space Station (ISS)",
                             NoradId = 25544,
                             Status = 0,
                             TleLine1 = "1 25544U 98067A   23256.90616898  .00020137  00000-0  35438-3 0  9992",
                             TleLine2 = "2 25544  51.6416 339.0970 0003835  48.3825  73.2709 15.50030022414673"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1760),
+                            LastUpdate = new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1760),
+                            Name = "SENTINEL-2C",
+                            NoradId = 60989,
+                            Status = 0,
+                            TleLine1 = "1 60989U 24157A   25270.79510520  .00000303  00000-0  13232-3 0  9996",
+                            TleLine2 = "2 60989  98.5675 344.4033 0001006  86.9003 273.2295 14.30815465 55465"
                         });
                 });
 

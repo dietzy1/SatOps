@@ -133,15 +133,6 @@ namespace SatOps.Modules.Overpass
                     });
                 }
 
-                // Mock TLE data temporarily for testing with northern satelites
-                // TODO: We should be seeding the database with these coordinates
-                // Core issue is that satelittes with our approach cant image all locations on earth
-                // So if we want to take a picture at high latitudes(places to the north) we need a satellite with high inclination
-                satellite.Name = "SENTINEL-2C";
-                satellite.TleLine1 = "1 60989U 24157A   25270.79510520  .00000303  00000-0  13232-3 0  9996";
-                satellite.TleLine2 = "2 60989  98.5675 344.4033 0001006  86.9003 273.2295 14.30815465 55465";
-
-
                 // Create TLE and satellite objects for SGP4 calculations
                 var tle = new Tle(satellite.Name, satellite.TleLine1, satellite.TleLine2);
                 var sgp4Satellite = new SGPdotNET.Observation.Satellite(tle);

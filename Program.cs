@@ -110,7 +110,7 @@ builder.Services.AddDbContext<SatOpsDbContext>(options =>
 {
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
-        o => o.UseNetTopologySuite());
+        npgsqlOptions => npgsqlOptions.MigrationsAssembly("SatOps"));
 });
 
 var wayfAuthority = builder.Configuration["WAYF:Authority"] ?? "https://wayf.wayf.dk";

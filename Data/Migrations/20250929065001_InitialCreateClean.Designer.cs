@@ -13,8 +13,8 @@ using SatOps.Data;
 namespace SatOps.Data.Migrations
 {
     [DbContext(typeof(SatOpsDbContext))]
-    [Migration("20250924172849_UpdateSatelliteEntityWithProperTypeConversion")]
-    partial class UpdateSatelliteEntityWithProperTypeConversion
+    [Migration("20250929065001_InitialCreateClean")]
+    partial class InitialCreateClean
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -24,7 +24,6 @@ namespace SatOps.Data.Migrations
                 .HasAnnotation("ProductVersion", "8.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
-            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "postgis");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
             modelBuilder.Entity("SatOps.Modules.Groundstation.GroundStation", b =>
@@ -64,12 +63,142 @@ namespace SatOps.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 9, 24, 17, 28, 49, 659, DateTimeKind.Utc).AddTicks(4150),
+                            CreatedAt = new DateTime(2025, 9, 29, 6, 50, 1, 766, DateTimeKind.Utc).AddTicks(8070),
                             HttpUrl = "http://aarhus-groundstation.example.com",
                             IsActive = false,
                             Name = "Aarhus",
-                            UpdatedAt = new DateTime(2025, 9, 24, 17, 28, 49, 659, DateTimeKind.Utc).AddTicks(4150)
+                            UpdatedAt = new DateTime(2025, 9, 29, 6, 50, 1, 766, DateTimeKind.Utc).AddTicks(8070)
                         });
+                });
+
+            modelBuilder.Entity("SatOps.Modules.Operation.ImageData", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CaptureTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("GroundStationId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ImageHeight")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ImageWidth")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("Latitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("Longitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("timezone('utc', now())");
+
+                    b.Property<string>("S3ObjectPath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("SatelliteId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaptureTime");
+
+                    b.HasIndex("GroundStationId");
+
+                    b.HasIndex("ReceivedAt");
+
+                    b.HasIndex("SatelliteId");
+
+                    b.HasIndex("Latitude", "Longitude");
+
+                    b.ToTable("image_data", (string)null);
+                });
+
+            modelBuilder.Entity("SatOps.Modules.Operation.TelemetryData", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("FlightPlanId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("GroundStationId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasDefaultValueSql("timezone('utc', now())");
+
+                    b.Property<string>("S3ObjectPath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("SatelliteId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("Timestamp")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FlightPlanId");
+
+                    b.HasIndex("GroundStationId");
+
+                    b.HasIndex("ReceivedAt");
+
+                    b.HasIndex("SatelliteId");
+
+                    b.HasIndex("Timestamp");
+
+                    b.ToTable("telemetry_data", (string)null);
                 });
 
             modelBuilder.Entity("SatOps.Modules.Satellite.Satellite", b =>
@@ -121,13 +250,24 @@ namespace SatOps.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 9, 24, 17, 28, 49, 659, DateTimeKind.Utc).AddTicks(5860),
-                            LastUpdate = new DateTime(2025, 9, 24, 17, 28, 49, 659, DateTimeKind.Utc).AddTicks(5860),
+                            CreatedAt = new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1750),
+                            LastUpdate = new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1750),
                             Name = "International Space Station (ISS)",
                             NoradId = 25544,
                             Status = 0,
                             TleLine1 = "1 25544U 98067A   23256.90616898  .00020137  00000-0  35438-3 0  9992",
                             TleLine2 = "2 25544  51.6416 339.0970 0003835  48.3825  73.2709 15.50030022414673"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CreatedAt = new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1760),
+                            LastUpdate = new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1760),
+                            Name = "SENTINEL-2C",
+                            NoradId = 60989,
+                            Status = 0,
+                            TleLine1 = "1 60989U 24157A   25270.79510520  .00000303  00000-0  13232-3 0  9996",
+                            TleLine2 = "2 60989  98.5675 344.4033 0001006  86.9003 273.2295 14.30815465 55465"
                         });
                 });
 
@@ -270,9 +410,9 @@ namespace SatOps.Data.Migrations
                                 new
                                 {
                                     GroundStationId = 1,
-                                    Altitude = 0.0,
-                                    Latitude = 56.1629,
-                                    Longitude = 10.203900000000001
+                                    Altitude = 62.0,
+                                    Latitude = 56.171972897990663,
+                                    Longitude = 10.191659216036516
                                 });
                         });
 
