@@ -62,7 +62,7 @@ namespace SatOps.Modules.Operation
             }
         }
 
-        private async Task ValidateReferencesAsync(int satelliteId, int groundStationId, Guid flightPlanId)
+        private async Task ValidateReferencesAsync(int satelliteId, int groundStationId, int flightPlanId)
         {
             // Check if satellite exists
             var satelliteExists = await _context.Satellites.AnyAsync(s => s.Id == satelliteId);

@@ -10,11 +10,11 @@ using SatOps.Data;
 
 #nullable disable
 
-namespace SatOps.Data.Migrations
+namespace SatOps.data.migrations
 {
     [DbContext(typeof(SatOpsDbContext))]
-    [Migration("20250929065001_InitialCreateClean")]
-    partial class InitialCreateClean
+    [Migration("20250929152103_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -63,11 +63,11 @@ namespace SatOps.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 9, 29, 6, 50, 1, 766, DateTimeKind.Utc).AddTicks(8070),
+                            CreatedAt = new DateTime(2025, 9, 29, 15, 21, 2, 972, DateTimeKind.Utc).AddTicks(6390),
                             HttpUrl = "http://aarhus-groundstation.example.com",
                             IsActive = false,
                             Name = "Aarhus",
-                            UpdatedAt = new DateTime(2025, 9, 29, 6, 50, 1, 766, DateTimeKind.Utc).AddTicks(8070)
+                            UpdatedAt = new DateTime(2025, 9, 29, 15, 21, 2, 972, DateTimeKind.Utc).AddTicks(6390)
                         });
                 });
 
@@ -164,8 +164,8 @@ namespace SatOps.Data.Migrations
                     b.Property<long>("FileSize")
                         .HasColumnType("bigint");
 
-                    b.Property<Guid>("FlightPlanId")
-                        .HasColumnType("uuid");
+                    b.Property<int>("FlightPlanId")
+                        .HasColumnType("integer");
 
                     b.Property<int>("GroundStationId")
                         .HasColumnType("integer");
@@ -199,6 +199,56 @@ namespace SatOps.Data.Migrations
                     b.HasIndex("Timestamp");
 
                     b.ToTable("telemetry_data", (string)null);
+                });
+
+            modelBuilder.Entity("SatOps.Modules.Overpass.Entity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("DurationSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("EndAzimuth")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("EndTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("GroundStationId")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("MaxElevation")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("MaxElevationTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("SatelliteId")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("StartAzimuth")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("StartTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EndTime");
+
+                    b.HasIndex("GroundStationId");
+
+                    b.HasIndex("SatelliteId");
+
+                    b.HasIndex("StartTime");
+
+                    b.HasIndex("SatelliteId", "GroundStationId", "StartTime");
+
+                    b.ToTable("overpasses", (string)null);
                 });
 
             modelBuilder.Entity("SatOps.Modules.Satellite.Satellite", b =>
@@ -250,8 +300,8 @@ namespace SatOps.Data.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1750),
-                            LastUpdate = new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1750),
+                            CreatedAt = new DateTime(2025, 9, 29, 15, 21, 2, 973, DateTimeKind.Utc).AddTicks(1880),
+                            LastUpdate = new DateTime(2025, 9, 29, 15, 21, 2, 973, DateTimeKind.Utc).AddTicks(1880),
                             Name = "International Space Station (ISS)",
                             NoradId = 25544,
                             Status = 0,
@@ -261,8 +311,8 @@ namespace SatOps.Data.Migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1760),
-                            LastUpdate = new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1760),
+                            CreatedAt = new DateTime(2025, 9, 29, 15, 21, 2, 973, DateTimeKind.Utc).AddTicks(1880),
+                            LastUpdate = new DateTime(2025, 9, 29, 15, 21, 2, 973, DateTimeKind.Utc).AddTicks(1880),
                             Name = "SENTINEL-2C",
                             NoradId = 60989,
                             Status = 0,
@@ -273,9 +323,11 @@ namespace SatOps.Data.Migrations
 
             modelBuilder.Entity("SatOps.Modules.Schedule.FlightPlan", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime?>("ApprovalDate")
                         .HasColumnType("timestamp with time zone");
@@ -292,19 +344,18 @@ namespace SatOps.Data.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasDefaultValueSql("timezone('utc', now())");
 
-                    b.Property<Guid>("GroundStationId")
-                        .HasColumnType("uuid");
+                    b.Property<int>("GroundStationId")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid?>("PreviousPlanId")
-                        .HasColumnType("uuid");
+                    b.Property<int?>("PreviousPlanId")
+                        .HasColumnType("integer");
 
-                    b.Property<string>("SatelliteName")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.Property<int>("SatelliteId")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime>("ScheduledAt")
                         .HasColumnType("timestamp with time zone");

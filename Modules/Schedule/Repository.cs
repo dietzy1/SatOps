@@ -6,8 +6,8 @@ namespace SatOps.Modules.Schedule
     public interface IFlightPlanRepository
     {
         Task<List<FlightPlan>> GetAllAsync();
-        Task<FlightPlan?> GetByIdAsync(Guid id); // For updates (tracked)
-        Task<FlightPlan?> GetByIdReadOnlyAsync(Guid id); // For reads (untracked)
+        Task<FlightPlan?> GetByIdAsync(int id); // For updates (tracked)
+        Task<FlightPlan?> GetByIdReadOnlyAsync(int id); // For reads (untracked)
         Task<FlightPlan> AddAsync(FlightPlan entity);
         Task<bool> UpdateAsync(FlightPlan entity);
     }
@@ -28,13 +28,13 @@ namespace SatOps.Modules.Schedule
         }
 
         // When modifying entity
-        public Task<FlightPlan?> GetByIdAsync(Guid id)
+        public Task<FlightPlan?> GetByIdAsync(int id)
         {
             return _dbContext.FlightPlans.FirstOrDefaultAsync(fp => fp.Id == id);
         }
 
         // When only reading entity
-        public Task<FlightPlan?> GetByIdReadOnlyAsync(Guid id)
+        public Task<FlightPlan?> GetByIdReadOnlyAsync(int id)
         {
             return _dbContext.FlightPlans.AsNoTracking().FirstOrDefaultAsync(fp => fp.Id == id);
         }

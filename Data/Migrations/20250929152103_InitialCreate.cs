@@ -7,10 +7,10 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #pragma warning disable CA1814 // Prefer jagged arrays over multidimensional
 
-namespace SatOps.Data.Migrations
+namespace SatOps.data.migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreateClean : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -19,14 +19,15 @@ namespace SatOps.Data.Migrations
                 name: "flight_plans",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Name = table.Column<string>(type: "text", nullable: false),
                     Body = table.Column<JsonDocument>(type: "jsonb", nullable: false),
                     ScheduledAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    GroundStationId = table.Column<Guid>(type: "uuid", nullable: false),
-                    SatelliteName = table.Column<string>(type: "text", nullable: false),
+                    GroundStationId = table.Column<int>(type: "integer", nullable: false),
+                    SatelliteId = table.Column<int>(type: "integer", nullable: false),
                     Status = table.Column<string>(type: "text", nullable: false),
-                    PreviousPlanId = table.Column<Guid>(type: "uuid", nullable: true),
+                    PreviousPlanId = table.Column<int>(type: "integer", nullable: true),
                     ApproverId = table.Column<string>(type: "text", nullable: true),
                     ApprovalDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "timezone('utc', now())"),
@@ -83,6 +84,27 @@ namespace SatOps.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "overpasses",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    SatelliteId = table.Column<int>(type: "integer", nullable: false),
+                    GroundStationId = table.Column<int>(type: "integer", nullable: false),
+                    StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    MaxElevationTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    MaxElevation = table.Column<double>(type: "double precision", nullable: false),
+                    DurationSeconds = table.Column<int>(type: "integer", nullable: false),
+                    StartAzimuth = table.Column<double>(type: "double precision", nullable: false),
+                    EndAzimuth = table.Column<double>(type: "double precision", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_overpasses", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "satellites",
                 columns: table => new
                 {
@@ -109,7 +131,7 @@ namespace SatOps.Data.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     GroundStationId = table.Column<int>(type: "integer", nullable: false),
                     SatelliteId = table.Column<int>(type: "integer", nullable: false),
-                    FlightPlanId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FlightPlanId = table.Column<int>(type: "integer", nullable: false),
                     Timestamp = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     S3ObjectPath = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
                     FileName = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
@@ -144,15 +166,15 @@ namespace SatOps.Data.Migrations
             migrationBuilder.InsertData(
                 table: "ground_stations",
                 columns: new[] { "Id", "CreatedAt", "HttpUrl", "Name", "UpdatedAt", "altitude", "latitude", "longitude" },
-                values: new object[] { 1, new DateTime(2025, 9, 29, 6, 50, 1, 766, DateTimeKind.Utc).AddTicks(8070), "http://aarhus-groundstation.example.com", "Aarhus", new DateTime(2025, 9, 29, 6, 50, 1, 766, DateTimeKind.Utc).AddTicks(8070), 62.0, 56.171972897990663, 10.191659216036516 });
+                values: new object[] { 1, new DateTime(2025, 9, 29, 15, 21, 2, 972, DateTimeKind.Utc).AddTicks(6390), "http://aarhus-groundstation.example.com", "Aarhus", new DateTime(2025, 9, 29, 15, 21, 2, 972, DateTimeKind.Utc).AddTicks(6390), 62.0, 56.171972897990663, 10.191659216036516 });
 
             migrationBuilder.InsertData(
                 table: "satellites",
                 columns: new[] { "Id", "CreatedAt", "LastUpdate", "Name", "NoradId", "Status", "TleLine1", "TleLine2" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1750), new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1750), "International Space Station (ISS)", 25544, 0, "1 25544U 98067A   23256.90616898  .00020137  00000-0  35438-3 0  9992", "2 25544  51.6416 339.0970 0003835  48.3825  73.2709 15.50030022414673" },
-                    { 2, new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1760), new DateTime(2025, 9, 29, 6, 50, 1, 767, DateTimeKind.Utc).AddTicks(1760), "SENTINEL-2C", 60989, 0, "1 60989U 24157A   25270.79510520  .00000303  00000-0  13232-3 0  9996", "2 60989  98.5675 344.4033 0001006  86.9003 273.2295 14.30815465 55465" }
+                    { 1, new DateTime(2025, 9, 29, 15, 21, 2, 973, DateTimeKind.Utc).AddTicks(1880), new DateTime(2025, 9, 29, 15, 21, 2, 973, DateTimeKind.Utc).AddTicks(1880), "International Space Station (ISS)", 25544, 0, "1 25544U 98067A   23256.90616898  .00020137  00000-0  35438-3 0  9992", "2 25544  51.6416 339.0970 0003835  48.3825  73.2709 15.50030022414673" },
+                    { 2, new DateTime(2025, 9, 29, 15, 21, 2, 973, DateTimeKind.Utc).AddTicks(1880), new DateTime(2025, 9, 29, 15, 21, 2, 973, DateTimeKind.Utc).AddTicks(1880), "SENTINEL-2C", 60989, 0, "1 60989U 24157A   25270.79510520  .00000303  00000-0  13232-3 0  9996", "2 60989  98.5675 344.4033 0001006  86.9003 273.2295 14.30815465 55465" }
                 });
 
             migrationBuilder.CreateIndex(
@@ -184,6 +206,31 @@ namespace SatOps.Data.Migrations
                 name: "IX_image_data_SatelliteId",
                 table: "image_data",
                 column: "SatelliteId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_overpasses_EndTime",
+                table: "overpasses",
+                column: "EndTime");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_overpasses_GroundStationId",
+                table: "overpasses",
+                column: "GroundStationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_overpasses_SatelliteId",
+                table: "overpasses",
+                column: "SatelliteId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_overpasses_SatelliteId_GroundStationId_StartTime",
+                table: "overpasses",
+                columns: new[] { "SatelliteId", "GroundStationId", "StartTime" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_overpasses_StartTime",
+                table: "overpasses",
+                column: "StartTime");
 
             migrationBuilder.CreateIndex(
                 name: "IX_satellites_NoradId",
@@ -244,6 +291,9 @@ namespace SatOps.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "image_data");
+
+            migrationBuilder.DropTable(
+                name: "overpasses");
 
             migrationBuilder.DropTable(
                 name: "satellites");
