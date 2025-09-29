@@ -1,15 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
-using SatOps.Modules.Groundstation;
 
 namespace SatOps.Modules.Groundstation
 {
     [ApiController]
     [Route("api/v1/ground-stations")]
-    public class GroundStationsController : ControllerBase
+    public class GroundStationsManagementController : ControllerBase
     {
         private readonly IGroundStationService _service;
 
-        public GroundStationsController(IGroundStationService service)
+        public GroundStationsManagementController(IGroundStationService service)
         {
             _service = service;
         }
@@ -37,9 +36,10 @@ namespace SatOps.Modules.Groundstation
                 Name = input.Name,
                 Location = new Location
                 {
-                    Latitude = input.Location.Latitude ?? 0,
-                    Longitude = input.Location.Longitude ?? 0,
-                    Altitude = input.Location.Altitude ?? 0
+                    // [Required] attribute guarantees these are not null
+                    Latitude = input.Location.Latitude!.Value,
+                    Longitude = input.Location.Longitude!.Value,
+                    Altitude = input.Location.Altitude.GetValueOrDefault()
                 },
                 HttpUrl = input.HttpUrl,
             };
@@ -50,24 +50,12 @@ namespace SatOps.Modules.Groundstation
         [HttpPatch("{id:int}")]
         public async Task<ActionResult<GroundStationDto>> Patch(int id, [FromBody] GroundStationPatchDto input)
         {
-            var existing = await _service.GetAsync(id);
-            if (existing == null) return NotFound();
-
-            if (!string.IsNullOrWhiteSpace(input.Name)) existing.Name = input.Name!;
-            if (input.Location != null)
+            var updatedEntity = await _service.PatchAsync(id, input);
+            if (updatedEntity == null)
             {
-                existing.Location = new Location
-                {
-                    Latitude = input.Location.Latitude ?? existing.Location.Latitude,
-                    Longitude = input.Location.Longitude ?? existing.Location.Longitude,
-                    Altitude = input.Location.Altitude ?? existing.Location.Altitude
-                };
+                return NotFound();
             }
-            if (!string.IsNullOrWhiteSpace(input.HttpUrl)) existing.HttpUrl = input.HttpUrl!;
-
-            var updated = await _service.UpdateAsync(id, existing);
-            if (updated == null) return NotFound();
-            return Ok(MapToDto(updated));
+            return Ok(MapToDto(updatedEntity));
         }
 
         [HttpDelete("{id:int}")]
@@ -86,9 +74,9 @@ namespace SatOps.Modules.Groundstation
                 Name = entity.Name,
                 Location = new LocationDto
                 {
-                    Latitude = entity.Location?.Latitude ?? 0,
-                    Longitude = entity.Location?.Longitude ?? 0,
-                    Altitude = entity.Location?.Altitude ?? 0
+                    Latitude = entity.Location.Latitude,
+                    Longitude = entity.Location.Longitude,
+                    Altitude = entity.Location.Altitude
                 },
                 HttpUrl = entity.HttpUrl,
                 CreatedAt = entity.CreatedAt,

@@ -4,11 +4,11 @@ namespace SatOps.Modules.Groundstation.Health
 {
     [ApiController]
     [Route("api/v1/ground-stations")]
-    public class GroundStationsController : ControllerBase
+    public class GroundStationsHealthController : ControllerBase
     {
         private readonly IGroundStationService _service;
 
-        public GroundStationsController(IGroundStationService service)
+        public GroundStationsHealthController(IGroundStationService service)
         {
             _service = service;
         }

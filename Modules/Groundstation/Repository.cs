@@ -8,6 +8,7 @@ namespace SatOps.Modules.Groundstation
     {
         Task<List<GroundStation>> GetAllAsync();
         Task<GroundStation?> GetByIdAsync(int id);
+        Task<GroundStation?> GetByIdTrackedAsync(int id);
         Task<GroundStation> AddAsync(GroundStation entity);
         Task<GroundStation?> UpdateAsync(GroundStation entity);
         Task<bool> DeleteAsync(int id);
@@ -31,6 +32,10 @@ namespace SatOps.Modules.Groundstation
         {
             return _dbContext.GroundStations.AsNoTracking().FirstOrDefaultAsync(g => g.Id == id);
         }
+        public Task<GroundStation?> GetByIdTrackedAsync(int id)
+        {
+            return _dbContext.GroundStations.FirstOrDefaultAsync(g => g.Id == id);
+        }
 
         public async Task<GroundStation> AddAsync(GroundStation entity)
         {
@@ -41,15 +46,11 @@ namespace SatOps.Modules.Groundstation
 
         public async Task<GroundStation?> UpdateAsync(GroundStation entity)
         {
-            var existing = await _dbContext.GroundStations.FirstOrDefaultAsync(g => g.Id == entity.Id);
-            if (existing == null)
-            {
-                return null;
-            }
+            entity.UpdatedAt = DateTime.UtcNow;
 
-            _dbContext.Entry(existing).CurrentValues.SetValues(entity);
             await _dbContext.SaveChangesAsync();
-            return existing;
+
+            return entity;
         }
 
         public async Task<bool> DeleteAsync(int id)
