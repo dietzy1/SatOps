@@ -51,6 +51,18 @@ namespace SatOps.Modules.Overpass
         public string? Message { get; set; }
     }
 
+    public class ImagingOpportunity
+    {
+        public DateTime ImagingTime { get; set; }
+        public double DistanceKm { get; set; }
+        public double OffNadirDegrees { get; set; }
+        public double SlantRangeKm { get; set; }
+        public double MaxAllowedDistanceKm { get; set; }
+        public double SatelliteLatitude { get; set; }
+        public double SatelliteLongitude { get; set; }
+        public double SatelliteAltitudeKm { get; set; }
+    }
+
     /// <summary>
     /// Test Controller for Satellite Imaging Timing Calculations with Off-Nadir Angle Support
     /// 
@@ -167,27 +179,27 @@ namespace SatOps.Modules.Overpass
                 // Search for imaging opportunity using SGP4 propagation with off-nadir calculations
                 var bestOpportunity = FindBestImagingOpportunity(sgp4Satellite, targetCoordinate, request);
 
-                if (bestOpportunity.HasValue)
+                if (bestOpportunity != null)
                 {
-                    var sleepDuration = bestOpportunity.Value.ImagingTime - request.CommandReceptionTime;
+                    var sleepDuration = bestOpportunity.ImagingTime - request.CommandReceptionTime;
 
                     return Ok(new ImagingTimingResponseDto
                     {
                         ImagingOpportunityFound = true,
-                        ImagingTime = bestOpportunity.Value.ImagingTime,
+                        ImagingTime = bestOpportunity.ImagingTime,
                         SleepDuration = sleepDuration,
-                        DistanceToTargetKm = bestOpportunity.Value.DistanceKm,
-                        OffNadirDegrees = bestOpportunity.Value.OffNadirDegrees,
-                        SlantRangeKm = bestOpportunity.Value.SlantRangeKm,
-                        MaxAllowedDistanceKm = bestOpportunity.Value.MaxAllowedDistanceKm,
-                        SatelliteLatitude = bestOpportunity.Value.SatelliteLatitude,
-                        SatelliteLongitude = bestOpportunity.Value.SatelliteLongitude,
-                        SatelliteAltitudeKm = bestOpportunity.Value.SatelliteAltitudeKm,
+                        DistanceToTargetKm = bestOpportunity.DistanceKm,
+                        OffNadirDegrees = bestOpportunity.OffNadirDegrees,
+                        SlantRangeKm = bestOpportunity.SlantRangeKm,
+                        MaxAllowedDistanceKm = bestOpportunity.MaxAllowedDistanceKm,
+                        SatelliteLatitude = bestOpportunity.SatelliteLatitude,
+                        SatelliteLongitude = bestOpportunity.SatelliteLongitude,
+                        SatelliteAltitudeKm = bestOpportunity.SatelliteAltitudeKm,
                         TleAgeWarning = tleAgeWarning,
                         TleAgeHours = tleAge.TotalHours,
                         Message = $"Imaging opportunity found. Satellite should sleep for {sleepDuration.TotalSeconds:F0} seconds " +
                                  $"(approximately {sleepDuration.TotalMinutes:F1} minutes) before imaging. " +
-                                 $"Off-nadir angle: {bestOpportunity.Value.OffNadirDegrees:F1}°" +
+                                 $"Off-nadir angle: {bestOpportunity.OffNadirDegrees:F1}°" +
                                  (tleAgeWarning ? $" WARNING: TLE data is {tleAge.TotalHours:F0} hours old!" : "")
                     });
                 }
@@ -237,15 +249,14 @@ namespace SatOps.Modules.Overpass
         /// - GeodeticCoordinate.Altitude is in kilometers
         /// - Latitude/Longitude angles use .Degrees property for conversion
         /// </summary>
-        private (DateTime ImagingTime, double DistanceKm, double OffNadirDegrees, double SlantRangeKm, double MaxAllowedDistanceKm, double SatelliteLatitude, double SatelliteLongitude, double SatelliteAltitudeKm)?
-            FindBestImagingOpportunity(SGPdotNET.Observation.Satellite satellite, GeodeticCoordinate target, ImagingTimingRequestDto request)
+        private ImagingOpportunity? FindBestImagingOpportunity(SGPdotNET.Observation.Satellite satellite, GeodeticCoordinate target, ImagingTimingRequestDto request)
         {
             // Convert max off-nadir to radians for calculations
             var maxOffNadirRad = request.MaxOffNadirDegrees * Math.PI / 180.0;
 
             var currentTime = request.CommandReceptionTime;
             var searchEndTime = request.CommandReceptionTime.Add(request.MaxSearchDuration);
-            (DateTime ImagingTime, double DistanceKm, double OffNadirDegrees, double SlantRangeKm, double MaxAllowedDistanceKm, double SatelliteLatitude, double SatelliteLongitude, double SatelliteAltitudeKm)? bestOpportunity = null;
+            ImagingOpportunity? bestOpportunity = null;
             double bestOffNadir = double.MaxValue;
 
             // Step 1: Coarse search to find candidate windows
@@ -293,16 +304,17 @@ namespace SatOps.Modules.Overpass
                             var slantRangeKm = satelliteCoordinate.DistanceTo(targetAtGround);
 
                             bestOffNadir = offNadirDeg;
-                            bestOpportunity = (
-                                ImagingTime: currentTime,
-                                DistanceKm: groundDistanceKm,
-                                OffNadirDegrees: offNadirDeg,
-                                SlantRangeKm: slantRangeKm,
-                                MaxAllowedDistanceKm: maxAllowedDistanceKm,
-                                SatelliteLatitude: geodetic.Latitude.Degrees,
-                                SatelliteLongitude: geodetic.Longitude.Degrees,
-                                SatelliteAltitudeKm: altitudeKm
-                            );
+                            bestOpportunity = new ImagingOpportunity
+                            {
+                                ImagingTime = currentTime,
+                                DistanceKm = groundDistanceKm,
+                                OffNadirDegrees = offNadirDeg,
+                                SlantRangeKm = slantRangeKm,
+                                MaxAllowedDistanceKm = maxAllowedDistanceKm,
+                                SatelliteLatitude = geodetic.Latitude.Degrees,
+                                SatelliteLongitude = geodetic.Longitude.Degrees,
+                                SatelliteAltitudeKm = altitudeKm
+                            };
                         }
                     }
                 }
@@ -317,14 +329,14 @@ namespace SatOps.Modules.Overpass
             }
 
             // Step 2: Refinement around best candidate if we found any
-            if (bestOpportunity.HasValue && candidates.Count > 0)
+            if (bestOpportunity != null && candidates.Count > 0)
             {
-                var candidateTime = bestOpportunity.Value.ImagingTime;
+                var candidateTime = bestOpportunity.ImagingTime;
                 var refineStart = candidateTime.Subtract(request.RefinementWindow);
                 var refineEnd = candidateTime.Add(request.RefinementWindow);
 
                 // Reset for refinement search
-                bestOffNadir = double.MaxValue;
+                bestOffNadir = bestOpportunity.OffNadirDegrees;
                 var refinedOpportunity = bestOpportunity;
 
                 currentTime = refineStart;
@@ -348,22 +360,23 @@ namespace SatOps.Modules.Overpass
                         var offNadirRad = Math.Atan(groundDistance / altitudeKm);
                         var offNadirDeg = offNadirRad * 180.0 / Math.PI;
 
-                        if (offNadirDeg <= request.MaxOffNadirDegrees && offNadirDeg < bestOffNadir)
+                        if (offNadirDeg < bestOffNadir)
                         {
                             var targetAtGround = new GeodeticCoordinate(target.Latitude, target.Longitude, 0);
                             var slantRangeKm = satelliteCoordinate.DistanceTo(targetAtGround);
 
                             bestOffNadir = offNadirDeg;
-                            refinedOpportunity = (
-                                ImagingTime: currentTime,
-                                DistanceKm: groundDistance,
-                                OffNadirDegrees: offNadirDeg,
-                                SlantRangeKm: slantRangeKm,
-                                MaxAllowedDistanceKm: maxAllowedDistanceKm,
-                                SatelliteLatitude: geodetic.Latitude.Degrees,
-                                SatelliteLongitude: geodetic.Longitude.Degrees,
-                                SatelliteAltitudeKm: altitudeKm
-                            );
+                            refinedOpportunity = new ImagingOpportunity
+                            {
+                                ImagingTime = currentTime,
+                                DistanceKm = groundDistance,
+                                OffNadirDegrees = offNadirDeg,
+                                SlantRangeKm = slantRangeKm,
+                                MaxAllowedDistanceKm = maxAllowedDistanceKm,
+                                SatelliteLatitude = geodetic.Latitude.Degrees,
+                                SatelliteLongitude = geodetic.Longitude.Degrees,
+                                SatelliteAltitudeKm = altitudeKm
+                            };
                         }
                     }
                     catch (Exception)
