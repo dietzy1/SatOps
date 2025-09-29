@@ -21,7 +21,6 @@ namespace SatOps.Modules.Schedule
 
         public string Status { get; set; } = string.Empty;
 
-
         public string? PreviousPlanId { get; set; }
 
 

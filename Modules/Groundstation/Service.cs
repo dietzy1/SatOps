@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using SatOps.Modules.Groundstation.Health;
 
 // Other stuff we must figure out how to support.
 // Groundstations will send data to us, imageformat, logs etc we must have some sort of reciever endpoints for that that isn't exposed to the public
@@ -24,15 +25,18 @@ namespace SatOps.Modules.Groundstation
         Task<GroundStation?> PatchAsync(int id, GroundStation partial);
         Task<bool> DeleteAsync(int id);
         Task<bool> UpdateHealthStatusAsync(int id, bool isActive);
+        Task<(GroundStation? station, bool isHealthy)> GetRealTimeHealthStatusAsync(int id);
     }
 
     public class GroundStationService : IGroundStationService
     {
         private readonly IGroundStationRepository _repository;
+        private readonly IGroundStationHealthService _healthService;
 
-        public GroundStationService(IGroundStationRepository repository)
+        public GroundStationService(IGroundStationRepository repository, IGroundStationHealthService healthService)
         {
             _repository = repository;
+            _healthService = healthService;
         }
 
         public Task<List<GroundStation>> ListAsync() => _repository.GetAllAsync();
@@ -78,6 +82,23 @@ namespace SatOps.Modules.Groundstation
 
             var updated = await _repository.UpdateAsync(existing);
             return updated != null;
+        }
+
+        public async Task<(GroundStation? station, bool isHealthy)> GetRealTimeHealthStatusAsync(int id)
+        {
+            var station = await _repository.GetByIdAsync(id);
+            if (station == null) return (null, false);
+
+            // Make actual HTTP call to the ground station's health endpoint
+            var isHealthy = await _healthService.CheckHealthAsync(station);
+
+            // Optionally update the database with the current health status
+            if (station.IsActive != isHealthy)
+            {
+                await _healthService.UpdateStationHealthAsync(id, isHealthy);
+            }
+
+            return (station, isHealthy);
         }
     }
 }

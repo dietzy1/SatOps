@@ -22,6 +22,15 @@ using SatOps.Modules.Groundstation;
 // This is probably the better approach as it ensures that we have a full history of all changes
 // We can link the new version to the old version via a previous_plan_id field
 
+// We should add a command enum which defines what commands the satelite should execute
+// 1. Take picture
+// 2. Start telemetry downlink
+
+// No instead of a command enum we should have an array of commands that can be executed in sequence
+// These commands can have calculators for example for taking a picture we can have a calculator that defines when to take the picture
+
+
+
 public enum FlightPlanStatus
 {
     Draft,

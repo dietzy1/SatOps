@@ -1,27 +1,26 @@
 namespace SatOps.Modules.Groundstation.Health
 {
-    public class GroundStationHealthCheckService : BackgroundService
+    public class GroundStationHealthCheckWorker : BackgroundService
     {
         private readonly IServiceProvider _serviceProvider;
-        private readonly ILogger<GroundStationHealthCheckService> _logger;
+        private readonly ILogger<GroundStationHealthCheckWorker> _logger;
         private readonly TimeSpan _checkInterval;
 
-        public GroundStationHealthCheckService(
+        public GroundStationHealthCheckWorker(
             IServiceProvider serviceProvider,
-            ILogger<GroundStationHealthCheckService> logger,
+            ILogger<GroundStationHealthCheckWorker> logger,
             IConfiguration configuration)
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
 
-            // Default to 30 seconds, but allow configuration
-            var intervalSeconds = configuration.GetValue<int>("GroundStationHealthCheck:IntervalSeconds", 30);
+            var intervalSeconds = configuration.GetValue<int>("GroundStationHealthCheck:IntervalSeconds", 120);
             _checkInterval = TimeSpan.FromSeconds(intervalSeconds);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Ground Station Health Check Service started with interval: {Interval}", _checkInterval);
+            _logger.LogInformation("Ground Station Health Check Worker started with interval: {Interval}", _checkInterval);
 
             // Wait a bit before starting the first check to allow the application to fully initialize
             await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
@@ -48,7 +47,7 @@ namespace SatOps.Modules.Groundstation.Health
                 }
             }
 
-            _logger.LogInformation("Ground Station Health Check Service stopped");
+            _logger.LogInformation("Ground Station Health Check Worker stopped");
         }
 
         private async Task PerformHealthChecksAsync()
@@ -70,7 +69,7 @@ namespace SatOps.Modules.Groundstation.Health
 
         public override async Task StopAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Ground Station Health Check Service is stopping");
+            _logger.LogInformation("Ground Station Health Check Worker is stopping");
             await base.StopAsync(stoppingToken);
         }
     }
