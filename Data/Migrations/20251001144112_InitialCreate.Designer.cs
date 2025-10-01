@@ -13,8 +13,8 @@ using SatOps.Data;
 namespace SatOps.data.migrations
 {
     [DbContext(typeof(SatOpsDbContext))]
-    [Migration("20251001143320_flightenum")]
-    partial class flightenum
+    [Migration("20251001144112_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -33,6 +33,13 @@ namespace SatOps.data.migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ApiKeyHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -57,17 +64,22 @@ namespace SatOps.data.migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ApplicationId")
+                        .IsUnique();
+
                     b.ToTable("ground_stations", (string)null);
 
                     b.HasData(
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 1, 14, 33, 20, 365, DateTimeKind.Utc).AddTicks(5160),
+                            ApiKeyHash = "",
+                            ApplicationId = new Guid("ea3da4e4-d012-4c34-9c96-3add56639761"),
+                            CreatedAt = new DateTime(2025, 10, 1, 14, 41, 12, 246, DateTimeKind.Utc).AddTicks(330),
                             HttpUrl = "http://aarhus-groundstation.example.com",
                             IsActive = false,
                             Name = "Aarhus",
-                            UpdatedAt = new DateTime(2025, 10, 1, 14, 33, 20, 365, DateTimeKind.Utc).AddTicks(5160)
+                            UpdatedAt = new DateTime(2025, 10, 1, 14, 41, 12, 246, DateTimeKind.Utc).AddTicks(330)
                         });
                 });
 
@@ -300,8 +312,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 1, 14, 33, 20, 366, DateTimeKind.Utc).AddTicks(1010),
-                            LastUpdate = new DateTime(2025, 10, 1, 14, 33, 20, 366, DateTimeKind.Utc).AddTicks(1010),
+                            CreatedAt = new DateTime(2025, 10, 1, 14, 41, 12, 246, DateTimeKind.Utc).AddTicks(9170),
+                            LastUpdate = new DateTime(2025, 10, 1, 14, 41, 12, 246, DateTimeKind.Utc).AddTicks(9170),
                             Name = "International Space Station (ISS)",
                             NoradId = 25544,
                             Status = 0,
@@ -311,8 +323,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 1, 14, 33, 20, 366, DateTimeKind.Utc).AddTicks(1010),
-                            LastUpdate = new DateTime(2025, 10, 1, 14, 33, 20, 366, DateTimeKind.Utc).AddTicks(1010),
+                            CreatedAt = new DateTime(2025, 10, 1, 14, 41, 12, 246, DateTimeKind.Utc).AddTicks(9170),
+                            LastUpdate = new DateTime(2025, 10, 1, 14, 41, 12, 246, DateTimeKind.Utc).AddTicks(9170),
                             Name = "SENTINEL-2C",
                             NoradId = 60989,
                             Status = 0,
