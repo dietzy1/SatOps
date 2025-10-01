@@ -17,11 +17,16 @@ namespace SatOps.Modules.Schedule
                 ScheduledAt = entity.ScheduledAt,
                 GsId = entity.GroundStationId,
                 SatId = entity.SatelliteId,
-                Status = entity.Status,
+                Status = entity.Status.ToString().ToUpperInvariant(),
+                OverpassId = entity.OverpassId,
                 PreviousPlanId = entity.PreviousPlanId?.ToString(),
                 ApproverId = entity.ApproverId,
                 ApprovalDate = entity.ApprovalDate
             };
         }
+
+
+
+
     }
 }

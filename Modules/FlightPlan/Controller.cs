@@ -1,6 +1,6 @@
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using SatOps.Modules.Schedule;
+using SatOps.Modules.Overpass;
 
 namespace SatOps.Modules.Schedule
 {
@@ -15,8 +15,6 @@ namespace SatOps.Modules.Schedule
             _service = service;
         }
 
-
-        //        [Authorize(Policy = "ReadFlightPlans")]
         [HttpGet]
         public async Task<ActionResult<List<FlightPlanDto>>> List()
         {
@@ -46,7 +44,7 @@ namespace SatOps.Modules.Schedule
             var newVersion = await _service.CreateNewVersionAsync(id, input);
             if (newVersion == null)
             {
-                return BadRequest("Could not update the flight plan. It may not be in a 'pending' state.");
+                return BadRequest("Could not update the flight plan. It may not be in an updateable state (draft, approved awaiting overpass, or approved).");
             }
             return Ok(Mappers.ToDto(newVersion));
         }
@@ -60,6 +58,30 @@ namespace SatOps.Modules.Schedule
             }
 
             var (success, message) = await _service.ApproveOrRejectAsync(id, input.Status);
+            if (!success)
+            {
+                return Conflict(new { detail = message });
+            }
+
+            return Ok(new { success = true, message });
+        }
+
+        [HttpPost("{id}/associate-overpass")]
+        public async Task<ActionResult> AssociateOverpass(int id, [FromBody] AssociateOverpassDto input)
+        {
+            // Convert DTO to OverpassWindowsCalculationRequestDto
+            var overpassRequest = new OverpassWindowsCalculationRequestDto
+            {
+                SatelliteId = input.SatelliteId,
+                GroundStationId = input.GroundStationId,
+                StartTime = input.StartTime,
+                EndTime = input.EndTime,
+                MinimumElevation = input.MinimumElevation,
+                MinimumDurationSeconds = input.MinimumDurationSeconds,
+                MaxResults = 1 // We'll take the first suitable overpass
+            };
+
+            var (success, message) = await _service.AssociateWithOverpassAsync(id, overpassRequest);
             if (!success)
             {
                 return Conflict(new { detail = message });

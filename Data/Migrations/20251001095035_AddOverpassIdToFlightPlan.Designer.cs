@@ -3,6 +3,7 @@ using System;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SatOps.Data;
@@ -12,9 +13,11 @@ using SatOps.Data;
 namespace SatOps.data.migrations
 {
     [DbContext(typeof(SatOpsDbContext))]
-    partial class SatOpsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251001095035_AddOverpassIdToFlightPlan")]
+    partial class AddOverpassIdToFlightPlan
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -60,11 +63,11 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 1, 14, 33, 20, 365, DateTimeKind.Utc).AddTicks(5160),
+                            CreatedAt = new DateTime(2025, 10, 1, 9, 50, 35, 569, DateTimeKind.Utc).AddTicks(890),
                             HttpUrl = "http://aarhus-groundstation.example.com",
                             IsActive = false,
                             Name = "Aarhus",
-                            UpdatedAt = new DateTime(2025, 10, 1, 14, 33, 20, 365, DateTimeKind.Utc).AddTicks(5160)
+                            UpdatedAt = new DateTime(2025, 10, 1, 9, 50, 35, 569, DateTimeKind.Utc).AddTicks(890)
                         });
                 });
 
@@ -297,8 +300,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 1, 14, 33, 20, 366, DateTimeKind.Utc).AddTicks(1010),
-                            LastUpdate = new DateTime(2025, 10, 1, 14, 33, 20, 366, DateTimeKind.Utc).AddTicks(1010),
+                            CreatedAt = new DateTime(2025, 10, 1, 9, 50, 35, 569, DateTimeKind.Utc).AddTicks(6120),
+                            LastUpdate = new DateTime(2025, 10, 1, 9, 50, 35, 569, DateTimeKind.Utc).AddTicks(6120),
                             Name = "International Space Station (ISS)",
                             NoradId = 25544,
                             Status = 0,
@@ -308,8 +311,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 1, 14, 33, 20, 366, DateTimeKind.Utc).AddTicks(1010),
-                            LastUpdate = new DateTime(2025, 10, 1, 14, 33, 20, 366, DateTimeKind.Utc).AddTicks(1010),
+                            CreatedAt = new DateTime(2025, 10, 1, 9, 50, 35, 569, DateTimeKind.Utc).AddTicks(6120),
+                            LastUpdate = new DateTime(2025, 10, 1, 9, 50, 35, 569, DateTimeKind.Utc).AddTicks(6120),
                             Name = "SENTINEL-2C",
                             NoradId = 60989,
                             Status = 0,
@@ -357,11 +360,12 @@ namespace SatOps.data.migrations
                     b.Property<int>("SatelliteId")
                         .HasColumnType("integer");
 
-                    b.Property<DateTime?>("ScheduledAt")
+                    b.Property<DateTime>("ScheduledAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()

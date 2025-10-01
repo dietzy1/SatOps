@@ -2,44 +2,10 @@ using System.Text.Json;
 using SatOps.Data;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
+using SatOps.Modules.Overpass;
 
 
-// We need to create some relation between a flight plan and a overpass
-// Overpasses are generated on the fly so how do we link them? This is primarily to ensure that we dont overwhelm a groundstation with too many flight plans and for traceability
-// This also means that we need to start storing flight plan when associating them with overpasses
-// Maybe we can store the overpass id in the flight plan when we create it? We should probaly have a multistep process for creating a flight plan
-// 1. Create a flight plan with status "draft" and no overpass id
-// 2. Associate the flight plan with an overpass and set the status to "pending" // When its associated then the overpass is saved in its own service
-// 3. Approve the flight plan and set the status to "approved"
-// 4. Transmit the flight plan and set the status to "transmitted"
-
-// Do we need immutability for the flight plans?
-
-// Simple approach is just to make it so a flight can be updated if its in pending/draft/approved state must when its transmitted it cannot be updated
-// It cannot be updated after its transmitted
-
-// Harder approach is to make it so a flight plan cannot be updated once its created, instead a new version must be created
-// This is probably the better approach as it ensures that we have a full history of all changes
-// We can link the new version to the old version via a previous_plan_id field
-
-// We should add a command enum which defines what commands the satelite should execute
-// 1. Take picture
-// 2. Start telemetry downlink
-
-// No instead of a command enum we should have an array of commands that can be executed in sequence
-// These commands can have calculators for example for taking a picture we can have a calculator that defines when to take the picture
-
-
-
-public enum FlightPlanStatus
-{
-    Draft,
-    Pending,
-    Approved,
-    Rejected,
-    Superseded,
-    Transmitted
-}
+/*\n * Flight Plan Workflow Implementation:\n * \n * 1. Draft: Flight plan created without overpass association\n * 2. ApprovedAwaitingOverpass: Flight plan approved but not yet associated with overpass\n * 3. Approved: Flight plan approved and associated with specific overpass\n * 4. Rejected: Flight plan rejected during review\n * 5. Transmitted: Flight plan sent to satellite (immutable after this point)\n * 6. Superseded: Old version when new version is created\n * \n * - Flight plans must be approved before they can be associated with overpasses\n * - Overpass association calculates suitable overpasses from provided timerange\n * - Versioning ensures full audit trail via PreviousPlanId linking\n */
 
 namespace SatOps.Modules.Schedule
 {
@@ -50,6 +16,7 @@ namespace SatOps.Modules.Schedule
         Task<FlightPlan> CreateAsync(CreateFlightPlanDto createDto);
         Task<FlightPlan?> CreateNewVersionAsync(int id, CreateFlightPlanDto updateDto);
         Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status);
+        Task<(bool Success, string Message)> AssociateWithOverpassAsync(int flightPlanId, OverpassWindowsCalculationRequestDto overpassRequest);
     }
 
     public class FlightPlanService : IFlightPlanService
@@ -58,14 +25,16 @@ namespace SatOps.Modules.Schedule
         private readonly SatOpsDbContext _dbContext;
         private readonly ISatelliteService _satelliteService;
         private readonly IGroundStationService _groundStationService;
+        private readonly IService _overpassService;
 
         public FlightPlanService(IFlightPlanRepository repository, SatOpsDbContext dbContext,
-            ISatelliteService satelliteService, IGroundStationService groundStationService)
+            ISatelliteService satelliteService, IGroundStationService groundStationService, IService overpassService)
         {
             _repository = repository;
             _dbContext = dbContext;
             _satelliteService = satelliteService;
             _groundStationService = groundStationService;
+            _overpassService = overpassService;
         }
 
         public Task<List<FlightPlan>> ListAsync() => _repository.GetAllAsync();
@@ -95,7 +64,7 @@ namespace SatOps.Modules.Schedule
                 ScheduledAt = createDto.ScheduledAt,
                 GroundStationId = createDto.GsId,
                 SatelliteId = createDto.SatId,
-                Status = "pending",
+                Status = FlightPlanStatus.Draft, // Start in draft status
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -122,12 +91,12 @@ namespace SatOps.Modules.Schedule
                 }
 
                 var oldPlan = await _repository.GetByIdAsync(id);
-                if (oldPlan == null || oldPlan.Status != "pending")
+                if (oldPlan == null || (oldPlan.Status != FlightPlanStatus.Draft && oldPlan.Status != FlightPlanStatus.ApprovedAwaitingOverpass && oldPlan.Status != FlightPlanStatus.Approved))
                 {
                     return null;
                 }
 
-                oldPlan.Status = "superseded";
+                oldPlan.Status = FlightPlanStatus.Superseded;
                 oldPlan.UpdatedAt = DateTime.UtcNow;
 
                 var newPlan = new FlightPlan
@@ -137,7 +106,8 @@ namespace SatOps.Modules.Schedule
                     ScheduledAt = updateDto.ScheduledAt,
                     GroundStationId = updateDto.GsId,
                     SatelliteId = updateDto.SatId,
-                    Status = "pending",
+                    Status = oldPlan.Status == FlightPlanStatus.Draft ? FlightPlanStatus.Draft : oldPlan.Status, // Preserve current status
+                    OverpassId = oldPlan.OverpassId, // Preserve overpass association
                     PreviousPlanId = oldPlan.Id,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
@@ -164,12 +134,24 @@ namespace SatOps.Modules.Schedule
             {
                 return (false, "Flight plan not found.");
             }
-            if (plan.Status != "pending")
+            if (plan.Status != FlightPlanStatus.Draft)
             {
-                return (false, $"Cannot update a plan with status '{plan.Status}'.");
+                return (false, $"Cannot approve a plan with status '{plan.Status}'. Only draft flight plans can be approved.");
             }
 
-            plan.Status = status;
+            if (status.ToLower() == "approved")
+            {
+                plan.Status = FlightPlanStatus.ApprovedAwaitingOverpass;
+            }
+            else if (status.ToLower() == "rejected")
+            {
+                plan.Status = FlightPlanStatus.Rejected;
+            }
+            else
+            {
+                return (false, "Invalid status. Must be 'approved' or 'rejected'.");
+            }
+
             plan.ApprovalDate = DateTime.UtcNow;
             plan.ApproverId = "mock-user-id";
 
@@ -181,6 +163,74 @@ namespace SatOps.Modules.Schedule
             }
 
             return (false, "Failed to update the flight plan.");
+        }
+
+        public async Task<(bool Success, string Message)> AssociateWithOverpassAsync(int flightPlanId, OverpassWindowsCalculationRequestDto overpassRequest)
+        {
+            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            try
+            {
+                var flightPlan = await _repository.GetByIdAsync(flightPlanId);
+                if (flightPlan == null)
+                {
+                    return (false, "Flight plan not found.");
+                }
+
+                if (flightPlan.Status != FlightPlanStatus.ApprovedAwaitingOverpass)
+                {
+                    return (false, $"Cannot associate overpass with a flight plan in '{flightPlan.Status}' status. Flight plan must be approved first.");
+                }
+
+                // Validate that the overpass request matches the flight plan's satellite and ground station
+                if (overpassRequest.SatelliteId != flightPlan.SatelliteId)
+                {
+                    return (false, "Overpass satellite does not match flight plan satellite.");
+                }
+
+                if (overpassRequest.GroundStationId != flightPlan.GroundStationId)
+                {
+                    return (false, "Overpass ground station does not match flight plan ground station.");
+                }
+
+                // Calculate overpasses within the specified timerange
+                var availableOverpasses = await _overpassService.CalculateOverpassesAsync(overpassRequest);
+                if (!availableOverpasses.Any())
+                {
+                    return (false, "No suitable overpasses found within the specified timerange.");
+                }
+
+                // Use the first available overpass (could be enhanced to allow selection)
+                var selectedOverpass = availableOverpasses.First();
+
+                // Find or create the overpass in storage
+                var storedOverpass = await _overpassService.FindOrCreateOverpassAsync(selectedOverpass);
+                if (storedOverpass == null)
+                {
+                    return (false, "Failed to store overpass data.");
+                }
+
+                // Associate the flight plan with the stored overpass and finalize approval
+                flightPlan.OverpassId = storedOverpass.Id;
+                flightPlan.ScheduledAt = selectedOverpass.StartTime;
+                flightPlan.Status = FlightPlanStatus.Approved;
+                flightPlan.UpdatedAt = DateTime.UtcNow;
+
+                var success = await _repository.UpdateAsync(flightPlan);
+
+                if (success)
+                {
+                    await transaction.CommitAsync();
+                    return (true, $"Flight plan successfully associated with overpass starting at {selectedOverpass.StartTime:yyyy-MM-dd HH:mm:ss} UTC.");
+                }
+
+                await transaction.RollbackAsync();
+                return (false, "Failed to update the flight plan.");
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return (false, $"Error associating flight plan with overpass: {ex.Message}");
+            }
         }
     }
 }

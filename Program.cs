@@ -186,6 +186,7 @@ builder.Services.AddScoped<ISatelliteService, SatelliteService>();
 builder.Services.AddScoped<ICelestrackClient, CelestrackClient>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<SatOps.Modules.Overpass.IOverpassRepository, SatOps.Modules.Overpass.OverpassRepository>();
 builder.Services.AddScoped<SatOps.Modules.Overpass.IService, SatOps.Modules.Overpass.Service>();
 
 // MinIO Configuration

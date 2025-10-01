@@ -17,17 +17,22 @@ namespace SatOps.Modules.Overpass
     public interface IService
     {
         Task<List<OverpassWindowDto>> CalculateOverpassesAsync(OverpassWindowsCalculationRequestDto request);
+        Task<Entity> StoreOverpassAsync(OverpassWindowDto overpassWindow);
+        Task<Entity?> GetStoredOverpassAsync(int id);
+        Task<Entity?> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow);
     }
 
     public class Service : IService
     {
         private readonly ISatelliteService _satelliteService;
         private readonly IGroundStationService _groundStationService;
+        private readonly IOverpassRepository _overpassRepository;
 
-        public Service(ISatelliteService satelliteService, IGroundStationService groundStationService)
+        public Service(ISatelliteService satelliteService, IGroundStationService groundStationService, IOverpassRepository overpassRepository)
         {
             _satelliteService = satelliteService;
             _groundStationService = groundStationService;
+            _overpassRepository = overpassRepository;
         }
 
         public async Task<List<OverpassWindowDto>> CalculateOverpassesAsync(OverpassWindowsCalculationRequestDto request)
@@ -151,6 +156,49 @@ namespace SatOps.Modules.Overpass
             {
                 throw new InvalidOperationException($"Error calculating overpasses: {ex.Message}", ex);
             }
+        }
+
+        public async Task<Entity> StoreOverpassAsync(OverpassWindowDto overpassWindow)
+        {
+            var overpassEntity = new Entity
+            {
+                SatelliteId = overpassWindow.SatelliteId,
+                GroundStationId = overpassWindow.GroundStationId,
+                StartTime = overpassWindow.StartTime,
+                EndTime = overpassWindow.EndTime,
+                MaxElevationTime = overpassWindow.MaxElevationTime,
+                MaxElevation = overpassWindow.MaxElevation,
+                DurationSeconds = (int)overpassWindow.DurationSeconds,
+                StartAzimuth = overpassWindow.StartAzimuth,
+                EndAzimuth = overpassWindow.EndAzimuth
+            };
+
+            return await _overpassRepository.AddAsync(overpassEntity);
+        }
+
+        public async Task<Entity?> GetStoredOverpassAsync(int id)
+        {
+            return await _overpassRepository.GetByIdReadOnlyAsync(id);
+        }
+
+        public async Task<Entity?> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow)
+        {
+            // First try to find an existing overpass that matches
+            var existingOverpass = await _overpassRepository.FindExistingOverpassAsync(
+                overpassWindow.SatelliteId,
+                overpassWindow.GroundStationId,
+                overpassWindow.StartTime,
+                overpassWindow.EndTime,
+                overpassWindow.MaxElevation
+            );
+
+            if (existingOverpass != null)
+            {
+                return existingOverpass;
+            }
+
+            // If not found, create and store a new one
+            return await StoreOverpassAsync(overpassWindow);
         }
     }
 }
