@@ -4,9 +4,6 @@ using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Overpass;
 
-
-/*\n * Flight Plan Workflow Implementation:\n * \n * 1. Draft: Flight plan created without overpass association\n * 2. ApprovedAwaitingOverpass: Flight plan approved but not yet associated with overpass\n * 3. Approved: Flight plan approved and associated with specific overpass\n * 4. Rejected: Flight plan rejected during review\n * 5. Transmitted: Flight plan sent to satellite (immutable after this point)\n * 6. Superseded: Old version when new version is created\n * \n * - Flight plans must be approved before they can be associated with overpasses\n * - Overpass association calculates suitable overpasses from provided timerange\n * - Versioning ensures full audit trail via PreviousPlanId linking\n */
-
 namespace SatOps.Modules.Schedule
 {
     public interface IFlightPlanService
@@ -61,10 +58,9 @@ namespace SatOps.Modules.Schedule
             {
                 Name = createDto.FlightPlanBody.Name,
                 Body = JsonDocument.Parse(JsonSerializer.Serialize(createDto.FlightPlanBody.Body)),
-                ScheduledAt = createDto.ScheduledAt,
                 GroundStationId = createDto.GsId,
                 SatelliteId = createDto.SatId,
-                Status = FlightPlanStatus.Draft, // Start in draft status
+                Status = FlightPlanStatus.Draft,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -91,10 +87,35 @@ namespace SatOps.Modules.Schedule
                 }
 
                 var oldPlan = await _repository.GetByIdAsync(id);
-                if (oldPlan == null || (oldPlan.Status != FlightPlanStatus.Draft && oldPlan.Status != FlightPlanStatus.ApprovedAwaitingOverpass && oldPlan.Status != FlightPlanStatus.Approved))
+                if (oldPlan == null)
                 {
                     return null;
                 }
+
+                // Check if the current status allows creating a new version
+                bool canCreateNewVersion = oldPlan.Status switch
+                {
+                    FlightPlanStatus.Draft => true,
+                    FlightPlanStatus.Approved => true,
+                    FlightPlanStatus.Rejected => false,
+                    FlightPlanStatus.AssignedToOverpass => false,
+                    FlightPlanStatus.Transmitted => false,
+                    FlightPlanStatus.Superseded => false,
+                    _ => false
+                };
+
+                if (!canCreateNewVersion)
+                {
+                    return null;
+                }
+
+                // Determine the status for the new plan
+                var newPlanStatus = oldPlan.Status switch
+                {
+                    FlightPlanStatus.Draft => FlightPlanStatus.Draft,
+                    FlightPlanStatus.Approved => FlightPlanStatus.Draft, // Reset to draft when creating new version from approved plan
+                    _ => FlightPlanStatus.Draft
+                };
 
                 oldPlan.Status = FlightPlanStatus.Superseded;
                 oldPlan.UpdatedAt = DateTime.UtcNow;
@@ -103,11 +124,11 @@ namespace SatOps.Modules.Schedule
                 {
                     Name = updateDto.FlightPlanBody.Name,
                     Body = JsonDocument.Parse(JsonSerializer.Serialize(updateDto.FlightPlanBody.Body)),
-                    ScheduledAt = updateDto.ScheduledAt,
+                    ScheduledAt = null,
                     GroundStationId = updateDto.GsId,
                     SatelliteId = updateDto.SatId,
-                    Status = oldPlan.Status == FlightPlanStatus.Draft ? FlightPlanStatus.Draft : oldPlan.Status, // Preserve current status
-                    OverpassId = oldPlan.OverpassId, // Preserve overpass association
+                    Status = newPlanStatus,
+                    OverpassId = oldPlan.Status == FlightPlanStatus.Approved ? oldPlan.OverpassId : null, // Preserve overpass only if previously approved
                     PreviousPlanId = oldPlan.Id,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
@@ -134,22 +155,38 @@ namespace SatOps.Modules.Schedule
             {
                 return (false, "Flight plan not found.");
             }
-            if (plan.Status != FlightPlanStatus.Draft)
+
+            // Validate current status allows approval/rejection
+            switch (plan.Status)
             {
-                return (false, $"Cannot approve a plan with status '{plan.Status}'. Only draft flight plans can be approved.");
+                case FlightPlanStatus.Draft:
+                    // Only draft plans can be approved or rejected
+                    break;
+                case FlightPlanStatus.Rejected:
+                    return (false, "Cannot modify a plan that has already been rejected.");
+                case FlightPlanStatus.Approved:
+                    return (false, "Cannot modify a plan that has already been approved.");
+                case FlightPlanStatus.AssignedToOverpass:
+                    return (false, "Cannot modify a plan that has been assigned to an overpass.");
+                case FlightPlanStatus.Transmitted:
+                    return (false, "Cannot modify a plan that has been transmitted.");
+                case FlightPlanStatus.Superseded:
+                    return (false, "Cannot modify a superseded plan.");
+                default:
+                    return (false, $"Unknown flight plan status: {plan.Status}");
             }
 
-            if (status.ToLower() == "approved")
+            // Handle the approval/rejection action
+            switch (status.ToLower())
             {
-                plan.Status = FlightPlanStatus.ApprovedAwaitingOverpass;
-            }
-            else if (status.ToLower() == "rejected")
-            {
-                plan.Status = FlightPlanStatus.Rejected;
-            }
-            else
-            {
-                return (false, "Invalid status. Must be 'approved' or 'rejected'.");
+                case "approved":
+                    plan.Status = FlightPlanStatus.Approved;
+                    break;
+                case "rejected":
+                    plan.Status = FlightPlanStatus.Rejected;
+                    break;
+                default:
+                    return (false, "Invalid status. Must be 'approved' or 'rejected'.");
             }
 
             plan.ApprovalDate = DateTime.UtcNow;
@@ -176,9 +213,24 @@ namespace SatOps.Modules.Schedule
                     return (false, "Flight plan not found.");
                 }
 
-                if (flightPlan.Status != FlightPlanStatus.ApprovedAwaitingOverpass)
+                // Check if the current status allows association with overpass
+                switch (flightPlan.Status)
                 {
-                    return (false, $"Cannot associate overpass with a flight plan in '{flightPlan.Status}' status. Flight plan must be approved first.");
+                    case FlightPlanStatus.Approved:
+                        // Only approved plans can be assigned to overpasses
+                        break;
+                    case FlightPlanStatus.Draft:
+                        return (false, "Cannot associate overpass with a draft flight plan. Flight plan must be approved first.");
+                    case FlightPlanStatus.Rejected:
+                        return (false, "Cannot associate overpass with a rejected flight plan.");
+                    case FlightPlanStatus.AssignedToOverpass:
+                        return (false, "Flight plan is already assigned to an overpass.");
+                    case FlightPlanStatus.Transmitted:
+                        return (false, "Cannot modify a transmitted flight plan.");
+                    case FlightPlanStatus.Superseded:
+                        return (false, "Cannot associate overpass with a superseded flight plan.");
+                    default:
+                        return (false, $"Unknown flight plan status: {flightPlan.Status}");
                 }
 
                 // Validate that the overpass request matches the flight plan's satellite and ground station
@@ -194,7 +246,7 @@ namespace SatOps.Modules.Schedule
 
                 // Calculate overpasses within the specified timerange
                 var availableOverpasses = await _overpassService.CalculateOverpassesAsync(overpassRequest);
-                if (!availableOverpasses.Any())
+                if (availableOverpasses.Count.Equals(0))
                 {
                     return (false, "No suitable overpasses found within the specified timerange.");
                 }
@@ -209,10 +261,10 @@ namespace SatOps.Modules.Schedule
                     return (false, "Failed to store overpass data.");
                 }
 
-                // Associate the flight plan with the stored overpass and finalize approval
+                // Associate the flight plan with the stored overpass and update status
                 flightPlan.OverpassId = storedOverpass.Id;
                 flightPlan.ScheduledAt = selectedOverpass.StartTime;
-                flightPlan.Status = FlightPlanStatus.Approved;
+                flightPlan.Status = FlightPlanStatus.AssignedToOverpass;
                 flightPlan.UpdatedAt = DateTime.UtcNow;
 
                 var success = await _repository.UpdateAsync(flightPlan);

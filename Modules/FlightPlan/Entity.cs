@@ -4,13 +4,11 @@ using System.Text.Json;
 public enum FlightPlanStatus
 {
     Draft, // Initial state
-    Rejected, // Rejected after review
-    Approved, // Approved for execution
-    ApprovedAwaitingOverpass, // Approved but not yet associated with an overpass
-
-    ApprovedWithOverpass, // Approved and associated with an overpass
-    Superseded, // Replaced by a newer plan
-    Transmitted // Sent to the execution system
+    Rejected, // Rejected by approver
+    Approved, // Approved but not yet associated with an overpass
+    AssignedToOverpass, // Can only be set when approved prior
+    Transmitted, // Can no longer be updated
+    Superseded // When a new version is created
 }
 
 namespace SatOps.Modules.Schedule

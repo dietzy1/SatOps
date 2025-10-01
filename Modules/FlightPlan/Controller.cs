@@ -52,9 +52,9 @@ namespace SatOps.Modules.Schedule
         [HttpPatch("{id}")]
         public async Task<ActionResult> Approve(int id, [FromBody] ApproveFlightPlanDto input)
         {
-            if (input.Status != "approved" && input.Status != "rejected")
+            if (input.Status != FlightPlanStatus.Approved.ToScreamCase() && input.Status != FlightPlanStatus.Rejected.ToScreamCase())
             {
-                return BadRequest("Invalid status provided.");
+                return BadRequest("Invalid status provided can be either APPROVED or REJECTED");
             }
 
             var (success, message) = await _service.ApproveOrRejectAsync(id, input.Status);
@@ -76,9 +76,6 @@ namespace SatOps.Modules.Schedule
                 GroundStationId = input.GroundStationId,
                 StartTime = input.StartTime,
                 EndTime = input.EndTime,
-                MinimumElevation = input.MinimumElevation,
-                MinimumDurationSeconds = input.MinimumDurationSeconds,
-                MaxResults = 1 // We'll take the first suitable overpass
             };
 
             var (success, message) = await _service.AssociateWithOverpassAsync(id, overpassRequest);

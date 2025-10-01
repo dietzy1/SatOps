@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
+
 
 namespace SatOps.Modules.Schedule
 {
@@ -17,16 +19,26 @@ namespace SatOps.Modules.Schedule
                 ScheduledAt = entity.ScheduledAt,
                 GsId = entity.GroundStationId,
                 SatId = entity.SatelliteId,
-                Status = entity.Status.ToString().ToUpperInvariant(),
+                Status = entity.Status.ToScreamCase(),
                 OverpassId = entity.OverpassId,
                 PreviousPlanId = entity.PreviousPlanId?.ToString(),
                 ApproverId = entity.ApproverId,
                 ApprovalDate = entity.ApprovalDate
             };
         }
-
-
-
-
+    }
+    public static class FlightPlanStatusExtensions
+    {
+        public static string ToScreamCase(this FlightPlanStatus status) =>
+            status switch
+            {
+                FlightPlanStatus.Draft => "DRAFT",
+                FlightPlanStatus.Rejected => "REJECTED",
+                FlightPlanStatus.Approved => "APPROVED",
+                FlightPlanStatus.AssignedToOverpass => "ASSIGNED_TO_OVERPASS",
+                FlightPlanStatus.Transmitted => "TRANSMITTED",
+                FlightPlanStatus.Superseded => "SUPERSEDED",
+                _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+            };
     }
 }

@@ -34,8 +34,6 @@ namespace SatOps.Modules.Schedule
         public int SatId { get; set; }
 
         public FlightPlanBodyDto FlightPlanBody { get; set; } = new();
-
-        public DateTime ScheduledAt { get; set; }
     }
 
     // DTO for the PATCH (approve/reject) request body
@@ -51,8 +49,6 @@ namespace SatOps.Modules.Schedule
         public int GroundStationId { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
-        public double MinimumElevation { get; set; } = 0.0;
-        public int? MinimumDurationSeconds { get; set; }
     }
 
 }
