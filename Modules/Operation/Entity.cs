@@ -5,7 +5,7 @@ namespace SatOps.Modules.Operation
         public int Id { get; set; }
         public int GroundStationId { get; set; }
         public int SatelliteId { get; set; }
-        public Guid FlightPlanId { get; set; }
+        public int FlightPlanId { get; set; }
         public DateTime Timestamp { get; set; }
         public string S3ObjectPath { get; set; } = string.Empty;
         public string FileName { get; set; } = string.Empty;

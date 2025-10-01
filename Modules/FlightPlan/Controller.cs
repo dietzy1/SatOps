@@ -25,7 +25,7 @@ namespace SatOps.Modules.Schedule
         }
 
         [HttpGet("{id}")]
-        public async Task<ActionResult<FlightPlanDto>> Get(Guid id)
+        public async Task<ActionResult<FlightPlanDto>> Get(int id)
         {
             var item = await _service.GetByIdAsync(id);
             if (item == null) return NotFound();
@@ -41,7 +41,7 @@ namespace SatOps.Modules.Schedule
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<FlightPlanDto>> Update(Guid id, [FromBody] CreateFlightPlanDto input)
+        public async Task<ActionResult<FlightPlanDto>> Update(int id, [FromBody] CreateFlightPlanDto input)
         {
             var newVersion = await _service.CreateNewVersionAsync(id, input);
             if (newVersion == null)
@@ -52,7 +52,7 @@ namespace SatOps.Modules.Schedule
         }
 
         [HttpPatch("{id}")]
-        public async Task<ActionResult> Approve(Guid id, [FromBody] ApproveFlightPlanDto input)
+        public async Task<ActionResult> Approve(int id, [FromBody] ApproveFlightPlanDto input)
         {
             if (input.Status != "approved" && input.Status != "rejected")
             {

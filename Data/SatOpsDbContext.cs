@@ -5,6 +5,7 @@ using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 using UserEntity = SatOps.Modules.User.User;
 using TelemetryDataEntity = SatOps.Modules.Operation.TelemetryData;
 using ImageDataEntity = SatOps.Modules.Operation.ImageData;
+using OverpassEntity = SatOps.Modules.Overpass.Entity;
 
 namespace SatOps.Data
 {
@@ -21,6 +22,7 @@ namespace SatOps.Data
         public DbSet<UserEntity> Users => Set<UserEntity>();
         public DbSet<TelemetryDataEntity> TelemetryData => Set<TelemetryDataEntity>();
         public DbSet<ImageDataEntity> ImageData => Set<ImageDataEntity>();
+        public DbSet<OverpassEntity> Overpasses => Set<OverpassEntity>();
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -30,6 +32,7 @@ namespace SatOps.Data
             {
                 entity.ToTable("ground_stations");
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.HttpUrl).IsRequired();
 
@@ -50,6 +53,7 @@ namespace SatOps.Data
             {
                 entity.ToTable("flight_plans");
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.Body).HasColumnType("jsonb").IsRequired();
                 entity.Property(e => e.Status).IsRequired();
@@ -65,6 +69,7 @@ namespace SatOps.Data
             {
                 entity.ToTable("satellites");
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.NoradId).IsRequired();
                 entity.Property(e => e.Status).IsRequired();
@@ -105,6 +110,7 @@ namespace SatOps.Data
             {
                 entity.ToTable("users");
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
                 entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
                 entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
                 entity.Property(e => e.Role).IsRequired();
@@ -134,6 +140,7 @@ namespace SatOps.Data
             {
                 entity.ToTable("telemetry_data");
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
                 entity.Property(e => e.GroundStationId).IsRequired();
                 entity.Property(e => e.SatelliteId).IsRequired();
                 entity.Property(e => e.FlightPlanId).IsRequired();
@@ -157,6 +164,7 @@ namespace SatOps.Data
             {
                 entity.ToTable("image_data");
                 entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
                 entity.Property(e => e.SatelliteId).IsRequired();
                 entity.Property(e => e.GroundStationId).IsRequired();
                 entity.Property(e => e.CaptureTime).IsRequired();
@@ -175,6 +183,30 @@ namespace SatOps.Data
                 entity.HasIndex(e => e.CaptureTime);
                 entity.HasIndex(e => e.ReceivedAt);
                 entity.HasIndex(e => new { e.Latitude, e.Longitude });
+            });
+
+            // Configure Overpass entity
+            modelBuilder.Entity<OverpassEntity>(entity =>
+            {
+                entity.ToTable("overpasses");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
+                entity.Property(e => e.SatelliteId).IsRequired();
+                entity.Property(e => e.GroundStationId).IsRequired();
+                entity.Property(e => e.StartTime).IsRequired();
+                entity.Property(e => e.EndTime).IsRequired();
+                entity.Property(e => e.MaxElevationTime).IsRequired();
+                entity.Property(e => e.MaxElevation).IsRequired();
+                entity.Property(e => e.DurationSeconds).IsRequired();
+                entity.Property(e => e.StartAzimuth).IsRequired();
+                entity.Property(e => e.EndAzimuth).IsRequired();
+
+                // Indexes for faster lookups
+                entity.HasIndex(e => e.SatelliteId);
+                entity.HasIndex(e => e.GroundStationId);
+                entity.HasIndex(e => e.StartTime);
+                entity.HasIndex(e => e.EndTime);
+                entity.HasIndex(e => new { e.SatelliteId, e.GroundStationId, e.StartTime });
             });
 
             // Seed data for Satellites - ISS

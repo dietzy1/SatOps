@@ -12,7 +12,7 @@ namespace SatOps.Modules.Operation
         public int SatelliteId { get; set; }
 
         [Required]
-        public Guid FlightPlanId { get; set; }
+        public int FlightPlanId { get; set; }
 
         [Required]
         public DateTime Timestamp { get; set; }
@@ -29,6 +29,8 @@ namespace SatOps.Modules.Operation
 
         [Required]
         public int GroundStationId { get; set; }
+
+        public int FlightPlanId { get; set; }
 
         [Required]
         public DateTime CaptureTime { get; set; }

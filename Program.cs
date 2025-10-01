@@ -215,7 +215,7 @@ builder.Services.AddScoped<IAuthorizationHandler, RoleAuthorizationHandler>();
 
 // Health check services
 builder.Services.AddHttpClient<IGroundStationHealthService, GroundStationHealthService>();
-builder.Services.AddHostedService<GroundStationHealthCheckService>();
+builder.Services.AddHostedService<GroundStationHealthCheckWorker>();
 
 var app = builder.Build();
 

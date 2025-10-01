@@ -8,15 +8,15 @@ namespace SatOps.Modules.Schedule
         {
             return new FlightPlanDto
             {
-                Id = entity.Id.ToString(),
+                Id = entity.Id,
                 FlightPlanBody = new FlightPlanBodyDto
                 {
                     Name = entity.Name,
                     Body = JsonSerializer.Deserialize<object>(entity.Body.RootElement.GetRawText())!
                 },
                 ScheduledAt = entity.ScheduledAt,
-                GsId = entity.GroundStationId.ToString(),
-                SatName = entity.SatelliteName,
+                GsId = entity.GroundStationId,
+                SatId = entity.SatelliteId,
                 Status = entity.Status,
                 PreviousPlanId = entity.PreviousPlanId?.ToString(),
                 ApproverId = entity.ApproverId,
