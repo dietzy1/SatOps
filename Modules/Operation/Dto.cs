@@ -30,6 +30,8 @@ namespace SatOps.Modules.Operation
         [Required]
         public int GroundStationId { get; set; }
 
+        public int FlightPlanId { get; set; }
+
         [Required]
         public DateTime CaptureTime { get; set; }
 
