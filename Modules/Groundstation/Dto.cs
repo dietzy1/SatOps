@@ -43,6 +43,35 @@ namespace SatOps.Modules.Groundstation
         public string HttpUrl { get; set; } = string.Empty;
     }
 
+    public class GroundStationWithApiKeyDto
+    {
+        [Required]
+        public int Id { get; set; }
+
+        [StringLength(20, MinimumLength = 2, ErrorMessage = "Name must be between 2 and 20 characters")]
+        [Required]
+        public string Name { get; set; } = string.Empty;
+
+        [Required]
+        public Guid ApplicationId { get; set; }
+
+        [Required]
+        public string RawApiKey { get; set; } = string.Empty; // One-time secret
+
+        [Required(ErrorMessage = "Location is required")]
+        public LocationDto Location { get; set; } = new();
+
+        [Required(ErrorMessage = "HTTP URL is required")]
+        [Url(ErrorMessage = "Invalid URL format")]
+        public string HttpUrl { get; set; } = string.Empty;
+
+        [Required]
+        public DateTime CreatedAt { get; set; }
+
+        [Required]
+        public bool IsActive { get; set; }
+    }
+
     public class GroundStationUpdateDto
     {
         [Required]

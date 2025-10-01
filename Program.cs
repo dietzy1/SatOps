@@ -15,6 +15,8 @@ using System.Text.Json;
 using Microsoft.OpenApi.Models;
 using SatOps.Data;
 using Minio;
+using System.Text;
+using SatOps.Modules.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -119,7 +121,7 @@ var wayfIssuer = builder.Configuration["WAYF:Issuer"] ?? "https://wayf.wayf.dk";
 
 // Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options => // Scheme 1: For Users (WAYF)
     {
         options.Authority = wayfAuthority;
         options.RequireHttpsMetadata = true;
@@ -133,6 +135,23 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer = wayfIssuer,
             ValidAudience = wayfAudience,
         };
+    })
+    .AddJwtBearer(AuthConstants.GroundStationAuthScheme, options => // Scheme 2: For Ground Stations
+    {
+        var jwtSettings = builder.Configuration.GetSection("Jwt");
+        options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+        options.SaveToken = true;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!)),
+            ValidateIssuer = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidateAudience = true,
+            ValidAudience = jwtSettings["Audience"],
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
     });
 
 
@@ -140,7 +159,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // Authorization with custom policies
 builder.Services.AddAuthorization(options =>
 {
-    // Scope-based policies
+    // Policy for ground station authentication
+    options.AddPolicy("RequireGroundStation", policy =>
+    {
+        policy.AddAuthenticationSchemes(AuthConstants.GroundStationAuthScheme)
+              .RequireAuthenticatedUser()
+              .RequireClaim("type", "GroundStation");
+    });
+    // Scope-based policies for user permissions
     options.AddPolicy("ReadGroundStations", policy =>
         policy.Requirements.Add(new ScopeRequirement("read:ground-stations")));
     options.AddPolicy("WriteGroundStations", policy =>
@@ -187,6 +213,7 @@ builder.Services.AddScoped<ICelestrackClient, CelestrackClient>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<SatOps.Modules.Overpass.IService, SatOps.Modules.Overpass.Service>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 // MinIO Configuration
 builder.Services.AddSingleton<IMinioClient>(sp =>
@@ -282,3 +309,8 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+public static class AuthConstants
+{
+    public const string GroundStationAuthScheme = "GroundStation_Bearer";
+}

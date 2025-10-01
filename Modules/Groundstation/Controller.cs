@@ -29,22 +29,25 @@ namespace SatOps.Modules.Groundstation
         }
 
         [HttpPost]
-        public async Task<ActionResult<GroundStationDto>> Create([FromBody] GroundStationCreateDto input)
+        public async Task<ActionResult<GroundStationWithApiKeyDto>> Create([FromBody] GroundStationCreateDto input)
         {
             var entity = new GroundStation
             {
                 Name = input.Name,
                 Location = new Location
                 {
-                    // [Required] attribute guarantees these are not null
                     Latitude = input.Location.Latitude!.Value,
                     Longitude = input.Location.Longitude!.Value,
                     Altitude = input.Location.Altitude.GetValueOrDefault()
                 },
                 HttpUrl = input.HttpUrl,
             };
-            var created = await _service.CreateAsync(entity);
-            return CreatedAtAction(nameof(Get), new { id = created.Id }, MapToDto(created));
+
+            var (created, rawApiKey) = await _service.CreateAsync(entity);
+
+            var responseDto = MapToWithApiKeyDto(created, rawApiKey);
+
+            return CreatedAtAction(nameof(Get), new { id = created.Id }, responseDto);
         }
 
         [HttpPatch("{id:int}")]
@@ -72,6 +75,26 @@ namespace SatOps.Modules.Groundstation
             {
                 Id = entity.Id,
                 Name = entity.Name,
+                Location = new LocationDto
+                {
+                    Latitude = entity.Location.Latitude,
+                    Longitude = entity.Location.Longitude,
+                    Altitude = entity.Location.Altitude
+                },
+                HttpUrl = entity.HttpUrl,
+                CreatedAt = entity.CreatedAt,
+                IsActive = entity.IsActive
+            };
+        }
+
+        private static GroundStationWithApiKeyDto MapToWithApiKeyDto(GroundStation entity, string rawApiKey)
+        {
+            return new GroundStationWithApiKeyDto
+            {
+                Id = entity.Id,
+                Name = entity.Name,
+                ApplicationId = entity.ApplicationId,
+                RawApiKey = rawApiKey,
                 Location = new LocationDto
                 {
                     Latitude = entity.Location.Latitude,
