@@ -107,7 +107,7 @@ namespace SatOps.Modules.Overpass
                     {
                         // Ending an overpass
                         inOverpass = false;
-                        var durationSeconds = (int)(currentTime - overpassStart).TotalSeconds;
+                        var durationSeconds = (int)(currentTime - overpassStart).TotalSeconds - 60; // Subtract the last minute where it went below minimum elevation
 
                         if (request.MinimumDurationSeconds.HasValue && durationSeconds < request.MinimumDurationSeconds.Value)
                         {
