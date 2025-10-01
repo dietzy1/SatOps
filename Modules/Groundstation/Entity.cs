@@ -18,6 +18,12 @@ namespace SatOps.Modules.Groundstation
 
         [Required]
         public string HttpUrl { get; set; } = string.Empty;
+
+        [Required]
+        public Guid ApplicationId { get; set; } = Guid.NewGuid();
+
+        [Required]
+        public string ApiKeyHash { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

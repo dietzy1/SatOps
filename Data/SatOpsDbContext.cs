@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using GroundStationEntity = SatOps.Modules.Groundstation.GroundStation;
 using FlightPlanEntity = SatOps.Modules.Schedule.FlightPlan;
 using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
@@ -35,6 +36,7 @@ namespace SatOps.Data
                 entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.HttpUrl).IsRequired();
+                entity.HasIndex(e => e.ApplicationId).IsUnique();
 
                 // Configure Location as owned entity
                 entity.OwnsOne(e => e.Location, location =>
@@ -110,24 +112,32 @@ namespace SatOps.Data
             {
                 entity.ToTable("users");
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn();
                 entity.Property(e => e.Name).IsRequired().HasMaxLength(255);
                 entity.Property(e => e.Email).IsRequired().HasMaxLength(255);
                 entity.Property(e => e.Role).IsRequired();
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("timezone('utc', now())");
 
+                // Null-safe ValueComparer for lists of strings.
+                var stringListComparer = new ValueComparer<List<string>>(
+                    (c1, c2) => (c1 == null && c2 == null) || (c1 != null && c2 != null && c1.SequenceEqual(c2)),
+                    c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                    c => c == null ? new List<string>() : c.ToList());
+
                 // Store additional permissions as JSON arrays
                 entity.Property(e => e.AdditionalScopes)
                     .HasConversion(
                         v => string.Join(',', v),
-                        v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList())
+                        v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList(),
+                        stringListComparer)
                     .HasDefaultValue(new List<string>());
 
                 entity.Property(e => e.AdditionalRoles)
                     .HasConversion(
                         v => string.Join(',', v),
-                        v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList())
+                        v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList(),
+                        stringListComparer)
                     .HasDefaultValue(new List<string>());
 
                 // Unique constraint on email

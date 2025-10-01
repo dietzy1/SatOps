@@ -1,4 +1,6 @@
 using SatOps.Modules.Groundstation.Health;
+using SatOps.Utils;
+using System.Security.Cryptography;
 
 // Other stuff we must figure out how to support.
 // Groundstations will send data to us, imageformat, logs etc we must have some sort of reciever endpoints for that that isn't exposed to the public
@@ -18,11 +20,12 @@ namespace SatOps.Modules.Groundstation
     {
         Task<List<GroundStation>> ListAsync();
         Task<GroundStation?> GetAsync(int id);
-        Task<GroundStation> CreateAsync(GroundStation entity);
+        Task<(GroundStation createdStation, string rawApiKey)> CreateAsync(GroundStation entity);
         Task<GroundStation?> PatchAsync(int id, GroundStationPatchDto patchDto);
         Task<bool> DeleteAsync(int id);
         Task<bool> UpdateHealthStatusAsync(int id, bool isActive);
         Task<(GroundStation? station, bool isHealthy)> GetRealTimeHealthStatusAsync(int id);
+        Task<List<GroundStation>> GetActiveStationsAsync();
     }
 
     public class GroundStationService : IGroundStationService
@@ -40,7 +43,21 @@ namespace SatOps.Modules.Groundstation
 
         public Task<GroundStation?> GetAsync(int id) => _repository.GetByIdAsync(id);
 
-        public Task<GroundStation> CreateAsync(GroundStation entity) => _repository.AddAsync(entity);
+        public async Task<(GroundStation createdStation, string rawApiKey)> CreateAsync(GroundStation entity)
+        {
+            // Generate a URL-safe API key
+            var bytes = RandomNumberGenerator.GetBytes(32);
+            var rawApiKey = Convert.ToBase64String(bytes)
+                                .Replace('+', '-')
+                                .Replace('/', '_');
+
+            entity.ApiKeyHash = ApiKeyHasher.Hash(rawApiKey);
+            entity.ApplicationId = Guid.NewGuid();
+
+            var createdEntity = await _repository.AddAsync(entity);
+
+            return (createdEntity, rawApiKey);
+        }
 
         public async Task<GroundStation?> PatchAsync(int id, GroundStationPatchDto patchDto)
         {
