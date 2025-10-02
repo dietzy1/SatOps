@@ -19,6 +19,7 @@ namespace SatOps.Modules.Schedule
                 ScheduledAt = entity.ScheduledAt,
                 GsId = entity.GroundStationId,
                 SatId = entity.SatelliteId,
+                Name = entity.Name,
                 Status = entity.Status.ToScreamCase(),
                 OverpassId = entity.OverpassId,
                 PreviousPlanId = entity.PreviousPlanId?.ToString(),

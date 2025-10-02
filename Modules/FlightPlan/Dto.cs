@@ -11,6 +11,8 @@ namespace SatOps.Modules.Schedule
         public int GsId { get; set; }
         public int SatId { get; set; }
         public int? OverpassId { get; set; }
+
+        public string Name { get; set; } = string.Empty;
         public DateTime? ScheduledAt { get; set; }
         public FlightPlanBodyDto FlightPlanBody { get; set; } = new();
         public string Status { get; set; } = string.Empty;
