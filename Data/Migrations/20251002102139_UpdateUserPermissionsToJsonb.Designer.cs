@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SatOps.Data;
@@ -13,9 +14,11 @@ using SatOps.Data;
 namespace SatOps.data.migrations
 {
     [DbContext(typeof(SatOpsDbContext))]
-    partial class SatOpsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251002102139_UpdateUserPermissionsToJsonb")]
+    partial class UpdateUserPermissionsToJsonb
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -72,12 +75,12 @@ namespace SatOps.data.migrations
                         {
                             Id = 1,
                             ApiKeyHash = "",
-                            ApplicationId = new Guid("b599aa3f-05d2-4076-8b00-7a542be063fc"),
-                            CreatedAt = new DateTime(2025, 10, 2, 11, 39, 29, 756, DateTimeKind.Utc).AddTicks(7200),
+                            ApplicationId = new Guid("f1e7e305-51da-4a7a-898a-aa57939ab0e6"),
+                            CreatedAt = new DateTime(2025, 10, 2, 10, 21, 38, 954, DateTimeKind.Utc).AddTicks(7023),
                             HttpUrl = "http://aarhus-groundstation.example.com",
                             IsActive = false,
                             Name = "Aarhus",
-                            UpdatedAt = new DateTime(2025, 10, 2, 11, 39, 29, 756, DateTimeKind.Utc).AddTicks(7200)
+                            UpdatedAt = new DateTime(2025, 10, 2, 10, 21, 38, 954, DateTimeKind.Utc).AddTicks(7025)
                         });
                 });
 
@@ -246,15 +249,6 @@ namespace SatOps.data.migrations
                     b.Property<DateTime>("StartTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<string>("TleLine1")
-                        .HasColumnType("text");
-
-                    b.Property<string>("TleLine2")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("TleUpdateTime")
-                        .HasColumnType("timestamp with time zone");
-
                     b.HasKey("Id");
 
                     b.HasIndex("EndTime");
@@ -319,8 +313,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 2, 11, 39, 29, 757, DateTimeKind.Utc).AddTicks(2080),
-                            LastUpdate = new DateTime(2025, 10, 2, 11, 39, 29, 757, DateTimeKind.Utc).AddTicks(2080),
+                            CreatedAt = new DateTime(2025, 10, 2, 10, 21, 38, 955, DateTimeKind.Utc).AddTicks(723),
+                            LastUpdate = new DateTime(2025, 10, 2, 10, 21, 38, 955, DateTimeKind.Utc).AddTicks(724),
                             Name = "International Space Station (ISS)",
                             NoradId = 25544,
                             Status = 0,
@@ -330,8 +324,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 2, 11, 39, 29, 757, DateTimeKind.Utc).AddTicks(2080),
-                            LastUpdate = new DateTime(2025, 10, 2, 11, 39, 29, 757, DateTimeKind.Utc).AddTicks(2080),
+                            CreatedAt = new DateTime(2025, 10, 2, 10, 21, 38, 955, DateTimeKind.Utc).AddTicks(726),
+                            LastUpdate = new DateTime(2025, 10, 2, 10, 21, 38, 955, DateTimeKind.Utc).AddTicks(727),
                             Name = "SENTINEL-2C",
                             NoradId = 60989,
                             Status = 0,

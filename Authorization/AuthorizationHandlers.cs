@@ -1,6 +1,4 @@
 using Microsoft.AspNetCore.Authorization;
-using SatOps.Modules.User;
-using System.Security.Claims;
 
 namespace SatOps.Authorization
 {
@@ -16,28 +14,16 @@ namespace SatOps.Authorization
 
     public class ScopeAuthorizationHandler : AuthorizationHandler<ScopeRequirement>
     {
-        private readonly IUserService _userService;
-
-        public ScopeAuthorizationHandler(IUserService userService)
-        {
-            _userService = userService;
-        }
-
-        protected override async Task HandleRequirementAsync(
+        protected override Task HandleRequirementAsync(
             AuthorizationHandlerContext context,
             ScopeRequirement requirement)
         {
-            var emailClaim = context.User.FindFirst(ClaimTypes.Email)?.Value;
-            if (string.IsNullOrEmpty(emailClaim))
-            {
-                return;
-            }
-
-            var hasPermission = await _userService.HasPermissionAsync(emailClaim, requirement.RequiredScope);
-            if (hasPermission)
+            if (context.User.HasClaim(c => c.Type == "scope" && c.Value == requirement.RequiredScope))
             {
                 context.Succeed(requirement);
             }
+
+            return Task.CompletedTask;
         }
     }
 
@@ -53,28 +39,16 @@ namespace SatOps.Authorization
 
     public class RoleAuthorizationHandler : AuthorizationHandler<RoleRequirement>
     {
-        private readonly IUserService _userService;
-
-        public RoleAuthorizationHandler(IUserService userService)
-        {
-            _userService = userService;
-        }
-
-        protected override async Task HandleRequirementAsync(
+        protected override Task HandleRequirementAsync(
             AuthorizationHandlerContext context,
             RoleRequirement requirement)
         {
-            var emailClaim = context.User.FindFirst(ClaimTypes.Email)?.Value;
-            if (string.IsNullOrEmpty(emailClaim))
-            {
-                return;
-            }
-
-            var hasRole = await _userService.HasRoleAsync(emailClaim, requirement.RequiredRole);
-            if (hasRole)
+            if (context.User.IsInRole(requirement.RequiredRole))
             {
                 context.Succeed(requirement);
             }
+
+            return Task.CompletedTask;
         }
     }
 }

@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.Authentication;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Schedule;
 using SatOps.Modules.Satellite;
@@ -266,6 +267,8 @@ builder.Services.AddScoped<IImageService, ImageService>();
 // Authorization handlers
 builder.Services.AddScoped<IAuthorizationHandler, ScopeAuthorizationHandler>();
 builder.Services.AddScoped<IAuthorizationHandler, RoleAuthorizationHandler>();
+builder.Services.AddScoped<IClaimsTransformation, UserPermissionsClaimsTransformation>();
+
 
 // Health check services
 builder.Services.AddHttpClient<IGroundStationHealthService, GroundStationHealthService>();
