@@ -49,13 +49,13 @@ namespace SatOps.Modules.Schedule
     {
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
-        
+
         // Optional: Maximum elevation for more precise matching (in degrees)
         public double? MaxElevation { get; set; }
-        
+
         // Optional: Duration in seconds for additional validation
         public int? DurationSeconds { get; set; }
-        
+
         // Optional: Maximum elevation time for exact overpass identification
         public DateTime? MaxElevationTime { get; set; }
     }
