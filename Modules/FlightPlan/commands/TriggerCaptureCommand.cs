@@ -8,7 +8,8 @@ namespace SatOps.Modules.FlightPlan.Commands
         public override string Description => "Configures and triggers the satellite's camera controller.";
         public override string CommandType => "triggerCapture";
 
-        /// Hardcoded CSP node address for the Camera Controller.
+        // Hardcoded CSP node address for the Camera Controller.
+        // TODO: Find out if this is the correct node address. Might be in systemd.
         private const int CameraControllerNode = 2;
 
         [Required]
