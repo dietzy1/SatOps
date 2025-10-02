@@ -1,12 +1,11 @@
 using System.ComponentModel.DataAnnotations;
-using System.Text;
 
-namespace SatOps.Modules.FlightPlan
+namespace SatOps.Modules.FlightPlan.Commands
 {
     public class TriggerCaptureCommand : Command
     {
         public override string Name => "Trigger Camera Capture";
-        public override string Description => "Commands the satellite to capture one or more images and send them to the processing pipeline.";
+        public override string Description => "Configures and triggers the satellite's camera controller.";
         public override string CommandType => "triggerCapture";
 
         /// Hardcoded CSP node address for the Camera Controller.
@@ -40,19 +39,21 @@ namespace SatOps.Modules.FlightPlan
 
         public override Task<List<string>> CompileToCsh()
         {
-            var payloadBuilder = new StringBuilder();
-            payloadBuilder.Append($"CAMERA_TYPE={Type.ToString().ToUpper()};");
-            payloadBuilder.Append($"CAMERA_ID={CameraId};");
-            payloadBuilder.Append($"NUM_IMAGES={NumImages};");
-            payloadBuilder.Append($"EXPOSURE={ExposureMicroseconds};");
-            payloadBuilder.Append($"ISO={Iso};");
-            payloadBuilder.Append($"INTERVAL={IntervalMicroseconds};");
-            payloadBuilder.Append($"PIPELINE_ID={PipelineId};");
-            payloadBuilder.Append($"OBID={ObservationId};");
+            var script = new List<string>
+            {
+                $"set camera_id_param \"{CameraId}\" -n {CameraControllerNode}",
+                $"set camera_type_param {(int)Type} -n {CameraControllerNode}",
+                $"set exposure_param {ExposureMicroseconds} -n {CameraControllerNode}",
+                $"set iso_param {Iso} -n {CameraControllerNode}",
+                $"set num_images_param {NumImages} -n {CameraControllerNode}",
+                $"set interval_param {IntervalMicroseconds} -n {CameraControllerNode}",
+                $"set obid_param {ObservationId} -n {CameraControllerNode}",
+                $"set pipeline_id_param {PipelineId} -n {CameraControllerNode}",
 
-            string commandString = $"param set capture_param \"{payloadBuilder.ToString()}\" -n {CameraControllerNode}";
+                $"set capture_param 1 -n {CameraControllerNode}"
+            };
 
-            return Task.FromResult(new List<string> { commandString });
+            return Task.FromResult(script);
         }
 
 
