@@ -119,28 +119,9 @@ namespace SatOps.Data
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("timezone('utc', now())");
 
-                // Null-safe ValueComparer for lists of strings.
-                var stringListComparer = new ValueComparer<List<string>>(
-                    (c1, c2) => (c1 == null && c2 == null) || (c1 != null && c2 != null && c1.SequenceEqual(c2)),
-                    c => c == null ? 0 : c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
-                    c => c == null ? new List<string>() : c.ToList());
+                entity.Property(e => e.AdditionalScopes).HasColumnType("jsonb");
+                entity.Property(e => e.AdditionalRoles).HasColumnType("jsonb");
 
-                // Store additional permissions as JSON arrays
-                entity.Property(e => e.AdditionalScopes)
-                    .HasConversion(
-                        v => string.Join(',', v),
-                        v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList(),
-                        stringListComparer)
-                    .HasDefaultValue(new List<string>());
-
-                entity.Property(e => e.AdditionalRoles)
-                    .HasConversion(
-                        v => string.Join(',', v),
-                        v => v.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList(),
-                        stringListComparer)
-                    .HasDefaultValue(new List<string>());
-
-                // Unique constraint on email
                 entity.HasIndex(e => e.Email).IsUnique();
                 entity.HasIndex(e => e.Role);
             });
