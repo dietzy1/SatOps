@@ -1,9 +1,7 @@
+using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.ComponentModel.DataAnnotations;
-
-
-// Commands could look something like this??? Mads
+using SatOps.Modules.FlightPlan.Commands;
 
 namespace SatOps.Modules.FlightPlan
 {
@@ -14,13 +12,15 @@ namespace SatOps.Modules.FlightPlan
         string CommandType { get; }
 
         ValidationResult Validate();
-        string CompileToSatelliteProtocol();
-        string ToJson();
 
+        Task<List<string>> CompileToCsh();
+
+        string ToJson();
     }
 
     [JsonPolymorphic(TypeDiscriminatorPropertyName = "commandType")]
-    [JsonDerivedType(typeof(CameraCommand), "camera")]
+    [JsonDerivedType(typeof(TriggerCaptureCommand), "triggerCapture")]
+    // TODO: Add [JsonDerivedType] for every new command class
     public abstract class Command : ICommand
     {
         public abstract string Name { get; }
@@ -28,7 +28,7 @@ namespace SatOps.Modules.FlightPlan
         public abstract string CommandType { get; }
 
         public abstract ValidationResult Validate();
-        public abstract string CompileToSatelliteProtocol();
+        public abstract Task<List<string>> CompileToCsh();
 
         public virtual string ToJson()
         {
@@ -45,32 +45,20 @@ namespace SatOps.Modules.FlightPlan
     {
         public List<Command> Commands { get; set; } = new();
 
-        public void AddCommand(Command command)
-        {
-            Commands.Add(command);
-        }
+        public void AddCommand(Command command) => Commands.Add(command);
 
-        public List<ValidationResult> ValidateAll()
-        {
-            return Commands.Select(cmd => cmd.Validate()).ToList();
-        }
+        public List<ValidationResult> ValidateAll() => Commands.Select(cmd => cmd.Validate()).ToList();
 
         public string ToJson()
         {
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            };
+            var options = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
             return JsonSerializer.Serialize(this, options);
         }
-        public static CommandSequence FromJson(string json)
+
+        public static CommandSequence? FromJson(string json)
         {
-            var options = new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            };
-            return JsonSerializer.Deserialize<CommandSequence>(json, options)!;
+            var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            return JsonSerializer.Deserialize<CommandSequence>(json, options);
         }
     }
 }
