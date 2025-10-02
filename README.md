@@ -4,19 +4,20 @@ A backend API for satellite operations, designed to manage ground stations, trac
 
 ## Features
 
-- **Ground Station Management:** Full CRUD operations and automated health checks for ground stations.
-- **Satellite Tracking:** List and retrieve satellite details, including TLE data.
-- **Overpass Calculation:** Predict satellite overpasses for specific ground stations within a given time window.
-- **Flight Plan Scheduling:** Create, update (with versioning), and approve/reject flight plans.
-- **Health Monitoring:** A dedicated endpoint (`/api/v1/health`) for API status.
+- **Ground Station Management:** Full CRUD for ground stations with automated, periodic health checks via a background worker.
+- **Satellite Tracking:** Manages a catalog of satellites and automatically updates TLE data from Celestrack.
+- **Overpass Calculation:** Predicts satellite visibility windows for any ground station.
+- **Flight Plan Scheduling:** Create, update (with versioning), and manage the approval lifecycle of flight plans.
+- **Object Storage:** Integrates with MinIO for scalable storage of large binary data like satellite imagery and telemetry files.
 - **Containerized:** Ready to run with Docker and Docker Compose.
 
 ## Technology Stack
 
 - **.NET 8** / ASP.NET Core
 - **Entity Framework Core**
-- **PostgreSQL** + **PostGIS**
-- **Docker**
+- **PostgreSQL** + **PostGIS** for relational and spatial data.
+- **Minio** for S3-compatible object storage.
+- **Docker** for containerization
 
 ## Getting Started
 
@@ -42,16 +43,27 @@ A backend API for satellite operations, designed to manage ground stations, trac
     ```
 
 3.  **Access the API:**
-    The API will be available at `http://localhost:7890`.
+    The SatOps API (Swagger) will be available at `http://localhost:7890`.
 
-## API Endpoints
+### API Structure & Endpoints
 
-A brief overview of the main endpoints:
+The platform exposes two distinct APIs, documented via separate Swagger UIs.
 
-| Method | Path                                                        | Description                  |
-| :----- | :---------------------------------------------------------- | :--------------------------- |
-| `GET`  | `/api/v1/health`                                            | Check the health of the API. |
-| `CRUD` | `/api/v1/ground-stations`                                   | Manage ground stations.      |
-| `GET`  | `/api/v1/satellites`                                        | List available satellites.   |
-| `GET`  | `/api/v1/overpasses/satellite/{satId}/groundstation/{gsId}` | Calculate overpasses.        |
-| `CRUD` | `/api/v1/flight-plans`                                      | Manage flight plans.         |
+#### Public API (`/api/v1/...`)
+
+Intended for human operators and external management tools. Authentication is handled by an external OIDC provider.
+
+- `GET /api/v1/ground-stations` - List all ground stations.
+- `POST /api/v1/ground-stations` - Create a new ground station.
+- `GET /api/v1/ground-stations/{id}` - Get details for a specific ground station.
+- `GET /api/v1/satellites` - List available satellites.
+- `GET /api/v1/overpasses/satellite/{satId}/groundstation/{gsId}` - Calculate satellite overpasses.
+- `CRUD /api/v1/flight-plans` - Manage the flight plan lifecycle.
+
+#### Internal API (`/api/internal/...` & `/api/auth/...`)
+
+A machine-to-machine API for ground stations. It is protected and requires a ground-station-specific JWT.
+
+- `POST /api/auth/token` - Acquire a JWT using the ground station's Application ID & API Key.
+- `POST /api/internal/operations/telemetry` - Upload telemetry data files from a ground station.
+- `POST /api/internal/operations/images` - Upload captured image files from a ground station.
