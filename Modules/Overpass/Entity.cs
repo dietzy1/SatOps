@@ -28,5 +28,10 @@ namespace SatOps.Modules.Overpass
         public int DurationSeconds { get; set; }
         public double StartAzimuth { get; set; }
         public double EndAzimuth { get; set; }
+
+        // TLE data used for calculation - stored when overpass is associated with a flight plan
+        public string? TleLine1 { get; set; }
+        public string? TleLine2 { get; set; }
+        public DateTime? TleUpdateTime { get; set; }
     }
 }

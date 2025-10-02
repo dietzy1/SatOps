@@ -13,7 +13,7 @@ namespace SatOps.Modules.Schedule
         Task<FlightPlan> CreateAsync(CreateFlightPlanDto createDto);
         Task<FlightPlan?> CreateNewVersionAsync(int id, CreateFlightPlanDto updateDto);
         Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status);
-        Task<(bool Success, string Message)> AssociateWithOverpassAsync(int flightPlanId, OverpassWindowsCalculationRequestDto overpassRequest);
+        Task<(bool Success, string Message)> AssociateWithOverpassAsync(int flightPlanId, AssociateOverpassDto overpassRequest);
     }
 
     public class FlightPlanService : IFlightPlanService
@@ -202,7 +202,7 @@ namespace SatOps.Modules.Schedule
             return (false, "Failed to update the flight plan.");
         }
 
-        public async Task<(bool Success, string Message)> AssociateWithOverpassAsync(int flightPlanId, OverpassWindowsCalculationRequestDto overpassRequest)
+        public async Task<(bool Success, string Message)> AssociateWithOverpassAsync(int flightPlanId, AssociateOverpassDto overpassRequest)
         {
             await using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
@@ -233,28 +233,74 @@ namespace SatOps.Modules.Schedule
                         return (false, $"Unknown flight plan status: {flightPlan.Status}");
                 }
 
-                // Validate that the overpass request matches the flight plan's satellite and ground station
-                if (overpassRequest.SatelliteId != flightPlan.SatelliteId)
-                {
-                    return (false, "Overpass satellite does not match flight plan satellite.");
-                }
+                // Calculate overpasses with a broader time window to allow for tolerance matching
+                var toleranceHours = 2; // Allow 2-hour tolerance around the requested time window
+                var expandedStartTime = overpassRequest.StartTime.AddHours(-toleranceHours);
+                var expandedEndTime = overpassRequest.EndTime.AddHours(toleranceHours);
 
-                if (overpassRequest.GroundStationId != flightPlan.GroundStationId)
+                var overpassCalculationRequest = new OverpassWindowsCalculationRequestDto
                 {
-                    return (false, "Overpass ground station does not match flight plan ground station.");
-                }
+                    SatelliteId = flightPlan.SatelliteId,
+                    GroundStationId = flightPlan.GroundStationId,
+                    StartTime = expandedStartTime,
+                    EndTime = expandedEndTime,
+                };
 
-                // Calculate overpasses within the specified timerange
-                var availableOverpasses = await _overpassService.CalculateOverpassesAsync(overpassRequest);
+                var availableOverpasses = await _overpassService.CalculateOverpassesAsync(overpassCalculationRequest);
                 if (availableOverpasses.Count.Equals(0))
                 {
-                    return (false, "No suitable overpasses found within the specified timerange.");
+                    return (false, "No suitable overpasses found within the specified timerange (including tolerance).");
                 }
 
-                // Use the first available overpass (could be enhanced to allow selection)
-                var selectedOverpass = availableOverpasses.First();
+                // Find the overpass that best matches the user's requested criteria
+                var toleranceMinutes = 10; // Allow 10-minute tolerance for time matching
+                var elevationTolerance = 2.0; // Allow 2-degree tolerance for elevation matching
+                var durationTolerance = 60; // Allow 60-second tolerance for duration matching
 
-                // Find or create the overpass in storage
+                var candidateOverpasses = availableOverpasses.Where(o => 
+                    // Time window matching (with tolerance)
+                    Math.Abs((o.StartTime - overpassRequest.StartTime).TotalMinutes) <= toleranceMinutes ||
+                    Math.Abs((o.EndTime - overpassRequest.EndTime).TotalMinutes) <= toleranceMinutes ||
+                    (o.StartTime <= overpassRequest.StartTime && o.EndTime >= overpassRequest.EndTime) ||
+                    (overpassRequest.StartTime <= o.StartTime && overpassRequest.EndTime >= o.EndTime)
+                );
+
+                // Apply additional filtering criteria if provided
+                if (overpassRequest.MaxElevation.HasValue)
+                {
+                    candidateOverpasses = candidateOverpasses.Where(o => 
+                        Math.Abs(o.MaxElevation - overpassRequest.MaxElevation.Value) <= elevationTolerance);
+                }
+
+                if (overpassRequest.DurationSeconds.HasValue)
+                {
+                    candidateOverpasses = candidateOverpasses.Where(o => 
+                        Math.Abs(o.DurationSeconds - overpassRequest.DurationSeconds.Value) <= durationTolerance);
+                }
+
+                if (overpassRequest.MaxElevationTime.HasValue)
+                {
+                    candidateOverpasses = candidateOverpasses.Where(o => 
+                        Math.Abs((o.MaxElevationTime - overpassRequest.MaxElevationTime.Value).TotalMinutes) <= toleranceMinutes);
+                }
+
+                // Select the best matching overpass (prioritize by time accuracy, then elevation accuracy)
+                var selectedOverpass = candidateOverpasses
+                    .OrderBy(o => Math.Abs((o.StartTime - overpassRequest.StartTime).TotalMinutes))
+                    .ThenBy(o => overpassRequest.MaxElevation.HasValue ? Math.Abs(o.MaxElevation - overpassRequest.MaxElevation.Value) : 0)
+                    .FirstOrDefault();
+
+                if (selectedOverpass == null)
+                {
+                    var criteriaUsed = new List<string> { "time window" };
+                    if (overpassRequest.MaxElevation.HasValue) criteriaUsed.Add("max elevation");
+                    if (overpassRequest.DurationSeconds.HasValue) criteriaUsed.Add("duration");
+                    if (overpassRequest.MaxElevationTime.HasValue) criteriaUsed.Add("max elevation time");
+                    
+                    return (false, $"No overpass found matching the specified criteria: {string.Join(", ", criteriaUsed)} (within tolerance).");
+                }
+
+                // Store the selected overpass (since we have a 1:1 relationship with flight plans)
                 var storedOverpass = await _overpassService.FindOrCreateOverpassAsync(selectedOverpass);
                 if (storedOverpass == null)
                 {

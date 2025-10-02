@@ -13,6 +13,8 @@ namespace SatOps.Modules.Overpass
         Task<bool> DeleteAsync(int id);
         Task<List<Entity>> GetByTimeRangeAsync(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime);
         Task<Entity?> FindExistingOverpassAsync(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime, double maxElevation);
+        Task<List<Entity>> FindStoredOverpassesInTimeRange(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime);
+        Task<SatOps.Modules.Schedule.FlightPlan?> GetAssociatedFlightPlanAsync(int overpassId);
     }
 
     public class OverpassRepository : IOverpassRepository
@@ -95,6 +97,26 @@ namespace SatOps.Modules.Overpass
                                          Math.Abs((o.StartTime - startTime).TotalMinutes) < toleranceMinutes &&
                                          Math.Abs((o.EndTime - endTime).TotalMinutes) < toleranceMinutes &&
                                          Math.Abs(o.MaxElevation - maxElevation) < 1.0); // 1 degree tolerance
+        }
+
+        public async Task<List<Entity>> FindStoredOverpassesInTimeRange(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime)
+        {
+            return await _dbContext.Overpasses
+                .AsNoTracking()
+                .Where(o => o.SatelliteId == satelliteId &&
+                           o.GroundStationId == groundStationId &&
+                           ((o.StartTime >= startTime && o.StartTime <= endTime) ||
+                            (o.EndTime >= startTime && o.EndTime <= endTime) ||
+                            (o.StartTime <= startTime && o.EndTime >= endTime)))
+                .OrderBy(o => o.StartTime)
+                .ToListAsync();
+        }
+
+        public async Task<SatOps.Modules.Schedule.FlightPlan?> GetAssociatedFlightPlanAsync(int overpassId)
+        {
+            return await _dbContext.FlightPlans
+                .AsNoTracking()
+                .FirstOrDefaultAsync(fp => fp.OverpassId == overpassId);
         }
     }
 }

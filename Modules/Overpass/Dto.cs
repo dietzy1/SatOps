@@ -29,5 +29,28 @@ namespace SatOps.Modules.Overpass
         public double DurationSeconds { get; set; }
         public double StartAzimuth { get; set; }
         public double EndAzimuth { get; set; }
+
+        // Optional flight plan association (when stored overpass has associated flight plan)
+        public AssociatedFlightPlanDto? AssociatedFlightPlan { get; set; }
+
+        // TLE data used for calculation (when available from stored overpass)
+        public TleDataDto? TleData { get; set; }
+    }
+
+    public class AssociatedFlightPlanDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public DateTime? ScheduledAt { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string? ApproverId { get; set; }
+        public DateTime? ApprovalDate { get; set; }
+    }
+
+    public class TleDataDto
+    {
+        public string TleLine1 { get; set; } = string.Empty;
+        public string TleLine2 { get; set; } = string.Empty;
+        public DateTime? UpdateTime { get; set; }
     }
 }

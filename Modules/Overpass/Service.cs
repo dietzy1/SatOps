@@ -17,9 +17,9 @@ namespace SatOps.Modules.Overpass
     public interface IService
     {
         Task<List<OverpassWindowDto>> CalculateOverpassesAsync(OverpassWindowsCalculationRequestDto request);
-        Task<Entity> StoreOverpassAsync(OverpassWindowDto overpassWindow);
+        Task<Entity> StoreOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null);
         Task<Entity?> GetStoredOverpassAsync(int id);
-        Task<Entity?> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow);
+        Task<Entity?> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null);
     }
 
     public class Service : IService
@@ -39,7 +39,14 @@ namespace SatOps.Modules.Overpass
         {
             try
             {
-                // Get satellite data
+                // First, check if we have stored overpasses in the requested time range
+                var storedOverpasses = await _overpassRepository.FindStoredOverpassesInTimeRange(
+                    request.SatelliteId,
+                    request.GroundStationId,
+                    request.StartTime,
+                    request.EndTime);
+
+                // Get satellite data for calculations and names
                 var satellite = await _satelliteService.GetAsync(request.SatelliteId);
                 if (satellite == null)
                 {
@@ -146,7 +153,10 @@ namespace SatOps.Modules.Overpass
                     currentTime = currentTime.Add(timeStep);
                 }
 
-                return overpassWindows;
+                // Merge calculated overpasses with stored overpasses and enrich with flight plan data
+                var mergedOverpasses = await MergeAndEnrichOverpasses(overpassWindows, storedOverpasses, satellite.Name, groundStationEntity.Name);
+
+                return mergedOverpasses;
             }
             catch (InvalidOperationException)
             {
@@ -158,7 +168,7 @@ namespace SatOps.Modules.Overpass
             }
         }
 
-        public async Task<Entity> StoreOverpassAsync(OverpassWindowDto overpassWindow)
+        public async Task<Entity> StoreOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null)
         {
             var overpassEntity = new Entity
             {
@@ -170,7 +180,10 @@ namespace SatOps.Modules.Overpass
                 MaxElevation = overpassWindow.MaxElevation,
                 DurationSeconds = (int)overpassWindow.DurationSeconds,
                 StartAzimuth = overpassWindow.StartAzimuth,
-                EndAzimuth = overpassWindow.EndAzimuth
+                EndAzimuth = overpassWindow.EndAzimuth,
+                TleLine1 = tleLine1,
+                TleLine2 = tleLine2,
+                TleUpdateTime = tleUpdateTime
             };
 
             return await _overpassRepository.AddAsync(overpassEntity);
@@ -181,7 +194,7 @@ namespace SatOps.Modules.Overpass
             return await _overpassRepository.GetByIdReadOnlyAsync(id);
         }
 
-        public async Task<Entity?> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow)
+        public async Task<Entity?> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null)
         {
             // First try to find an existing overpass that matches
             var existingOverpass = await _overpassRepository.FindExistingOverpassAsync(
@@ -198,7 +211,97 @@ namespace SatOps.Modules.Overpass
             }
 
             // If not found, create and store a new one
-            return await StoreOverpassAsync(overpassWindow);
+            return await StoreOverpassAsync(overpassWindow, tleLine1, tleLine2, tleUpdateTime);
+        }
+
+        private async Task<List<OverpassWindowDto>> MergeAndEnrichOverpasses(
+            List<OverpassWindowDto> calculatedOverpasses,
+            List<Entity> storedOverpasses,
+            string satelliteName,
+            string groundStationName)
+        {
+            var result = new List<OverpassWindowDto>();
+
+            // Add calculated overpasses first
+            result.AddRange(calculatedOverpasses);
+
+            // For each stored overpass, check if we already have a similar calculated one
+            foreach (var storedOverpass in storedOverpasses)
+            {
+                var toleranceMinutes = 10; // Allow 10-minute tolerance for merging
+
+                // Check if this stored overpass is already represented in calculated overpasses
+                var existingCalculated = result.FirstOrDefault(co =>
+                    Math.Abs((co.StartTime - storedOverpass.StartTime).TotalMinutes) < toleranceMinutes &&
+                    Math.Abs((co.EndTime - storedOverpass.EndTime).TotalMinutes) < toleranceMinutes);
+
+                if (existingCalculated != null)
+                {
+                    // Enrich the existing calculated overpass with stored data
+                    await EnrichOverpassWithStoredData(existingCalculated, storedOverpass);
+                }
+                else
+                {
+                    // Add stored overpass as new entry if it's not already calculated
+                    var storedAsDto = await ConvertStoredOverpassToDto(storedOverpass, satelliteName, groundStationName);
+                    result.Add(storedAsDto);
+                }
+            }
+
+            // Sort by start time
+            return result.OrderBy(o => o.StartTime).ToList();
+        }
+
+        private async Task EnrichOverpassWithStoredData(OverpassWindowDto overpassDto, Entity storedOverpass)
+        {
+            // Add TLE data if available
+            if (!string.IsNullOrEmpty(storedOverpass.TleLine1) && !string.IsNullOrEmpty(storedOverpass.TleLine2))
+            {
+                overpassDto.TleData = new TleDataDto
+                {
+                    TleLine1 = storedOverpass.TleLine1,
+                    TleLine2 = storedOverpass.TleLine2,
+                    UpdateTime = storedOverpass.TleUpdateTime
+                };
+            }
+
+            // Add associated flight plan if available
+            var flightPlan = await _overpassRepository.GetAssociatedFlightPlanAsync(storedOverpass.Id);
+            if (flightPlan != null)
+            {
+                overpassDto.AssociatedFlightPlan = new AssociatedFlightPlanDto
+                {
+                    Id = flightPlan.Id,
+                    Name = flightPlan.Name,
+                    ScheduledAt = flightPlan.ScheduledAt,
+                    Status = flightPlan.Status.ToString(),
+                    ApproverId = flightPlan.ApproverId,
+                    ApprovalDate = flightPlan.ApprovalDate
+                };
+            }
+        }
+
+        private async Task<OverpassWindowDto> ConvertStoredOverpassToDto(Entity storedOverpass, string satelliteName, string groundStationName)
+        {
+            var dto = new OverpassWindowDto
+            {
+                SatelliteId = storedOverpass.SatelliteId,
+                SatelliteName = satelliteName,
+                GroundStationId = storedOverpass.GroundStationId,
+                GroundStationName = groundStationName,
+                StartTime = storedOverpass.StartTime,
+                EndTime = storedOverpass.EndTime,
+                MaxElevationTime = storedOverpass.MaxElevationTime,
+                MaxElevation = storedOverpass.MaxElevation,
+                DurationSeconds = storedOverpass.DurationSeconds,
+                StartAzimuth = storedOverpass.StartAzimuth,
+                EndAzimuth = storedOverpass.EndAzimuth
+            };
+
+            // Enrich with stored data
+            await EnrichOverpassWithStoredData(dto, storedOverpass);
+
+            return dto;
         }
     }
 }

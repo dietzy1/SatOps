@@ -69,16 +69,7 @@ namespace SatOps.Modules.Schedule
         [HttpPost("{id}/associate-overpass")]
         public async Task<ActionResult> AssociateOverpass(int id, [FromBody] AssociateOverpassDto input)
         {
-            // Convert DTO to OverpassWindowsCalculationRequestDto
-            var overpassRequest = new OverpassWindowsCalculationRequestDto
-            {
-                SatelliteId = input.SatelliteId,
-                GroundStationId = input.GroundStationId,
-                StartTime = input.StartTime,
-                EndTime = input.EndTime,
-            };
-
-            var (success, message) = await _service.AssociateWithOverpassAsync(id, overpassRequest);
+            var (success, message) = await _service.AssociateWithOverpassAsync(id, input);
             if (!success)
             {
                 return Conflict(new { detail = message });
