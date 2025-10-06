@@ -57,7 +57,7 @@ namespace SatOps.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
                 entity.Property(e => e.Name).IsRequired();
-                entity.Property(e => e.Body).HasColumnType("jsonb").IsRequired();
+                entity.Property(e => e.Commands).HasColumnType("jsonb").IsRequired();
                 entity.Property(e => e.Status).IsRequired();
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("timezone('utc', now())");

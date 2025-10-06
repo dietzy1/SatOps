@@ -31,30 +31,57 @@ namespace SatOps.Modules.Schedule
         }
 
         [HttpPost]
-        public async Task<ActionResult<FlightPlanDto>> Create([FromBody] CreateFlightPlanDto input)
+        public async Task<ActionResult<FlightPlanDto>> Create(
+            [FromBody] CreateFlightPlanDto input)
         {
-            var created = await _service.CreateAsync(input);
-            var dto = Mappers.ToDto(created);
-            return CreatedAtAction(nameof(Get), new { id = created.Id }, dto);
+            try
+            {
+                var created = await _service.CreateAsync(input);
+                var dto = Mappers.ToDto(created);
+                return CreatedAtAction(nameof(Get), new { id = created.Id }, dto);
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { detail = ex.Message });
+            }
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<FlightPlanDto>> Update(int id, [FromBody] CreateFlightPlanDto input)
+        public async Task<ActionResult<FlightPlanDto>> Update(
+            int id,
+            [FromBody] CreateFlightPlanDto input)
         {
-            var newVersion = await _service.CreateNewVersionAsync(id, input);
-            if (newVersion == null)
-            {
-                return BadRequest("Could not update the flight plan. It may not be in an updateable state (draft, approved awaiting overpass, or approved).");
-            }
-            return Ok(Mappers.ToDto(newVersion));
+            /*     try
+                {
+                    var newVersion = await _service.CreateNewVersionAsync(id, input);
+                    if (newVersion == null)
+                    {
+                        return BadRequest(new
+                        {
+                            detail = "Could not update the flight plan. " +
+                                    "It may not be in an updateable state."
+                        });
+                    }
+                    return Ok(Mappers.ToDto(newVersion));
+                }
+                catch (ArgumentException ex)
+                {
+                    return BadRequest(new { detail = ex.Message });
+                } */
+            return StatusCode(503, new { detail = "This endpoint is temporarily disabled." });
         }
 
         [HttpPatch("{id}")]
-        public async Task<ActionResult> Approve(int id, [FromBody] ApproveFlightPlanDto input)
+        public async Task<ActionResult> Approve(
+            int id,
+            [FromBody] ApproveFlightPlanDto input)
         {
-            if (input.Status != FlightPlanStatus.Approved.ToScreamCase() && input.Status != FlightPlanStatus.Rejected.ToScreamCase())
+            if (input.Status != "APPROVED" && input.Status != "REJECTED")
             {
-                return BadRequest("Invalid status provided can be either APPROVED or REJECTED");
+                return BadRequest(new
+                {
+                    detail = "Invalid status. Must be APPROVED or REJECTED"
+                });
             }
 
             var (success, message) = await _service.ApproveOrRejectAsync(id, input.Status);
@@ -67,7 +94,9 @@ namespace SatOps.Modules.Schedule
         }
 
         [HttpPost("{id}/associate-overpass")]
-        public async Task<ActionResult> AssociateOverpass(int id, [FromBody] AssociateOverpassDto input)
+        public async Task<ActionResult> AssociateOverpass(
+            int id,
+            [FromBody] AssociateOverpassDto input)
         {
             var (success, message) = await _service.AssociateWithOverpassAsync(id, input);
             if (!success)
@@ -77,5 +106,25 @@ namespace SatOps.Modules.Schedule
 
             return Ok(new { success = true, message });
         }
+
+        [HttpGet("{id}/csh")]
+        public async Task<ActionResult<List<string>>> CompileFlightPlan(int id)
+        {
+            try
+            {
+                var cshCommands = await _service.CompileFlightPlanToCshAsync(id);
+                return Ok(cshCommands);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(new { detail = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { detail = ex.Message });
+            }
+        }
+
+
     }
 }
