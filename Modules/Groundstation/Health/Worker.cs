@@ -20,7 +20,7 @@ namespace SatOps.Modules.Groundstation.Health
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Ground Station Health Check Worker started with interval: {Interval}", _checkInterval);
+            _logger.LogDebug("Ground Station Health Check Worker started with interval: {Interval}", _checkInterval);
 
             // Wait a bit before starting the first check to allow the application to fully initialize
             await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
@@ -33,7 +33,7 @@ namespace SatOps.Modules.Groundstation.Health
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error occurred during health check cycle");
+                    _logger.LogDebug(ex, "Error occurred during health check cycle");
                 }
 
                 try
