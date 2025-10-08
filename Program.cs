@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication;
 using SatOps.Modules.Groundstation;
-using SatOps.Modules.Schedule;
+using SatOps.Modules.FlightPlan;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.User;
 using SatOps.Modules.Groundstation.Health;
@@ -234,13 +234,14 @@ builder.Services.AddScoped<IGroundStationRepository, GroundStationRepository>();
 builder.Services.AddScoped<IGroundStationService, GroundStationService>();
 builder.Services.AddScoped<IFlightPlanRepository, FlightPlanRepository>();
 builder.Services.AddScoped<IFlightPlanService, FlightPlanService>();
+builder.Services.AddScoped<IImagingCalculation, ImagingCalculation>();
 builder.Services.AddScoped<ISatelliteRepository, SatelliteRepository>();
 builder.Services.AddScoped<ISatelliteService, SatelliteService>();
 builder.Services.AddScoped<ICelestrackClient, CelestrackClient>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<SatOps.Modules.Overpass.IOverpassRepository, SatOps.Modules.Overpass.OverpassRepository>();
-builder.Services.AddScoped<SatOps.Modules.Overpass.IService, SatOps.Modules.Overpass.Service>();
+builder.Services.AddScoped<SatOps.Modules.Overpass.IOverpassService, SatOps.Modules.Overpass.OverpassService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
 // MinIO Configuration

@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SatOps.Data;
 
-namespace SatOps.Modules.Schedule
+namespace SatOps.Modules.FlightPlan
 {
     public interface IFlightPlanRepository
     {

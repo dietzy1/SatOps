@@ -1,12 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using SGPdotNET.CoordinateSystem;
-using SGPdotNET.Exception;
-using SGPdotNET.Observation;
-using SGPdotNET.Propagation;
 using SGPdotNET.TLE;
 using SGPdotNET.Util;
 using SatOps.Modules.Groundstation;
@@ -14,7 +6,7 @@ using SatOps.Modules.Satellite;
 
 namespace SatOps.Modules.Overpass
 {
-    public interface IService
+    public interface IOverpassService
     {
         Task<List<OverpassWindowDto>> CalculateOverpassesAsync(OverpassWindowsCalculationRequestDto request);
         Task<Entity> StoreOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null);
@@ -22,13 +14,13 @@ namespace SatOps.Modules.Overpass
         Task<Entity?> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null);
     }
 
-    public class Service : IService
+    public class OverpassService : IOverpassService
     {
         private readonly ISatelliteService _satelliteService;
         private readonly IGroundStationService _groundStationService;
         private readonly IOverpassRepository _overpassRepository;
 
-        public Service(ISatelliteService satelliteService, IGroundStationService groundStationService, IOverpassRepository overpassRepository)
+        public OverpassService(ISatelliteService satelliteService, IGroundStationService groundStationService, IOverpassRepository overpassRepository)
         {
             _satelliteService = satelliteService;
             _groundStationService = groundStationService;

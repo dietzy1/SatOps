@@ -11,7 +11,7 @@ public enum FlightPlanStatus
     Superseded // When a new version is created
 }
 
-namespace SatOps.Modules.Schedule
+namespace SatOps.Modules.FlightPlan
 {
     [Table("flight_plans")]
     public class FlightPlan

@@ -6,9 +6,9 @@ namespace SatOps.Modules.Overpass
     [Route("api/v1/overpasses")]
     public class OverpassesController : ControllerBase
     {
-        private readonly IService _overpassService;
+        private readonly IOverpassService _overpassService;
 
-        public OverpassesController(IService overpassService)
+        public OverpassesController(IOverpassService overpassService)
         {
             _overpassService = overpassService;
         }

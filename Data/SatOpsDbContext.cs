@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using GroundStationEntity = SatOps.Modules.Groundstation.GroundStation;
-using FlightPlanEntity = SatOps.Modules.Schedule.FlightPlan;
+using FlightPlanEntity = SatOps.Modules.FlightPlan.FlightPlan;
 using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 using UserEntity = SatOps.Modules.User.User;
 using TelemetryDataEntity = SatOps.Modules.Operation.TelemetryData;

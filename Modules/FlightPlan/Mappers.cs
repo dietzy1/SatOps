@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 
 
-namespace SatOps.Modules.Schedule
+namespace SatOps.Modules.FlightPlan
 {
     public static class Mappers
     {

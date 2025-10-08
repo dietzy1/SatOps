@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
-using SatOps.Modules.Schedule;
+using SatOps.Modules.FlightPlan;
 using SatOps.Modules.Overpass;
 
-namespace SatOps.Modules.Schedule
+namespace SatOps.Modules.FlightPlan
 {
     [ApiController]
     [Route("api/v1/flight-plans")]
@@ -76,6 +76,32 @@ namespace SatOps.Modules.Schedule
             }
 
             return Ok(new { success = true, message });
+        }
+
+        [HttpGet("imaging-opportunity")]
+        public async Task<ActionResult<ImagingTimingResponseDto>> GetImagingOpportunity(
+            [FromQuery] ImagingTimingRequestDto request
+        )
+        {
+            // Validate request parameters
+            if (request.SatelliteId <= 0)
+                return BadRequest($"Invalid satellite ID: {request.SatelliteId}");
+
+            if (request.TargetLatitude < -90 || request.TargetLatitude > 90)
+                return BadRequest($"Target latitude must be between -90 and 90 degrees: {request.TargetLatitude}");
+
+            if (request.TargetLongitude < -180 || request.TargetLongitude > 180)
+                return BadRequest($"Target longitude must be between -180 and 180 degrees: {request.TargetLongitude}");
+
+            if (request.MaxOffNadirDegrees <= 0 || request.MaxOffNadirDegrees > 90)
+                return BadRequest($"Max off-nadir angle must be between 0 and 90 degrees: {request.MaxOffNadirDegrees}");
+
+            if (request.MaxSearchDurationHours <= 0)
+                return BadRequest($"Max search duration must be a positive number of hours: {request.MaxSearchDurationHours}");
+
+            var result = await _service.GetImagingOpportunity(request);
+
+            return Ok(result);
         }
     }
 }

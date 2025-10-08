@@ -3,8 +3,11 @@ using SatOps.Data;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Overpass;
+using SGPdotNET.CoordinateSystem;
+using SGPdotNET.TLE;
+using SGPdotNET.Util;
 
-namespace SatOps.Modules.Schedule
+namespace SatOps.Modules.FlightPlan
 {
     public interface IFlightPlanService
     {
@@ -14,6 +17,7 @@ namespace SatOps.Modules.Schedule
         Task<FlightPlan?> CreateNewVersionAsync(int id, CreateFlightPlanDto updateDto);
         Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status);
         Task<(bool Success, string Message)> AssociateWithOverpassAsync(int flightPlanId, AssociateOverpassDto overpassRequest);
+        Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request);
     }
 
     public class FlightPlanService : IFlightPlanService
@@ -22,16 +26,24 @@ namespace SatOps.Modules.Schedule
         private readonly SatOpsDbContext _dbContext;
         private readonly ISatelliteService _satelliteService;
         private readonly IGroundStationService _groundStationService;
-        private readonly IService _overpassService;
+        private readonly IOverpassService _overpassService;
+        private readonly IImagingCalculation _imagingCalculation;
 
-        public FlightPlanService(IFlightPlanRepository repository, SatOpsDbContext dbContext,
-            ISatelliteService satelliteService, IGroundStationService groundStationService, IService overpassService)
+        public FlightPlanService(
+            IFlightPlanRepository repository,
+            SatOpsDbContext dbContext,
+            ISatelliteService satelliteService,
+            IGroundStationService groundStationService,
+            IOverpassService overpassService,
+            IImagingCalculation imagingCalculation
+        )
         {
             _repository = repository;
             _dbContext = dbContext;
             _satelliteService = satelliteService;
             _groundStationService = groundStationService;
             _overpassService = overpassService;
+            _imagingCalculation = imagingCalculation;
         }
 
         public Task<List<FlightPlan>> ListAsync() => _repository.GetAllAsync();
@@ -257,7 +269,7 @@ namespace SatOps.Modules.Schedule
                 var elevationTolerance = 2.0; // Allow 2-degree tolerance for elevation matching
                 var durationTolerance = 60; // Allow 60-second tolerance for duration matching
 
-                var candidateOverpasses = availableOverpasses.Where(o => 
+                var candidateOverpasses = availableOverpasses.Where(o =>
                     // Time window matching (with tolerance)
                     Math.Abs((o.StartTime - overpassRequest.StartTime).TotalMinutes) <= toleranceMinutes ||
                     Math.Abs((o.EndTime - overpassRequest.EndTime).TotalMinutes) <= toleranceMinutes ||
@@ -268,19 +280,19 @@ namespace SatOps.Modules.Schedule
                 // Apply additional filtering criteria if provided
                 if (overpassRequest.MaxElevation.HasValue)
                 {
-                    candidateOverpasses = candidateOverpasses.Where(o => 
+                    candidateOverpasses = candidateOverpasses.Where(o =>
                         Math.Abs(o.MaxElevation - overpassRequest.MaxElevation.Value) <= elevationTolerance);
                 }
 
                 if (overpassRequest.DurationSeconds.HasValue)
                 {
-                    candidateOverpasses = candidateOverpasses.Where(o => 
+                    candidateOverpasses = candidateOverpasses.Where(o =>
                         Math.Abs(o.DurationSeconds - overpassRequest.DurationSeconds.Value) <= durationTolerance);
                 }
 
                 if (overpassRequest.MaxElevationTime.HasValue)
                 {
-                    candidateOverpasses = candidateOverpasses.Where(o => 
+                    candidateOverpasses = candidateOverpasses.Where(o =>
                         Math.Abs((o.MaxElevationTime - overpassRequest.MaxElevationTime.Value).TotalMinutes) <= toleranceMinutes);
                 }
 
@@ -296,7 +308,7 @@ namespace SatOps.Modules.Schedule
                     if (overpassRequest.MaxElevation.HasValue) criteriaUsed.Add("max elevation");
                     if (overpassRequest.DurationSeconds.HasValue) criteriaUsed.Add("duration");
                     if (overpassRequest.MaxElevationTime.HasValue) criteriaUsed.Add("max elevation time");
-                    
+
                     return (false, $"No overpass found matching the specified criteria: {string.Join(", ", criteriaUsed)} (within tolerance).");
                 }
 
@@ -329,6 +341,64 @@ namespace SatOps.Modules.Schedule
                 await transaction.RollbackAsync();
                 return (false, $"Error associating flight plan with overpass: {ex.Message}");
             }
+        }
+
+        public async Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request)
+        {
+            var satellite = await _satelliteService.GetAsync(request.SatelliteId);
+            if (satellite == null)
+            {
+                return new ImagingTimingResponseDto
+                {
+                    Message = $"Satellite with ID {request.SatelliteId} not found."
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(satellite.TleLine1) || string.IsNullOrWhiteSpace(satellite.TleLine2))
+            {
+                return new ImagingTimingResponseDto
+                {
+                    Message = $"Satellite with ID {request.SatelliteId} does not have valid TLE data."
+                };
+            }
+
+            var tle = new Tle(satellite.Name, satellite.TleLine1, satellite.TleLine2);
+            var sgp4Satellite = new SGPdotNET.Observation.Satellite(tle);
+
+            // Check TLE age and warn if > 48 hours
+            var tleAge = DateTime.UtcNow - tle.Epoch;
+            var tleAgeWarning = tleAge.TotalHours > 48;
+
+            // Create target coordinate
+            var targetCoordinate = new GeodeticCoordinate(
+                Angle.FromDegrees(request.TargetLatitude),
+                Angle.FromDegrees(request.TargetLongitude),
+                0); // Assuming ground level target
+
+            var maxSearchDuration = TimeSpan.FromHours(request.MaxSearchDurationHours);
+
+            var imagingOpportunity = _imagingCalculation.FindBestImagingOpportunity(
+                sgp4Satellite,
+                targetCoordinate,
+                request.CommandReceptionTime ?? DateTime.UtcNow,
+                maxSearchDuration
+            );
+
+            var result = new ImagingTimingResponseDto
+            {
+                ImagingTime = imagingOpportunity.ImagingTime,
+                OffNadirDegrees = imagingOpportunity.OffNadirDegrees,
+                SatelliteAltitudeKm = imagingOpportunity.SatelliteAltitudeKm,
+                TleAgeWarning = tleAgeWarning,
+                TleAgeHours = tleAge.TotalHours,
+            };
+
+            if (result.OffNadirDegrees > request.MaxOffNadirDegrees)
+            {
+                result.Message = $"No imaging opportunity found within the off-nadir limit of {request.MaxOffNadirDegrees} degrees. Best one found was {result.OffNadirDegrees:F2} degrees off-nadir.";
+            }
+
+            return result;
         }
     }
 }
