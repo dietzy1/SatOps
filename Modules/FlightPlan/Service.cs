@@ -3,6 +3,7 @@ using SatOps.Data;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Overpass;
+using SatOps.Modules.Gateway;
 using SGPdotNET.CoordinateSystem;
 using SGPdotNET.TLE;
 using SGPdotNET.Util;
@@ -28,6 +29,8 @@ namespace SatOps.Modules.FlightPlan
         private readonly IGroundStationService _groundStationService;
         private readonly IOverpassService _overpassService;
         private readonly IImagingCalculation _imagingCalculation;
+        private readonly IGroundStationGatewayService _gatewayService;
+        private readonly ILogger<IFlightPlanService> _logger;
 
         public FlightPlanService(
             IFlightPlanRepository repository,
@@ -35,7 +38,9 @@ namespace SatOps.Modules.FlightPlan
             ISatelliteService satelliteService,
             IGroundStationService groundStationService,
             IOverpassService overpassService,
-            IImagingCalculation imagingCalculation
+            IImagingCalculation imagingCalculation,
+            IGroundStationGatewayService gatewayService,
+            ILogger<IFlightPlanService> logger
         )
         {
             _repository = repository;
@@ -44,6 +49,8 @@ namespace SatOps.Modules.FlightPlan
             _groundStationService = groundStationService;
             _overpassService = overpassService;
             _imagingCalculation = imagingCalculation;
+            _gatewayService = gatewayService;
+            _logger = logger;
         }
 
         public Task<List<FlightPlan>> ListAsync() => _repository.GetAllAsync();
@@ -330,7 +337,44 @@ namespace SatOps.Modules.FlightPlan
                 if (success)
                 {
                     await transaction.CommitAsync();
-                    return (true, $"Flight plan successfully associated with overpass starting at {selectedOverpass.StartTime:yyyy-MM-dd HH:mm:ss} UTC.");
+
+                    try
+
+                    {
+                        var satellite = await _satelliteService.GetAsync(flightPlan.SatelliteId);
+
+                        var commandSequence = CommandSequence.FromJson(flightPlan.Body.RootElement.GetRawText());
+
+                        if (commandSequence != null && satellite != null && flightPlan.ScheduledAt.HasValue)
+                        {
+                            var cshScript = new List<string>();
+                            foreach (var command in commandSequence.Commands)
+                            {
+                                var compiledCommands = await command.CompileToCsh();
+                                cshScript.AddRange(compiledCommands);
+                            }
+
+                            await _gatewayService.SendScheduledCommand(
+                                flightPlan.GroundStationId,
+                                satellite.Name,
+                                flightPlan.ScheduledAt.Value,
+                                cshScript
+                            );
+                        }
+                        else
+                        {
+                            _logger.LogError("Could not send command for Flight Plan {FlightPlanId}: satellite, command sequence or schedule time was null.", flightPlan.Id);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Plan is saved but we failed to send it
+                        // Needs robust handling
+                        _logger.LogError(ex, "Failed to send scheduled command for Flight Plan {FlightPlanId} to GS {GroundStationId}", flightPlan.Id, flightPlan.GroundStationId);
+                        return (true, $"Flight plan associated, but failed to schedule transmission to ground station: {ex.Message}");
+                    }
+
+                    return (true, $"Flight plan successfully associated with overpass and scheduled for transmission.");
                 }
 
                 await transaction.RollbackAsync();
