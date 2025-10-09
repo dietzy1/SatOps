@@ -18,6 +18,7 @@ using SatOps.Data;
 using Minio;
 using System.Text;
 using SatOps.Modules.Auth;
+using SatOps.Modules.Gateway;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -244,6 +245,8 @@ builder.Services.AddScoped<SatOps.Modules.Overpass.IOverpassRepository, SatOps.M
 builder.Services.AddScoped<SatOps.Modules.Overpass.IOverpassService, SatOps.Modules.Overpass.OverpassService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+builder.Services.AddSingleton<IGroundStationGatewayService, GroundStationGatewayService>();
+
 // MinIO Configuration
 builder.Services.AddSingleton<IMinioClient>(sp =>
 {
@@ -338,6 +341,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<SatOpsDbContext>();
     db.Database.Migrate();
 }
+app.UseWebSockets();
 
 app.Run();
 
