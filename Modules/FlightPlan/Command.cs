@@ -122,7 +122,7 @@ namespace SatOps.Modules.FlightPlan
 
     public class CommandSequence
     {
-        public List<Command> Commands { get; set; } = new();
+        public List<Command> Commands { get; set; } = [];
 
         public void AddCommand(Command command) => Commands.Add(command);
 

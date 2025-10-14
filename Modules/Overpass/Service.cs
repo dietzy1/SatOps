@@ -1,12 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Mvc;
 using SGPdotNET.CoordinateSystem;
-using SGPdotNET.Exception;
-using SGPdotNET.Observation;
-using SGPdotNET.Propagation;
 using SGPdotNET.TLE;
 using SGPdotNET.Util;
 using SatOps.Modules.Groundstation;
@@ -14,7 +6,7 @@ using SatOps.Modules.Satellite;
 
 namespace SatOps.Modules.Overpass
 {
-    public interface IService
+    public interface IOverpassService
     {
         Task<List<OverpassWindowDto>> CalculateOverpassesAsync(OverpassWindowsCalculationRequestDto request);
         Task<Entity> StoreOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null);
@@ -22,39 +14,28 @@ namespace SatOps.Modules.Overpass
         Task<Entity?> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null);
     }
 
-    public class Service : IService
+    public class OverpassService(ISatelliteService satelliteService, IGroundStationService groundStationService, IOverpassRepository overpassRepository) : IOverpassService
     {
-        private readonly ISatelliteService _satelliteService;
-        private readonly IGroundStationService _groundStationService;
-        private readonly IOverpassRepository _overpassRepository;
-
-        public Service(ISatelliteService satelliteService, IGroundStationService groundStationService, IOverpassRepository overpassRepository)
-        {
-            _satelliteService = satelliteService;
-            _groundStationService = groundStationService;
-            _overpassRepository = overpassRepository;
-        }
-
         public async Task<List<OverpassWindowDto>> CalculateOverpassesAsync(OverpassWindowsCalculationRequestDto request)
         {
             try
             {
                 // First, check if we have stored overpasses in the requested time range
-                var storedOverpasses = await _overpassRepository.FindStoredOverpassesInTimeRange(
+                var storedOverpasses = await overpassRepository.FindStoredOverpassesInTimeRange(
                     request.SatelliteId,
                     request.GroundStationId,
                     request.StartTime,
                     request.EndTime);
 
                 // Get satellite data for calculations and names
-                var satellite = await _satelliteService.GetAsync(request.SatelliteId);
+                var satellite = await satelliteService.GetAsync(request.SatelliteId);
                 if (satellite == null)
                 {
                     throw new ArgumentException($"Satellite with ID {request.SatelliteId} not found.");
                 }
 
                 // Get ground station data
-                var groundStationEntity = await _groundStationService.GetAsync(request.GroundStationId);
+                var groundStationEntity = await groundStationService.GetAsync(request.GroundStationId);
                 if (groundStationEntity == null)
                 {
                     throw new ArgumentException($"Ground station with ID {request.GroundStationId} not found.");
@@ -186,18 +167,18 @@ namespace SatOps.Modules.Overpass
                 TleUpdateTime = tleUpdateTime
             };
 
-            return await _overpassRepository.AddAsync(overpassEntity);
+            return await overpassRepository.AddAsync(overpassEntity);
         }
 
         public async Task<Entity?> GetStoredOverpassAsync(int id)
         {
-            return await _overpassRepository.GetByIdReadOnlyAsync(id);
+            return await overpassRepository.GetByIdReadOnlyAsync(id);
         }
 
         public async Task<Entity?> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null)
         {
             // First try to find an existing overpass that matches
-            var existingOverpass = await _overpassRepository.FindExistingOverpassAsync(
+            var existingOverpass = await overpassRepository.FindExistingOverpassAsync(
                 overpassWindow.SatelliteId,
                 overpassWindow.GroundStationId,
                 overpassWindow.StartTime,
@@ -266,7 +247,7 @@ namespace SatOps.Modules.Overpass
             }
 
             // Add associated flight plan if available
-            var flightPlan = await _overpassRepository.GetAssociatedFlightPlanAsync(storedOverpass.Id);
+            var flightPlan = await overpassRepository.GetAssociatedFlightPlanAsync(storedOverpass.Id);
             if (flightPlan != null)
             {
                 overpassDto.AssociatedFlightPlan = new AssociatedFlightPlanDto

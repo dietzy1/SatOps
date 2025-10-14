@@ -12,7 +12,7 @@ namespace SatOps.Modules.Satellite
         [Range(1, 999999999, ErrorMessage = "NoradId must be positive and 1 to 9 digits long")]
         public int NoradId { get; set; }
         public SatelliteStatus Status { get; set; }
-        public TleDto Tle { get; set; } = new TleDto();
+        public TleDto Tle { get; set; } = new();
         public DateTime CreatedAt { get; set; }
         public DateTime LastUpdate { get; set; }
     }

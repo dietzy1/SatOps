@@ -4,15 +4,8 @@ namespace SatOps.Modules.Overpass
 {
     [ApiController]
     [Route("api/v1/overpasses")]
-    public class OverpassesController : ControllerBase
+    public class OverpassesController(IOverpassService overpassService) : ControllerBase
     {
-        private readonly IService _overpassService;
-
-        public OverpassesController(IService overpassService)
-        {
-            _overpassService = overpassService;
-        }
-
         [HttpGet("satellite/{satelliteId:int}/groundstation/{groundStationId:int}")]
         public async Task<ActionResult<List<OverpassWindowDto>>> GetOverpassWindows(
             int satelliteId,
@@ -33,7 +26,7 @@ namespace SatOps.Modules.Overpass
 
             try
             {
-                var result = await _overpassService.CalculateOverpassesAsync(new OverpassWindowsCalculationRequestDto
+                var result = await overpassService.CalculateOverpassesAsync(new OverpassWindowsCalculationRequestDto
                 {
                     SatelliteId = satelliteId,
                     GroundStationId = groundStationId,

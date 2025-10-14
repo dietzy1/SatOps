@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication;
 using SatOps.Modules.Groundstation;
-using SatOps.Modules.Schedule;
+using SatOps.Modules.FlightPlan;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.User;
 using SatOps.Modules.Groundstation.Health;
@@ -18,6 +18,7 @@ using SatOps.Data;
 using Minio;
 using System.Text;
 using SatOps.Modules.Auth;
+using SatOps.Modules.Gateway;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -120,7 +121,7 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
 // Helper method to determine if a controller is internal
 static bool IsInternalController(string? controllerName)
 {
-    var internalControllers = new[] { "Operations", "Auth" };
+    var internalControllers = new[] { "Operations", "Auth", "Gateway" };
     return controllerName != null && internalControllers.Contains(controllerName);
 }
 
@@ -234,14 +235,17 @@ builder.Services.AddScoped<IGroundStationRepository, GroundStationRepository>();
 builder.Services.AddScoped<IGroundStationService, GroundStationService>();
 builder.Services.AddScoped<IFlightPlanRepository, FlightPlanRepository>();
 builder.Services.AddScoped<IFlightPlanService, FlightPlanService>();
+builder.Services.AddScoped<IImagingCalculation, ImagingCalculation>();
 builder.Services.AddScoped<ISatelliteRepository, SatelliteRepository>();
 builder.Services.AddScoped<ISatelliteService, SatelliteService>();
 builder.Services.AddScoped<ICelestrackClient, CelestrackClient>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<SatOps.Modules.Overpass.IOverpassRepository, SatOps.Modules.Overpass.OverpassRepository>();
-builder.Services.AddScoped<SatOps.Modules.Overpass.IService, SatOps.Modules.Overpass.Service>();
+builder.Services.AddScoped<SatOps.Modules.Overpass.IOverpassService, SatOps.Modules.Overpass.OverpassService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+builder.Services.AddSingleton<IGroundStationGatewayService, GroundStationGatewayService>();
 
 // MinIO Configuration
 builder.Services.AddSingleton<IMinioClient>(sp =>
@@ -337,6 +341,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<SatOpsDbContext>();
     db.Database.Migrate();
 }
+app.UseWebSockets();
 
 app.Run();
 

@@ -4,14 +4,8 @@ namespace SatOps.Modules.Groundstation.Health
 {
     [ApiController]
     [Route("api/v1/ground-stations")]
-    public class GroundStationsHealthController : ControllerBase
+    public class GroundStationsHealthController(IGroundStationService service) : ControllerBase
     {
-        private readonly IGroundStationService _service;
-
-        public GroundStationsHealthController(IGroundStationService service)
-        {
-            _service = service;
-        }
 
         /// <summary>
         /// Get the health status of a specific ground station
@@ -21,7 +15,7 @@ namespace SatOps.Modules.Groundstation.Health
         [HttpGet("{id:int}/health")]
         public async Task<ActionResult<GroundStationHealthDto>> GetHealth(int id)
         {
-            var (groundStation, isHealthy) = await _service.GetRealTimeHealthStatusAsync(id);
+            var (groundStation, isHealthy) = await service.GetRealTimeHealthStatusAsync(id);
             if (groundStation == null)
             {
                 return NotFound($"Ground station with ID {id} not found");

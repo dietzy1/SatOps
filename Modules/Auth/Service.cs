@@ -12,35 +12,24 @@ namespace SatOps.Modules.Auth
         Task<string?> GenerateTokenAsync(TokenRequestDto request);
     }
 
-    public class AuthService : IAuthService
+    public class AuthService(IGroundStationRepository gsRepository, IConfiguration configuration, ILogger<AuthService> logger) : IAuthService
     {
-        private readonly IGroundStationRepository _gsRepository;
-        private readonly IConfiguration _configuration;
-        private readonly ILogger<AuthService> _logger;
-
-        public AuthService(IGroundStationRepository gsRepository, IConfiguration configuration, ILogger<AuthService> logger)
-        {
-            _gsRepository = gsRepository;
-            _configuration = configuration;
-            _logger = logger;
-        }
-
         public async Task<string?> GenerateTokenAsync(TokenRequestDto request)
         {
             // Find ground station by its public ApplicationId
             // Note: We need a new method in the repository for this.
-            var station = await _gsRepository.GetByApplicationIdAsync(request.ApplicationId);
+            var station = await gsRepository.GetByApplicationIdAsync(request.ApplicationId);
 
             if (station == null)
             {
-                _logger.LogWarning("Authentication failed: ApplicationId {AppId} not found.", request.ApplicationId);
+                logger.LogWarning("Authentication failed: ApplicationId {AppId} not found.", request.ApplicationId);
                 return null;
             }
 
             // Verify the provided API key against the stored hash
             if (!ApiKeyHasher.Verify(request.ApiKey, station.ApiKeyHash))
             {
-                _logger.LogWarning("Authentication failed: Invalid API Key for ApplicationId {AppId}.", request.ApplicationId);
+                logger.LogWarning("Authentication failed: Invalid API Key for ApplicationId {AppId}.", request.ApplicationId);
                 return null;
             }
 
@@ -50,7 +39,7 @@ namespace SatOps.Modules.Auth
 
         private string GenerateJwtForGroundStation(GroundStation station)
         {
-            var jwtSettings = _configuration.GetSection("Jwt");
+            var jwtSettings = configuration.GetSection("Jwt");
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 

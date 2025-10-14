@@ -24,7 +24,7 @@ namespace SatOps.Modules.Groundstation
         [Required]
         public string Name { get; set; } = string.Empty;
         [Required(ErrorMessage = "Location is required")]
-        public LocationDto Location { get; set; } = new LocationDto();
+        public LocationDto Location { get; set; } = new();
         [Required(ErrorMessage = "HTTP URL is required")]
         [Url(ErrorMessage = "Invalid URL format")]
         public string HttpUrl { get; set; } = string.Empty;
@@ -37,7 +37,7 @@ namespace SatOps.Modules.Groundstation
         [Required]
         public string Name { get; set; } = string.Empty;
         [Required]
-        public LocationDto Location { get; set; } = new LocationDto();
+        public LocationDto Location { get; set; } = new();
         [Required]
         [Url]
         public string HttpUrl { get; set; } = string.Empty;
@@ -70,17 +70,6 @@ namespace SatOps.Modules.Groundstation
 
         [Required]
         public bool IsActive { get; set; }
-    }
-
-    public class GroundStationUpdateDto
-    {
-        [Required]
-        public string Name { get; set; } = string.Empty;
-        [Required]
-        public LocationDto Location { get; set; } = new LocationDto();
-        [Required]
-        [Url]
-        public string HttpUrl { get; set; } = string.Empty;
     }
 
     public class GroundStationPatchDto

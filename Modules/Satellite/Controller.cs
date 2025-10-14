@@ -4,26 +4,19 @@ namespace SatOps.Modules.Satellite
 {
     [ApiController]
     [Route("api/v1/satellites")]
-    public class SatellitesController : ControllerBase
+    public class SatellitesController(ISatelliteService service) : ControllerBase
     {
-        private readonly ISatelliteService _service;
-
-        public SatellitesController(ISatelliteService service)
-        {
-            _service = service;
-        }
-
         [HttpGet]
         public async Task<ActionResult<List<SatelliteDto>>> List()
         {
-            var items = await _service.ListAsync();
+            var items = await service.ListAsync();
             return Ok(items.Select(MapToDto).ToList());
         }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<SatelliteDto>> Get(int id)
         {
-            var item = await _service.GetAsync(id);
+            var item = await service.GetAsync(id);
             if (item == null)
             {
                 return NotFound($"Satellite with ID {id} not found.");

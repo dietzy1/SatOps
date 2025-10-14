@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.ChangeTracking;
+using System.Text.Json;
 using GroundStationEntity = SatOps.Modules.Groundstation.GroundStation;
-using FlightPlanEntity = SatOps.Modules.Schedule.FlightPlan;
+using FlightPlanEntity = SatOps.Modules.FlightPlan.FlightPlan;
 using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 using UserEntity = SatOps.Modules.User.User;
 using TelemetryDataEntity = SatOps.Modules.Operation.TelemetryData;
@@ -10,11 +10,8 @@ using OverpassEntity = SatOps.Modules.Overpass.Entity;
 
 namespace SatOps.Data
 {
-    public class SatOpsDbContext : DbContext
+    public class SatOpsDbContext(DbContextOptions<SatOpsDbContext> options) : DbContext(options)
     {
-        public SatOpsDbContext(DbContextOptions<SatOpsDbContext> options) : base(options)
-        {
-        }
 
         // Use aliases for the DbSet properties
         public DbSet<GroundStationEntity> GroundStations => Set<GroundStationEntity>();
@@ -55,16 +52,33 @@ namespace SatOps.Data
             {
                 entity.ToTable("flight_plans");
                 entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn();
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.Commands).HasColumnType("jsonb").IsRequired();
+
+                // Adding a value conversion for testing with InMemory provider
+                if (Database.ProviderName != "Npgsql.EntityFrameworkCore.PostgreSQL")
+                {
+                    entity.Property(e => e.Body)
+                        .HasConversion(
+                            v => v.RootElement.GetRawText(),
+                            v => JsonDocument.Parse(v, new JsonDocumentOptions()))
+                        .HasColumnType("text");
+                }
+                else
+                {
+                    entity.Property(e => e.Body)
+                        .HasColumnType("jsonb")
+                        .IsRequired();
+                }
+
                 entity.Property(e => e.Status).IsRequired();
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("timezone('utc', now())");
 
-                // Index for faster lookups by status
                 entity.HasIndex(e => e.Status);
             });
+
 
             // Configure Satellite entity
             modelBuilder.Entity<SatelliteEntity>(entity =>

@@ -5,8 +5,12 @@ using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Overpass;
 using SatOps.Modules.FlightPlan;
+using SatOps.Modules.Gateway;
+using SGPdotNET.CoordinateSystem;
+using SGPdotNET.TLE;
+using SGPdotNET.Util;
 
-namespace SatOps.Modules.Schedule
+namespace SatOps.Modules.FlightPlan
 {
     public interface IFlightPlanService
     {
@@ -17,9 +21,19 @@ namespace SatOps.Modules.Schedule
         Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status);
         Task<(bool Success, string Message)> AssociateWithOverpassAsync(int flightPlanId, AssociateOverpassDto overpassRequest);
         Task<List<string>> CompileFlightPlanToCshAsync(int id);
+        Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request);
     }
 
-    public class FlightPlanService : IFlightPlanService
+    public class FlightPlanService(
+        IFlightPlanRepository repository,
+        SatOpsDbContext dbContext,
+        ISatelliteService satelliteService,
+        IGroundStationService groundStationService,
+        IOverpassService overpassService,
+        IImagingCalculation imagingCalculation,
+        IGroundStationGatewayService gatewayService,
+        ILogger<IFlightPlanService> logger
+        ) : IFlightPlanService
     {
         private readonly IFlightPlanRepository _repository;
         private readonly IGroundStationService _groundStationService;
@@ -30,12 +44,15 @@ namespace SatOps.Modules.Schedule
             IFlightPlanRepository repository,
             IGroundStationService groundStationService,
             ISatelliteService satelliteService,
-            IService overpassService)
+            IService overpassService,
+            IImagingCalculation imagingCalculation
+        )
         {
             _repository = repository;
             _groundStationService = groundStationService;
             _satelliteService = satelliteService;
             _overpassService = overpassService;
+            _imagingCalculation = imagingCalculation;
         }
 
         public Task<List<FlightPlan>> ListAsync() => _repository.GetAllAsync();
@@ -53,7 +70,7 @@ namespace SatOps.Modules.Schedule
             }
 
             // Validate that the satellite exists
-            var satellite = await _satelliteService.GetAsync(createDto.SatId);
+            var satellite = await satelliteService.GetAsync(createDto.SatId);
             if (satellite == null)
             {
                 throw new ArgumentException($"Satellite with ID {createDto.SatId} not found.", nameof(createDto.SatId));
@@ -133,7 +150,7 @@ namespace SatOps.Modules.Schedule
 
         public async Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status)
         {
-            var plan = await _repository.GetByIdAsync(id);
+            var plan = await repository.GetByIdAsync(id);
             if (plan == null)
             {
                 return (false, "Flight plan not found.");
@@ -280,6 +297,64 @@ namespace SatOps.Modules.Schedule
             }
 
             return await commandSequence.CompileAllToCsh();
+        }
+        
+                public async Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request)
+        {
+            var satellite = await _satelliteService.GetAsync(request.SatelliteId);
+            if (satellite == null)
+            {
+                return new ImagingTimingResponseDto
+                {
+                    Message = $"Satellite with ID {request.SatelliteId} not found."
+                };
+            }
+
+            if (string.IsNullOrWhiteSpace(satellite.TleLine1) || string.IsNullOrWhiteSpace(satellite.TleLine2))
+            {
+                return new ImagingTimingResponseDto
+                {
+                    Message = $"Satellite with ID {request.SatelliteId} does not have valid TLE data."
+                };
+            }
+
+            var tle = new Tle(satellite.Name, satellite.TleLine1, satellite.TleLine2);
+            var sgp4Satellite = new SGPdotNET.Observation.Satellite(tle);
+
+            // Check TLE age and warn if > 48 hours
+            var tleAge = DateTime.UtcNow - tle.Epoch;
+            var tleAgeWarning = tleAge.TotalHours > 48;
+
+            // Create target coordinate
+            var targetCoordinate = new GeodeticCoordinate(
+                Angle.FromDegrees(request.TargetLatitude),
+                Angle.FromDegrees(request.TargetLongitude),
+                0); // Assuming ground level target
+
+            var maxSearchDuration = TimeSpan.FromHours(request.MaxSearchDurationHours);
+
+            var imagingOpportunity = _imagingCalculation.FindBestImagingOpportunity(
+                sgp4Satellite,
+                targetCoordinate,
+                request.CommandReceptionTime ?? DateTime.UtcNow,
+                maxSearchDuration
+            );
+
+            var result = new ImagingTimingResponseDto
+            {
+                ImagingTime = imagingOpportunity.ImagingTime,
+                OffNadirDegrees = imagingOpportunity.OffNadirDegrees,
+                SatelliteAltitudeKm = imagingOpportunity.SatelliteAltitudeKm,
+                TleAgeWarning = tleAgeWarning,
+                TleAgeHours = tleAge.TotalHours,
+            };
+
+            if (result.OffNadirDegrees > request.MaxOffNadirDegrees)
+            {
+                result.Message = $"No imaging opportunity found within the off-nadir limit of {request.MaxOffNadirDegrees} degrees. Best one found was {result.OffNadirDegrees:F2} degrees off-nadir.";
+            }
+
+            return result;
         }
     }
 }

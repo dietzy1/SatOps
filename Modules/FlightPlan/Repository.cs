@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SatOps.Data;
 
-namespace SatOps.Modules.Schedule
+namespace SatOps.Modules.FlightPlan
 {
     public interface IFlightPlanRepository
     {
@@ -12,33 +12,30 @@ namespace SatOps.Modules.Schedule
         Task DeleteAsync(int id);
     }
 
-    public class FlightPlanRepository : IFlightPlanRepository
+    public class FlightPlanRepository(SatOpsDbContext dbContext) : IFlightPlanRepository
     {
-        private readonly SatOpsDbContext _dbContext;
-
-        public FlightPlanRepository(SatOpsDbContext dbContext)
-        {
-            _dbContext = dbContext;
-        }
-
         public Task<List<FlightPlan>> GetAllAsync()
         {
-            return _dbContext.FlightPlans.AsNoTracking()
+            return dbContext.FlightPlans.AsNoTracking()
                 .OrderByDescending(fp => fp.CreatedAt).ToListAsync();
         }
 
         // When modifying entity
         public Task<FlightPlan?> GetByIdAsync(int id)
         {
-            return _dbContext.FlightPlans.FirstOrDefaultAsync(fp => fp.Id == id);
+            return dbContext.FlightPlans.FirstOrDefaultAsync(fp => fp.Id == id);
         }
 
-
+        // When only reading entity
+        public Task<FlightPlan?> GetByIdReadOnlyAsync(int id)
+        {
+            return dbContext.FlightPlans.AsNoTracking().FirstOrDefaultAsync(fp => fp.Id == id);
+        }
 
         public async Task<FlightPlan> AddAsync(FlightPlan entity)
         {
-            _dbContext.FlightPlans.Add(entity);
-            await _dbContext.SaveChangesAsync();
+            dbContext.FlightPlans.Add(entity);
+            await dbContext.SaveChangesAsync();
             return entity;
         }
 

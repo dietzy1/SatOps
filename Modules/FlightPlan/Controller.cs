@@ -1,33 +1,24 @@
 using Microsoft.AspNetCore.Mvc;
-using SatOps.Modules.Schedule;
-using SatOps.Modules.Overpass;
 
-namespace SatOps.Modules.Schedule
+namespace SatOps.Modules.FlightPlan
 {
     [ApiController]
     [Route("api/v1/flight-plans")]
-    public class FlightPlansController : ControllerBase
+    public class FlightPlansController(IFlightPlanService service) : ControllerBase
     {
-        private readonly IFlightPlanService _service;
-
-        public FlightPlansController(IFlightPlanService service)
-        {
-            _service = service;
-        }
-
         [HttpGet]
         public async Task<ActionResult<List<FlightPlanDto>>> List()
         {
-            var items = await _service.ListAsync();
+            var items = await service.ListAsync();
             return Ok(items.Select(Mappers.ToDto).ToList());
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<FlightPlanDto>> Get(int id)
         {
-            var item = await _service.GetByIdAsync(id);
+            var item = await service.GetByIdAsync(id);
             if (item == null) return NotFound();
-            return Ok(Mappers.ToDto(item));
+            return Ok(item.ToDto());
         }
 
         [HttpPost]
@@ -84,7 +75,7 @@ namespace SatOps.Modules.Schedule
                 });
             }
 
-            var (success, message) = await _service.ApproveOrRejectAsync(id, input.Status);
+            var (success, message) = await service.ApproveOrRejectAsync(id, input.Status);
             if (!success)
             {
                 return Conflict(new { detail = message });
@@ -98,7 +89,7 @@ namespace SatOps.Modules.Schedule
             int id,
             [FromBody] AssociateOverpassDto input)
         {
-            var (success, message) = await _service.AssociateWithOverpassAsync(id, input);
+            var (success, message) = await service.AssociateWithOverpassAsync(id, input);
             if (!success)
             {
                 return Conflict(new { detail = message });
@@ -126,5 +117,30 @@ namespace SatOps.Modules.Schedule
         }
 
 
+        [HttpGet("imaging-opportunity")]
+        public async Task<ActionResult<ImagingTimingResponseDto>> GetImagingOpportunity(
+            [FromQuery] ImagingTimingRequestDto request
+        )
+        {
+            // Validate request parameters
+            if (request.SatelliteId <= 0)
+                return BadRequest($"Invalid satellite ID: {request.SatelliteId}");
+
+            if (request.TargetLatitude < -90 || request.TargetLatitude > 90)
+                return BadRequest($"Target latitude must be between -90 and 90 degrees: {request.TargetLatitude}");
+
+            if (request.TargetLongitude < -180 || request.TargetLongitude > 180)
+                return BadRequest($"Target longitude must be between -180 and 180 degrees: {request.TargetLongitude}");
+
+            if (request.MaxOffNadirDegrees <= 0 || request.MaxOffNadirDegrees > 90)
+                return BadRequest($"Max off-nadir angle must be between 0 and 90 degrees: {request.MaxOffNadirDegrees}");
+
+            if (request.MaxSearchDurationHours <= 0)
+                return BadRequest($"Max search duration must be a positive number of hours: {request.MaxSearchDurationHours}");
+
+            var result = await service.GetImagingOpportunity(request);
+
+            return Ok(result);
+        }
     }
 }
