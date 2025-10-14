@@ -1,10 +1,8 @@
 using System.Text.Json;
-using System.ComponentModel.DataAnnotations;
 using SatOps.Data;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Overpass;
-using SatOps.Modules.FlightPlan;
 using SatOps.Modules.Gateway;
 using SGPdotNET.CoordinateSystem;
 using SGPdotNET.TLE;
@@ -35,34 +33,14 @@ namespace SatOps.Modules.FlightPlan
         ILogger<IFlightPlanService> logger
         ) : IFlightPlanService
     {
-        private readonly IFlightPlanRepository _repository;
-        private readonly IGroundStationService _groundStationService;
-        private readonly ISatelliteService _satelliteService;
-        private readonly IService _overpassService;
+        public Task<List<FlightPlan>> ListAsync() => repository.GetAllAsync();
 
-        public FlightPlanService(
-            IFlightPlanRepository repository,
-            IGroundStationService groundStationService,
-            ISatelliteService satelliteService,
-            IService overpassService,
-            IImagingCalculation imagingCalculation
-        )
-        {
-            _repository = repository;
-            _groundStationService = groundStationService;
-            _satelliteService = satelliteService;
-            _overpassService = overpassService;
-            _imagingCalculation = imagingCalculation;
-        }
-
-        public Task<List<FlightPlan>> ListAsync() => _repository.GetAllAsync();
-
-        public Task<FlightPlan?> GetByIdAsync(int id) => _repository.GetByIdAsync(id);
+        public Task<FlightPlan?> GetByIdAsync(int id) => repository.GetByIdReadOnlyAsync(id);
 
         public async Task<FlightPlan> CreateAsync(CreateFlightPlanDto createDto)
         {
             // Validate that the groundstation exists
-            var groundStation = await _groundStationService.GetAsync(createDto.GsId);
+            var groundStation = await groundStationService.GetAsync(createDto.GsId);
 
             if (groundStation == null)
             {
@@ -97,12 +75,12 @@ namespace SatOps.Modules.FlightPlan
             };
 
             entity.SetCommandSequence(commandSequence);
-            return await _repository.AddAsync(entity);
+            return await repository.AddAsync(entity);
         }
 
         public async Task<FlightPlan?> CreateNewVersionAsync(int id, CreateFlightPlanDto updateDto)
         {
-            var existing = await _repository.GetByIdAsync(id);
+            var existing = await repository.GetByIdAsync(id);
             if (existing == null)
             {
                 return null;
@@ -128,7 +106,7 @@ namespace SatOps.Modules.FlightPlan
             // Mark the old plan as superseded
             existing.Status = FlightPlanStatus.Superseded;
             existing.UpdatedAt = DateTime.UtcNow;
-            await _repository.UpdateAsync(existing);
+            await repository.UpdateAsync(existing);
 
             // Create new version
             var newVersion = new FlightPlan
@@ -145,7 +123,7 @@ namespace SatOps.Modules.FlightPlan
 
             //newVersion.SetCommandSequence(commandSequence);
 
-            return await _repository.AddAsync(newVersion);
+            return await repository.AddAsync(newVersion);
         }
 
         public async Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status)
@@ -194,7 +172,7 @@ namespace SatOps.Modules.FlightPlan
             plan.ApprovalDate = DateTime.UtcNow;
             plan.ApprovedById = 1; // TODO: Extract from token
 
-            await _repository.UpdateAsync(plan);
+            await repository.UpdateAsync(plan);
 
             return (true, $"Flight plan {status.ToLowerInvariant()} successfully");
         }
@@ -205,7 +183,7 @@ namespace SatOps.Modules.FlightPlan
         {
             try
             {
-                var flightPlan = await _repository.GetByIdAsync(id);
+                var flightPlan = await repository.GetByIdAsync(id);
                 if (flightPlan == null)
                 {
                     return (false, "Flight plan not found.");
@@ -245,7 +223,7 @@ namespace SatOps.Modules.FlightPlan
                     EndTime = expandedEndTime,
                 };
 
-                var availableOverpasses = await _overpassService.CalculateOverpassesAsync(overpassCalculationRequest);
+                var availableOverpasses = await overpassService.CalculateOverpassesAsync(overpassCalculationRequest);
                 if (availableOverpasses?.Count == 0)
                 {
                     return (false, "No matching overpass found");
@@ -257,7 +235,7 @@ namespace SatOps.Modules.FlightPlan
                     return (false, "No suitable overpass found");
                 }
 
-                var storedOverpass = await _overpassService.FindOrCreateOverpassAsync(selectedOverpass);
+                var storedOverpass = await overpassService.FindOrCreateOverpassAsync(selectedOverpass);
                 if (storedOverpass == null)
                 {
                     return (false, "Failed to store overpass data");
@@ -268,7 +246,7 @@ namespace SatOps.Modules.FlightPlan
                 flightPlan.Status = FlightPlanStatus.AssignedToOverpass;
                 flightPlan.UpdatedAt = DateTime.UtcNow;
 
-                await _repository.UpdateAsync(flightPlan);
+                await repository.UpdateAsync(flightPlan);
 
                 return (true, "Flight plan associated with overpass successfully");
             }
@@ -280,7 +258,7 @@ namespace SatOps.Modules.FlightPlan
 
         public async Task<List<string>> CompileFlightPlanToCshAsync(int flightPlanId)
         {
-            var flightPlan = await _repository.GetByIdAsync(flightPlanId);
+            var flightPlan = await repository.GetByIdAsync(flightPlanId);
             if (flightPlan == null)
             {
                 throw new ArgumentException($"Flight plan with ID {flightPlanId} not found.");
@@ -298,10 +276,10 @@ namespace SatOps.Modules.FlightPlan
 
             return await commandSequence.CompileAllToCsh();
         }
-        
-                public async Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request)
+
+        public async Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request)
         {
-            var satellite = await _satelliteService.GetAsync(request.SatelliteId);
+            var satellite = await satelliteService.GetAsync(request.SatelliteId);
             if (satellite == null)
             {
                 return new ImagingTimingResponseDto
@@ -333,7 +311,7 @@ namespace SatOps.Modules.FlightPlan
 
             var maxSearchDuration = TimeSpan.FromHours(request.MaxSearchDurationHours);
 
-            var imagingOpportunity = _imagingCalculation.FindBestImagingOpportunity(
+            var imagingOpportunity = imagingCalculation.FindBestImagingOpportunity(
                 sgp4Satellite,
                 targetCoordinate,
                 request.CommandReceptionTime ?? DateTime.UtcNow,

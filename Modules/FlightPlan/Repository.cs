@@ -6,7 +6,8 @@ namespace SatOps.Modules.FlightPlan
     public interface IFlightPlanRepository
     {
         Task<FlightPlan> AddAsync(FlightPlan entity);
-        Task<FlightPlan?> GetByIdAsync(int id);
+        Task<FlightPlan?> GetByIdAsync(int id); // For updates (tracked)
+        Task<FlightPlan?> GetByIdReadOnlyAsync(int id); // For reads (untracked)
         Task<List<FlightPlan>> GetAllAsync();
         Task UpdateAsync(FlightPlan entity);
         Task DeleteAsync(int id);
@@ -42,8 +43,8 @@ namespace SatOps.Modules.FlightPlan
         public async Task UpdateAsync(FlightPlan entity)
         {
             entity.UpdatedAt = DateTime.UtcNow;
-            _dbContext.FlightPlans.Update(entity);
-            await _dbContext.SaveChangesAsync();
+            dbContext.FlightPlans.Update(entity);
+            await dbContext.SaveChangesAsync();
         }
 
         public async Task DeleteAsync(int id)
@@ -51,8 +52,8 @@ namespace SatOps.Modules.FlightPlan
             var entity = await GetByIdAsync(id);
             if (entity != null)
             {
-                _dbContext.FlightPlans.Remove(entity);
-                await _dbContext.SaveChangesAsync();
+                dbContext.FlightPlans.Remove(entity);
+                await dbContext.SaveChangesAsync();
             }
         }
     }

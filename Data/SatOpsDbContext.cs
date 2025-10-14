@@ -56,22 +56,6 @@ namespace SatOps.Data
                 entity.Property(e => e.Name).IsRequired();
                 entity.Property(e => e.Commands).HasColumnType("jsonb").IsRequired();
 
-                // Adding a value conversion for testing with InMemory provider
-                if (Database.ProviderName != "Npgsql.EntityFrameworkCore.PostgreSQL")
-                {
-                    entity.Property(e => e.Body)
-                        .HasConversion(
-                            v => v.RootElement.GetRawText(),
-                            v => JsonDocument.Parse(v, new JsonDocumentOptions()))
-                        .HasColumnType("text");
-                }
-                else
-                {
-                    entity.Property(e => e.Body)
-                        .HasColumnType("jsonb")
-                        .IsRequired();
-                }
-
                 entity.Property(e => e.Status).IsRequired();
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("timezone('utc', now())");

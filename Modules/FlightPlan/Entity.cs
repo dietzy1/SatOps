@@ -1,6 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.Json;
-using SatOps.Modules.FlightPlan;
 
 namespace SatOps.Modules.FlightPlan
 {

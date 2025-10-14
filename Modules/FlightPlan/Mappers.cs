@@ -1,7 +1,4 @@
-using System.Text.RegularExpressions;
-using SatOps.Modules.FlightPlan;
-
-namespace SatOps.Modules.Schedule
+namespace SatOps.Modules.FlightPlan
 {
     public static class Mappers
     {

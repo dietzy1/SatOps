@@ -27,7 +27,7 @@ namespace SatOps.Modules.FlightPlan
         {
             try
             {
-                var created = await _service.CreateAsync(input);
+                var created = await service.CreateAsync(input);
                 var dto = Mappers.ToDto(created);
                 return CreatedAtAction(nameof(Get), new { id = created.Id }, dto);
             }
@@ -103,7 +103,7 @@ namespace SatOps.Modules.FlightPlan
         {
             try
             {
-                var cshCommands = await _service.CompileFlightPlanToCshAsync(id);
+                var cshCommands = await service.CompileFlightPlanToCshAsync(id);
                 return Ok(cshCommands);
             }
             catch (ArgumentException ex)
