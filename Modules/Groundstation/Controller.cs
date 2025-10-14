@@ -4,26 +4,19 @@ namespace SatOps.Modules.Groundstation
 {
     [ApiController]
     [Route("api/v1/ground-stations")]
-    public class GroundStationsManagementController : ControllerBase
+    public class GroundStationsManagementController(IGroundStationService service) : ControllerBase
     {
-        private readonly IGroundStationService _service;
-
-        public GroundStationsManagementController(IGroundStationService service)
-        {
-            _service = service;
-        }
-
         [HttpGet]
         public async Task<ActionResult<List<GroundStationDto>>> List()
         {
-            var items = await _service.ListAsync();
+            var items = await service.ListAsync();
             return Ok(items.Select(MapToDto).ToList());
         }
 
         [HttpGet("{id:int}")]
         public async Task<ActionResult<GroundStationDto>> Get(int id)
         {
-            var item = await _service.GetAsync(id);
+            var item = await service.GetAsync(id);
             if (item == null) return NotFound();
             return Ok(MapToDto(item));
         }
@@ -43,7 +36,7 @@ namespace SatOps.Modules.Groundstation
                 HttpUrl = input.HttpUrl,
             };
 
-            var (created, rawApiKey) = await _service.CreateAsync(entity);
+            var (created, rawApiKey) = await service.CreateAsync(entity);
 
             var responseDto = MapToWithApiKeyDto(created, rawApiKey);
 
@@ -53,7 +46,7 @@ namespace SatOps.Modules.Groundstation
         [HttpPatch("{id:int}")]
         public async Task<ActionResult<GroundStationDto>> Patch(int id, [FromBody] GroundStationPatchDto input)
         {
-            var updatedEntity = await _service.PatchAsync(id, input);
+            var updatedEntity = await service.PatchAsync(id, input);
             if (updatedEntity == null)
             {
                 return NotFound();
@@ -64,7 +57,7 @@ namespace SatOps.Modules.Groundstation
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var ok = await _service.DeleteAsync(id);
+            var ok = await service.DeleteAsync(id);
             if (!ok) return NotFound();
             return NoContent();
         }

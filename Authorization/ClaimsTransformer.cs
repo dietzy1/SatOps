@@ -4,50 +4,39 @@ using System.Security.Claims;
 
 namespace SatOps.Authorization
 {
-    public class UserPermissionsClaimsTransformation : IClaimsTransformation
+    public class UserPermissionsClaimsTransformation(IUserService userService) : IClaimsTransformation
     {
-        private readonly IUserService _userService;
-
-        public UserPermissionsClaimsTransformation(IUserService userService)
-        {
-            _userService = userService;
-        }
-
         public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
         {
+            if (principal.Identity is not ClaimsIdentity identity ||
+                identity.FindFirst(ClaimTypes.Email)?.Value is not { } email)
+            {
+                return principal;
+            }
+
+            var permissions = await userService.GetUserPermissionsAsync(email);
+
+            var scopesToAdd = permissions.AllScopes
+                .Where(scope => !principal.HasClaim("scope", scope))
+                .Select(scope => new Claim("scope", scope))
+                .ToList();
+
+            var rolesToAdd = permissions.AllRoles
+                .Where(role => !principal.HasClaim(ClaimTypes.Role, role))
+                .Select(role => new Claim(ClaimTypes.Role, role))
+                .ToList();
+
+
+            if (!scopesToAdd.Any() && !rolesToAdd.Any())
+            {
+                return principal;
+            }
+
             var clone = principal.Clone();
             var newIdentity = (ClaimsIdentity)clone.Identity!;
 
-            var emailClaim = newIdentity.FindFirst(ClaimTypes.Email)?.Value;
-            if (string.IsNullOrEmpty(emailClaim))
-            {
-                return principal;
-            }
-
-            // Fetch user permissions from the database
-            var permissions = await _userService.GetUserPermissionsAsync(emailClaim);
-            if (permissions == null)
-            {
-                return principal;
-            }
-
-            // Add all scopes as 'scope' claims.
-            foreach (var scope in permissions.AllScopes)
-            {
-                if (!newIdentity.HasClaim("scope", scope))
-                {
-                    newIdentity.AddClaim(new Claim("scope", scope));
-                }
-            }
-
-            // Add all roles as standard 'role' claims.
-            foreach (var role in permissions.AllRoles)
-            {
-                if (!newIdentity.HasClaim(ClaimTypes.Role, role))
-                {
-                    newIdentity.AddClaim(new Claim(ClaimTypes.Role, role));
-                }
-            }
+            newIdentity.AddClaims(scopesToAdd);
+            newIdentity.AddClaims(rolesToAdd);
 
             return clone;
         }

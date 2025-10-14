@@ -74,7 +74,7 @@ namespace SatOps.Modules.Gateway
                 ClaimsPrincipal principal;
                 try
                 {
-                    principal = handler.ValidateToken(helloMessage.Token, _tokenValidationParameters, out var validatedToken);
+                    principal = handler.ValidateToken(helloMessage.Token, _tokenValidationParameters, out _);
                 }
                 catch (Exception ex)
                 {

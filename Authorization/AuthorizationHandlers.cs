@@ -2,14 +2,9 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace SatOps.Authorization
 {
-    public class ScopeRequirement : IAuthorizationRequirement
+    public class ScopeRequirement(string requiredScope) : IAuthorizationRequirement
     {
-        public string RequiredScope { get; }
-
-        public ScopeRequirement(string requiredScope)
-        {
-            RequiredScope = requiredScope;
-        }
+        public string RequiredScope { get; } = requiredScope;
     }
 
     public class ScopeAuthorizationHandler : AuthorizationHandler<ScopeRequirement>
@@ -27,14 +22,9 @@ namespace SatOps.Authorization
         }
     }
 
-    public class RoleRequirement : IAuthorizationRequirement
+    public class RoleRequirement(string requiredRole) : IAuthorizationRequirement
     {
-        public string RequiredRole { get; }
-
-        public RoleRequirement(string requiredRole)
-        {
-            RequiredRole = requiredRole;
-        }
+        public string RequiredRole { get; } = requiredRole;
     }
 
     public class RoleAuthorizationHandler : AuthorizationHandler<RoleRequirement>

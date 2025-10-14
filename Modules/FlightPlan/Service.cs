@@ -21,53 +21,32 @@ namespace SatOps.Modules.FlightPlan
         Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request);
     }
 
-    public class FlightPlanService : IFlightPlanService
+    public class FlightPlanService(
+        IFlightPlanRepository repository,
+        SatOpsDbContext dbContext,
+        ISatelliteService satelliteService,
+        IGroundStationService groundStationService,
+        IOverpassService overpassService,
+        IImagingCalculation imagingCalculation,
+        IGroundStationGatewayService gatewayService,
+        ILogger<IFlightPlanService> logger
+        ) : IFlightPlanService
     {
-        private readonly IFlightPlanRepository _repository;
-        private readonly SatOpsDbContext _dbContext;
-        private readonly ISatelliteService _satelliteService;
-        private readonly IGroundStationService _groundStationService;
-        private readonly IOverpassService _overpassService;
-        private readonly IImagingCalculation _imagingCalculation;
-        private readonly IGroundStationGatewayService _gatewayService;
-        private readonly ILogger<IFlightPlanService> _logger;
+        public Task<List<FlightPlan>> ListAsync() => repository.GetAllAsync();
 
-        public FlightPlanService(
-            IFlightPlanRepository repository,
-            SatOpsDbContext dbContext,
-            ISatelliteService satelliteService,
-            IGroundStationService groundStationService,
-            IOverpassService overpassService,
-            IImagingCalculation imagingCalculation,
-            IGroundStationGatewayService gatewayService,
-            ILogger<IFlightPlanService> logger
-        )
-        {
-            _repository = repository;
-            _dbContext = dbContext;
-            _satelliteService = satelliteService;
-            _groundStationService = groundStationService;
-            _overpassService = overpassService;
-            _imagingCalculation = imagingCalculation;
-            _gatewayService = gatewayService;
-            _logger = logger;
-        }
-
-        public Task<List<FlightPlan>> ListAsync() => _repository.GetAllAsync();
-
-        public Task<FlightPlan?> GetByIdAsync(int id) => _repository.GetByIdReadOnlyAsync(id);
+        public Task<FlightPlan?> GetByIdAsync(int id) => repository.GetByIdReadOnlyAsync(id);
 
         public async Task<FlightPlan> CreateAsync(CreateFlightPlanDto createDto)
         {
             // Validate that the groundstation exists
-            var groundStation = await _groundStationService.GetAsync(createDto.GsId);
+            var groundStation = await groundStationService.GetAsync(createDto.GsId);
             if (groundStation == null)
             {
                 throw new ArgumentException($"Ground station with ID {createDto.GsId} not found.", nameof(createDto.GsId));
             }
 
             // Validate that the satellite exists
-            var satellite = await _satelliteService.GetAsync(createDto.SatId);
+            var satellite = await satelliteService.GetAsync(createDto.SatId);
             if (satellite == null)
             {
                 throw new ArgumentException($"Satellite with ID {createDto.SatId} not found.", nameof(createDto.SatId));
@@ -83,29 +62,29 @@ namespace SatOps.Modules.FlightPlan
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
-            return await _repository.AddAsync(entity);
+            return await repository.AddAsync(entity);
         }
 
         public async Task<FlightPlan?> CreateNewVersionAsync(int id, CreateFlightPlanDto updateDto)
         {
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            await using var transaction = await dbContext.Database.BeginTransactionAsync();
             try
             {
                 // Validate that the groundstation exists
-                var groundStation = await _groundStationService.GetAsync(updateDto.GsId);
+                var groundStation = await groundStationService.GetAsync(updateDto.GsId);
                 if (groundStation == null)
                 {
                     throw new ArgumentException($"Ground station with ID {updateDto.GsId} not found.", nameof(updateDto.GsId));
                 }
 
                 // Validate that the satellite exists
-                var satellite = await _satelliteService.GetAsync(updateDto.SatId);
+                var satellite = await satelliteService.GetAsync(updateDto.SatId);
                 if (satellite == null)
                 {
                     throw new ArgumentException($"Satellite with ID {updateDto.SatId} not found.", nameof(updateDto.SatId));
                 }
 
-                var oldPlan = await _repository.GetByIdAsync(id);
+                var oldPlan = await repository.GetByIdAsync(id);
                 if (oldPlan == null)
                 {
                     return null;
@@ -153,8 +132,8 @@ namespace SatOps.Modules.FlightPlan
                     UpdatedAt = DateTime.UtcNow
                 };
 
-                await _repository.AddAsync(newPlan);
-                await _repository.UpdateAsync(oldPlan);
+                await repository.AddAsync(newPlan);
+                await repository.UpdateAsync(oldPlan);
 
                 await transaction.CommitAsync();
 
@@ -169,7 +148,7 @@ namespace SatOps.Modules.FlightPlan
 
         public async Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status)
         {
-            var plan = await _repository.GetByIdAsync(id);
+            var plan = await repository.GetByIdAsync(id);
             if (plan == null)
             {
                 return (false, "Flight plan not found.");
@@ -211,7 +190,7 @@ namespace SatOps.Modules.FlightPlan
             plan.ApprovalDate = DateTime.UtcNow;
             plan.ApproverId = "mock-user-id";
 
-            var success = await _repository.UpdateAsync(plan);
+            var success = await repository.UpdateAsync(plan);
 
             if (success)
             {
@@ -223,10 +202,10 @@ namespace SatOps.Modules.FlightPlan
 
         public async Task<(bool Success, string Message)> AssociateWithOverpassAsync(int flightPlanId, AssociateOverpassDto overpassRequest)
         {
-            await using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            await using var transaction = await dbContext.Database.BeginTransactionAsync();
             try
             {
-                var flightPlan = await _repository.GetByIdAsync(flightPlanId);
+                var flightPlan = await repository.GetByIdAsync(flightPlanId);
                 if (flightPlan == null)
                 {
                     return (false, "Flight plan not found.");
@@ -265,7 +244,7 @@ namespace SatOps.Modules.FlightPlan
                     EndTime = expandedEndTime,
                 };
 
-                var availableOverpasses = await _overpassService.CalculateOverpassesAsync(overpassCalculationRequest);
+                var availableOverpasses = await overpassService.CalculateOverpassesAsync(overpassCalculationRequest);
                 if (availableOverpasses.Count.Equals(0))
                 {
                     return (false, "No suitable overpasses found within the specified timerange (including tolerance).");
@@ -320,7 +299,7 @@ namespace SatOps.Modules.FlightPlan
                 }
 
                 // Store the selected overpass (since we have a 1:1 relationship with flight plans)
-                var storedOverpass = await _overpassService.FindOrCreateOverpassAsync(selectedOverpass);
+                var storedOverpass = await overpassService.FindOrCreateOverpassAsync(selectedOverpass);
                 if (storedOverpass == null)
                 {
                     return (false, "Failed to store overpass data.");
@@ -332,7 +311,7 @@ namespace SatOps.Modules.FlightPlan
                 flightPlan.Status = FlightPlanStatus.AssignedToOverpass;
                 flightPlan.UpdatedAt = DateTime.UtcNow;
 
-                var success = await _repository.UpdateAsync(flightPlan);
+                var success = await repository.UpdateAsync(flightPlan);
 
                 if (success)
                 {
@@ -341,7 +320,7 @@ namespace SatOps.Modules.FlightPlan
                     try
 
                     {
-                        var satellite = await _satelliteService.GetAsync(flightPlan.SatelliteId);
+                        var satellite = await satelliteService.GetAsync(flightPlan.SatelliteId);
 
                         var commandSequence = CommandSequence.FromJson(flightPlan.Body.RootElement.GetRawText());
 
@@ -354,7 +333,7 @@ namespace SatOps.Modules.FlightPlan
                                 cshScript.AddRange(compiledCommands);
                             }
 
-                            await _gatewayService.SendScheduledCommand(
+                            await gatewayService.SendScheduledCommand(
                                 flightPlan.GroundStationId,
                                 satellite.Name,
                                 flightPlan.ScheduledAt.Value,
@@ -363,18 +342,18 @@ namespace SatOps.Modules.FlightPlan
                         }
                         else
                         {
-                            _logger.LogError("Could not send command for Flight Plan {FlightPlanId}: satellite, command sequence or schedule time was null.", flightPlan.Id);
+                            logger.LogError("Could not send command for Flight Plan {FlightPlanId}: satellite, command sequence or schedule time was null.", flightPlan.Id);
                         }
                     }
                     catch (Exception ex)
                     {
                         // Plan is saved but we failed to send it
                         // Needs robust handling
-                        _logger.LogError(ex, "Failed to send scheduled command for Flight Plan {FlightPlanId} to GS {GroundStationId}", flightPlan.Id, flightPlan.GroundStationId);
+                        logger.LogError(ex, "Failed to send scheduled command for Flight Plan {FlightPlanId} to GS {GroundStationId}", flightPlan.Id, flightPlan.GroundStationId);
                         return (true, $"Flight plan associated, but failed to schedule transmission to ground station: {ex.Message}");
                     }
 
-                    return (true, $"Flight plan successfully associated with overpass and scheduled for transmission.");
+                    return (true, "Flight plan successfully associated with overpass and scheduled for transmission.");
                 }
 
                 await transaction.RollbackAsync();
@@ -389,7 +368,7 @@ namespace SatOps.Modules.FlightPlan
 
         public async Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request)
         {
-            var satellite = await _satelliteService.GetAsync(request.SatelliteId);
+            var satellite = await satelliteService.GetAsync(request.SatelliteId);
             if (satellite == null)
             {
                 return new ImagingTimingResponseDto
@@ -421,7 +400,7 @@ namespace SatOps.Modules.FlightPlan
 
             var maxSearchDuration = TimeSpan.FromHours(request.MaxSearchDurationHours);
 
-            var imagingOpportunity = _imagingCalculation.FindBestImagingOpportunity(
+            var imagingOpportunity = imagingCalculation.FindBestImagingOpportunity(
                 sgp4Satellite,
                 targetCoordinate,
                 request.CommandReceptionTime ?? DateTime.UtcNow,

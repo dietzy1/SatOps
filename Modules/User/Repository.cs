@@ -14,28 +14,21 @@ namespace SatOps.Modules.User
         Task<bool> UpdateAdditionalPermissionsAsync(int id, List<string> additionalScopes, List<string> additionalRoles);
     }
 
-    public class UserRepository : IUserRepository
+    public class UserRepository(SatOpsDbContext dbContext) : IUserRepository
     {
-        private readonly SatOpsDbContext _dbContext;
-
-        public UserRepository(SatOpsDbContext dbContext)
-        {
-            _dbContext = dbContext;
-        }
-
         public Task<List<User>> GetAllAsync()
         {
-            return _dbContext.Users.AsNoTracking().ToListAsync();
+            return dbContext.Users.AsNoTracking().ToListAsync();
         }
 
         public Task<User?> GetByIdAsync(int id)
         {
-            return _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
+            return dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
         }
 
         public Task<User?> GetByEmailAsync(string email)
         {
-            return _dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == email);
+            return dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == email);
         }
 
         public async Task<User> AddAsync(User entity)
@@ -43,14 +36,14 @@ namespace SatOps.Modules.User
             entity.CreatedAt = DateTime.UtcNow;
             entity.UpdatedAt = DateTime.UtcNow;
 
-            _dbContext.Users.Add(entity);
-            await _dbContext.SaveChangesAsync();
+            dbContext.Users.Add(entity);
+            await dbContext.SaveChangesAsync();
             return entity;
         }
 
         public async Task<User?> UpdateAsync(User entity)
         {
-            var existing = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == entity.Id);
+            var existing = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == entity.Id);
             if (existing == null)
             {
                 return null;
@@ -59,27 +52,27 @@ namespace SatOps.Modules.User
             entity.UpdatedAt = DateTime.UtcNow;
             entity.CreatedAt = existing.CreatedAt; // Preserve original creation date
 
-            _dbContext.Entry(existing).CurrentValues.SetValues(entity);
-            await _dbContext.SaveChangesAsync();
+            dbContext.Entry(existing).CurrentValues.SetValues(entity);
+            await dbContext.SaveChangesAsync();
             return existing;
         }
 
         public async Task<bool> DeleteAsync(int id)
         {
-            var existing = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+            var existing = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
             if (existing == null)
             {
                 return false;
             }
 
-            _dbContext.Users.Remove(existing);
-            await _dbContext.SaveChangesAsync();
+            dbContext.Users.Remove(existing);
+            await dbContext.SaveChangesAsync();
             return true;
         }
 
         public async Task<bool> UpdateAdditionalPermissionsAsync(int id, List<string> additionalScopes, List<string> additionalRoles)
         {
-            var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
+            var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
             if (user == null)
             {
                 return false;
@@ -89,7 +82,7 @@ namespace SatOps.Modules.User
             user.AdditionalRoles = additionalRoles;
             user.UpdatedAt = DateTime.UtcNow;
 
-            await _dbContext.SaveChangesAsync();
+            await dbContext.SaveChangesAsync();
             return true;
         }
     }

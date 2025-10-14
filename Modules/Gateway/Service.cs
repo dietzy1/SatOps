@@ -13,7 +13,7 @@ namespace SatOps.Modules.Gateway
         public DateTime ConnectedAt { get; } = DateTime.UtcNow;
         public Guid? LastCommandId { get; set; }
 
-        public SemaphoreSlim SendLock { get; } = new SemaphoreSlim(1, 1);
+        public SemaphoreSlim SendLock { get; } = new(1, 1);
     }
 
     public interface IGroundStationGatewayService
@@ -25,15 +25,9 @@ namespace SatOps.Modules.Gateway
         IEnumerable<GroundStationConnection> GetAllConnections();
     }
 
-    public class GroundStationGatewayService : IGroundStationGatewayService
+    public class GroundStationGatewayService(ILogger<GroundStationGatewayService> logger) : IGroundStationGatewayService
     {
         private readonly ConcurrentDictionary<int, GroundStationConnection> _connections = new();
-        private readonly ILogger<GroundStationGatewayService> _logger;
-
-        public GroundStationGatewayService(ILogger<GroundStationGatewayService> logger)
-        {
-            _logger = logger;
-        }
 
         public Task RegisterConnection(int groundStationId, string groundStationName, WebSocket socket)
         {
@@ -44,7 +38,7 @@ namespace SatOps.Modules.Gateway
                 Name = groundStationName
             };
 
-            _logger.LogInformation("Registering connection for GS {GroundStationId} ({Name})", connection.GroundStationId, connection.Name);
+            logger.LogInformation("Registering connection for GS {GroundStationId} ({Name})", connection.GroundStationId, connection.Name);
             _connections[groundStationId] = connection;
             return Task.CompletedTask;
         }
@@ -53,7 +47,7 @@ namespace SatOps.Modules.Gateway
         {
             if (_connections.TryRemove(groundStationId, out var connection))
             {
-                _logger.LogInformation("Unregistering connection for GS {GroundStationId} ({Name})", connection.GroundStationId, connection.Name);
+                logger.LogInformation("Unregistering connection for GS {GroundStationId} ({Name})", connection.GroundStationId, connection.Name);
             }
             return Task.CompletedTask;
         }
@@ -72,7 +66,7 @@ namespace SatOps.Modules.Gateway
         {
             if (!_connections.TryGetValue(groundStationId, out var connection) || connection.Socket.State != WebSocketState.Open)
             {
-                _logger.LogWarning("Attempted to send command to disconnected GS ID: {GroundStationId}", groundStationId);
+                logger.LogWarning("Attempted to send command to disconnected GS ID: {GroundStationId}", groundStationId);
                 throw new InvalidOperationException($"Ground station {groundStationId} is not connected.");
             }
 
@@ -99,7 +93,7 @@ namespace SatOps.Modules.Gateway
                 var scriptJson = JsonSerializer.Serialize(cshScript);
                 var scriptBytes = Encoding.UTF8.GetBytes(scriptJson);
 
-                _logger.LogInformation("Sending scheduled command {RequestId} to GS {GroundStationId} ({Name})", message.RequestId, groundStationId, connection.Name);
+                logger.LogInformation("Sending scheduled command {RequestId} to GS {GroundStationId} ({Name})", message.RequestId, groundStationId, connection.Name);
 
                 await connection.Socket.SendAsync(new ArraySegment<byte>(messageBytes), WebSocketMessageType.Text, true, CancellationToken.None);
                 await connection.Socket.SendAsync(new ArraySegment<byte>(scriptBytes), WebSocketMessageType.Text, true, CancellationToken.None);

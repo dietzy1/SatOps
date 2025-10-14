@@ -9,19 +9,8 @@ namespace SatOps.Modules.Operation
         Task ReceiveTelemetryDataAsync(TelemetryDataReceiveDto dto);
     }
 
-    public class TelemetryService : ITelemetryService
+    public class TelemetryService(SatOpsDbContext context, IMinioService minioService, ILogger<TelemetryService> logger) : ITelemetryService
     {
-        private readonly SatOpsDbContext _context;
-        private readonly IMinioService _minioService;
-        private readonly ILogger<TelemetryService> _logger;
-
-        public TelemetryService(SatOpsDbContext context, IMinioService minioService, ILogger<TelemetryService> logger)
-        {
-            _context = context;
-            _minioService = minioService;
-            _logger = logger;
-        }
-
         public async Task ReceiveTelemetryDataAsync(TelemetryDataReceiveDto dto)
         {
             try
@@ -32,8 +21,8 @@ namespace SatOps.Modules.Operation
                 // Store the file in MinIO
                 var fileName = $"telemetry_{dto.SatelliteId}_{dto.Timestamp:yyyyMMdd_HHmmss}_{Path.GetFileName(dto.Data.FileName)}";
 
-                using var fileStream = dto.Data.OpenReadStream();
-                var s3ObjectPath = await _minioService.UploadFileAsync(fileStream, fileName, dto.Data.ContentType ?? "application/octet-stream", DataType.Telemetry);
+                await using var fileStream = dto.Data.OpenReadStream();
+                var s3ObjectPath = await minioService.UploadFileAsync(fileStream, fileName, dto.Data.ContentType ?? "application/octet-stream", DataType.Telemetry);
 
                 // Store metadata in database
                 var telemetryData = new TelemetryData
@@ -49,15 +38,15 @@ namespace SatOps.Modules.Operation
                     ReceivedAt = DateTime.UtcNow
                 };
 
-                _context.TelemetryData.Add(telemetryData);
-                await _context.SaveChangesAsync();
+                context.TelemetryData.Add(telemetryData);
+                await context.SaveChangesAsync();
 
-                _logger.LogInformation("Stored telemetry data {TelemetryId} from satellite {SatelliteId}",
+                logger.LogInformation("Stored telemetry data {TelemetryId} from satellite {SatelliteId}",
                     telemetryData.Id, dto.SatelliteId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to process telemetry data from satellite {SatelliteId}", dto.SatelliteId);
+                logger.LogError(ex, "Failed to process telemetry data from satellite {SatelliteId}", dto.SatelliteId);
                 throw;
             }
         }
@@ -65,21 +54,21 @@ namespace SatOps.Modules.Operation
         private async Task ValidateReferencesAsync(int satelliteId, int groundStationId, int flightPlanId)
         {
             // Check if satellite exists
-            var satelliteExists = await _context.Satellites.AnyAsync(s => s.Id == satelliteId);
+            var satelliteExists = await context.Satellites.AnyAsync(s => s.Id == satelliteId);
             if (!satelliteExists)
             {
                 throw new ArgumentException($"Satellite with ID {satelliteId} does not exist");
             }
 
             // Check if ground station exists  
-            var groundStationExists = await _context.GroundStations.AnyAsync(gs => gs.Id == groundStationId);
+            var groundStationExists = await context.GroundStations.AnyAsync(gs => gs.Id == groundStationId);
             if (!groundStationExists)
             {
                 throw new ArgumentException($"Ground station with ID {groundStationId} does not exist");
             }
 
             // Check if flight plan exists
-            var flightPlanExists = await _context.FlightPlans.AnyAsync(s => s.Id == flightPlanId);
+            var flightPlanExists = await context.FlightPlans.AnyAsync(s => s.Id == flightPlanId);
             if (!flightPlanExists)
             {
                 throw new ArgumentException($"Flight plan with ID {flightPlanId} does not exist");
@@ -93,19 +82,8 @@ namespace SatOps.Modules.Operation
         Task ReceiveImageDataAsync(ImageDataReceiveDto dto);
     }
 
-    public class ImageService : IImageService
+    public class ImageService(SatOpsDbContext context, IMinioService minioService, ILogger<ImageService> logger) : IImageService
     {
-        private readonly SatOpsDbContext _context;
-        private readonly IMinioService _minioService;
-        private readonly ILogger<ImageService> _logger;
-
-        public ImageService(SatOpsDbContext context, IMinioService minioService, ILogger<ImageService> logger)
-        {
-            _context = context;
-            _minioService = minioService;
-            _logger = logger;
-        }
-
         public async Task ReceiveImageDataAsync(ImageDataReceiveDto dto)
         {
             try
@@ -116,8 +94,8 @@ namespace SatOps.Modules.Operation
                 // Store the file in MinIO
                 var fileName = $"image_{dto.SatelliteId}_{dto.CaptureTime:yyyyMMdd_HHmmss}_{Path.GetFileName(dto.ImageFile.FileName)}";
 
-                using var fileStream = dto.ImageFile.OpenReadStream();
-                var s3ObjectPath = await _minioService.UploadFileAsync(fileStream, fileName, dto.ImageFile.ContentType ?? "image/jpeg", DataType.Image);
+                await using var fileStream = dto.ImageFile.OpenReadStream();
+                var s3ObjectPath = await minioService.UploadFileAsync(fileStream, fileName, dto.ImageFile.ContentType ?? "image/jpeg", DataType.Image);
 
                 // Extract image dimensions if possible
                 int? width = null, height = null;
@@ -151,15 +129,15 @@ namespace SatOps.Modules.Operation
                     Metadata = dto.Metadata
                 };
 
-                _context.ImageData.Add(imageData);
-                await _context.SaveChangesAsync();
+                context.ImageData.Add(imageData);
+                await context.SaveChangesAsync();
 
-                _logger.LogInformation("Stored image data {ImageId} from satellite {SatelliteId}",
+                logger.LogInformation("Stored image data {ImageId} from satellite {SatelliteId}",
                     imageData.Id, dto.SatelliteId);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to process image data from satellite {SatelliteId}", dto.SatelliteId);
+                logger.LogError(ex, "Failed to process image data from satellite {SatelliteId}", dto.SatelliteId);
                 throw;
             }
         }
@@ -167,14 +145,14 @@ namespace SatOps.Modules.Operation
         private async Task ValidateReferencesAsync(int satelliteId, int groundStationId)
         {
             // Check if satellite exists
-            var satelliteExists = await _context.Satellites.AnyAsync(s => s.Id == satelliteId);
+            var satelliteExists = await context.Satellites.AnyAsync(s => s.Id == satelliteId);
             if (!satelliteExists)
             {
                 throw new ArgumentException($"Satellite with ID {satelliteId} does not exist");
             }
 
             // Check if ground station exists  
-            var groundStationExists = await _context.GroundStations.AnyAsync(gs => gs.Id == groundStationId);
+            var groundStationExists = await context.GroundStations.AnyAsync(gs => gs.Id == groundStationId);
             if (!groundStationExists)
             {
                 throw new ArgumentException($"Ground station with ID {groundStationId} does not exist");

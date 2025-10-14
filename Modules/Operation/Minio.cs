@@ -17,18 +17,9 @@ namespace SatOps.Modules.Operation
         Task DeleteFileAsync(string objectPath);
     }
 
-    public class MinioService : IMinioService
+    public class MinioService(IMinioClient minioClient, IConfiguration configuration, ILogger<MinioService> logger) : IMinioService
     {
-        private readonly IMinioClient _minioClient;
-        private readonly string _bucketName;
-        private readonly ILogger<MinioService> _logger;
-
-        public MinioService(IMinioClient minioClient, IConfiguration configuration, ILogger<MinioService> logger)
-        {
-            _minioClient = minioClient;
-            _bucketName = configuration.GetValue<string>("MinIO:BucketName") ?? "satops-data";
-            _logger = logger;
-        }
+        private readonly string _bucketName = configuration.GetValue<string>("MinIO:BucketName") ?? "satops-data";
 
         public async Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, DataType dataType)
         {
@@ -56,15 +47,15 @@ namespace SatOps.Modules.Operation
                     .WithObjectSize(fileStream.Length)
                     .WithContentType(contentType);
 
-                await _minioClient.PutObjectAsync(putObjectArgs);
+                await minioClient.PutObjectAsync(putObjectArgs);
 
-                _logger.LogInformation("Successfully uploaded {DataType} file {FileName} to {ObjectPath}",
+                logger.LogInformation("Successfully uploaded {DataType} file {FileName} to {ObjectPath}",
                     dataType, fileName, objectPath);
                 return objectPath;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to upload {DataType} file {FileName} to MinIO", dataType, fileName);
+                logger.LogError(ex, "Failed to upload {DataType} file {FileName} to MinIO", dataType, fileName);
                 throw;
             }
         }
@@ -80,14 +71,14 @@ namespace SatOps.Modules.Operation
                     .WithObject(objectPath)
                     .WithCallbackStream(stream => stream.CopyTo(memoryStream));
 
-                await _minioClient.GetObjectAsync(getObjectArgs);
+                await minioClient.GetObjectAsync(getObjectArgs);
 
                 memoryStream.Position = 0;
                 return memoryStream;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to get file {ObjectPath} from MinIO", objectPath);
+                logger.LogError(ex, "Failed to get file {ObjectPath} from MinIO", objectPath);
                 throw;
             }
         }
@@ -100,13 +91,13 @@ namespace SatOps.Modules.Operation
                     .WithBucket(_bucketName)
                     .WithObject(objectPath);
 
-                await _minioClient.RemoveObjectAsync(removeObjectArgs);
+                await minioClient.RemoveObjectAsync(removeObjectArgs);
 
-                _logger.LogInformation("Successfully deleted file {ObjectPath} from MinIO", objectPath);
+                logger.LogInformation("Successfully deleted file {ObjectPath} from MinIO", objectPath);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to delete file {ObjectPath} from MinIO", objectPath);
+                logger.LogError(ex, "Failed to delete file {ObjectPath} from MinIO", objectPath);
                 throw;
             }
         }
@@ -114,13 +105,13 @@ namespace SatOps.Modules.Operation
         private async Task EnsureBucketExistsAsync()
         {
             var bucketExistsArgs = new BucketExistsArgs().WithBucket(_bucketName);
-            bool found = await _minioClient.BucketExistsAsync(bucketExistsArgs);
+            bool found = await minioClient.BucketExistsAsync(bucketExistsArgs);
 
             if (!found)
             {
                 var makeBucketArgs = new MakeBucketArgs().WithBucket(_bucketName);
-                await _minioClient.MakeBucketAsync(makeBucketArgs);
-                _logger.LogInformation("Created MinIO bucket {BucketName}", _bucketName);
+                await minioClient.MakeBucketAsync(makeBucketArgs);
+                logger.LogInformation("Created MinIO bucket {BucketName}", _bucketName);
             }
         }
     }

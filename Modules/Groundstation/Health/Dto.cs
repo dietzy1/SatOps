@@ -1,5 +1,5 @@
 
-namespace SatOps.Modules.Groundstation
+namespace SatOps.Modules.Groundstation.Health
 {
     public class GroundStationHealthDto
     {

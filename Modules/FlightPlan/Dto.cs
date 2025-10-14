@@ -1,5 +1,3 @@
-using System.Text.Json.Serialization;
-
 namespace SatOps.Modules.FlightPlan
 {
     // We need to handle the case of being associated with an overpass and not being approved in time
@@ -25,7 +23,7 @@ namespace SatOps.Modules.FlightPlan
     {
         public string Name { get; set; } = string.Empty;
 
-        public object Body { get; set; } = new object();
+        public object Body { get; set; } = new();
     }
 
     // DTO for the POST request body

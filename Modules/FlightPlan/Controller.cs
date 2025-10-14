@@ -1,52 +1,46 @@
 using Microsoft.AspNetCore.Mvc;
-using SatOps.Modules.FlightPlan;
-using SatOps.Modules.Overpass;
 
 namespace SatOps.Modules.FlightPlan
 {
     [ApiController]
     [Route("api/v1/flight-plans")]
-    public class FlightPlansController : ControllerBase
+    public class FlightPlansController(IFlightPlanService service) : ControllerBase
     {
-        private readonly IFlightPlanService _service;
-
-        public FlightPlansController(IFlightPlanService service)
-        {
-            _service = service;
-        }
-
         [HttpGet]
         public async Task<ActionResult<List<FlightPlanDto>>> List()
         {
-            var items = await _service.ListAsync();
+            var items = await service.ListAsync();
             return Ok(items.Select(Mappers.ToDto).ToList());
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<FlightPlanDto>> Get(int id)
         {
-            var item = await _service.GetByIdAsync(id);
+            var item = await service.GetByIdAsync(id);
             if (item == null) return NotFound();
-            return Ok(Mappers.ToDto(item));
+            return Ok(item.ToDto());
         }
 
         [HttpPost]
         public async Task<ActionResult<FlightPlanDto>> Create([FromBody] CreateFlightPlanDto input)
         {
-            var created = await _service.CreateAsync(input);
-            var dto = Mappers.ToDto(created);
+            var created = await service.CreateAsync(input);
+
+            var dto = created.ToDto();
+
             return CreatedAtAction(nameof(Get), new { id = created.Id }, dto);
         }
 
         [HttpPut("{id}")]
         public async Task<ActionResult<FlightPlanDto>> Update(int id, [FromBody] CreateFlightPlanDto input)
         {
-            var newVersion = await _service.CreateNewVersionAsync(id, input);
+            var newVersion = await service.CreateNewVersionAsync(id, input);
             if (newVersion == null)
             {
                 return BadRequest("Could not update the flight plan. It may not be in an updateable state (draft, approved awaiting overpass, or approved).");
             }
-            return Ok(Mappers.ToDto(newVersion));
+
+            return Ok(newVersion.ToDto());
         }
 
         [HttpPatch("{id}")]
@@ -57,7 +51,7 @@ namespace SatOps.Modules.FlightPlan
                 return BadRequest("Invalid status provided can be either APPROVED or REJECTED");
             }
 
-            var (success, message) = await _service.ApproveOrRejectAsync(id, input.Status);
+            var (success, message) = await service.ApproveOrRejectAsync(id, input.Status);
             if (!success)
             {
                 return Conflict(new { detail = message });
@@ -69,7 +63,7 @@ namespace SatOps.Modules.FlightPlan
         [HttpPost("{id}/associate-overpass")]
         public async Task<ActionResult> AssociateOverpass(int id, [FromBody] AssociateOverpassDto input)
         {
-            var (success, message) = await _service.AssociateWithOverpassAsync(id, input);
+            var (success, message) = await service.AssociateWithOverpassAsync(id, input);
             if (!success)
             {
                 return Conflict(new { detail = message });
@@ -99,7 +93,7 @@ namespace SatOps.Modules.FlightPlan
             if (request.MaxSearchDurationHours <= 0)
                 return BadRequest($"Max search duration must be a positive number of hours: {request.MaxSearchDurationHours}");
 
-            var result = await _service.GetImagingOpportunity(request);
+            var result = await service.GetImagingOpportunity(request);
 
             return Ok(result);
         }

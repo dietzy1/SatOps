@@ -10,11 +10,8 @@ using OverpassEntity = SatOps.Modules.Overpass.Entity;
 
 namespace SatOps.Data
 {
-    public class SatOpsDbContext : DbContext
+    public class SatOpsDbContext(DbContextOptions<SatOpsDbContext> options) : DbContext(options)
     {
-        public SatOpsDbContext(DbContextOptions<SatOpsDbContext> options) : base(options)
-        {
-        }
 
         // Use aliases for the DbSet properties
         public DbSet<GroundStationEntity> GroundStations => Set<GroundStationEntity>();
