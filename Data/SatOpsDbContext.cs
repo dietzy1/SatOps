@@ -54,7 +54,22 @@ namespace SatOps.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).UseIdentityByDefaultColumn();
                 entity.Property(e => e.Name).IsRequired();
-                entity.Property(e => e.Commands).HasColumnType("jsonb").IsRequired();
+                // Configure Commands property differently depending on provider
+                if (Database.ProviderName != "Npgsql.EntityFrameworkCore.PostgreSQL")
+                {
+                    entity.Property(e => e.Commands)
+                        .HasConversion(
+                            v => v.RootElement.GetRawText(),
+                            v => JsonDocument.Parse(v, new JsonDocumentOptions()))
+                        .HasColumnType("text")
+                        .IsRequired();
+                }
+                else
+                {
+                    entity.Property(e => e.Commands)
+                        .HasColumnType("jsonb")
+                        .IsRequired();
+                }
 
                 entity.Property(e => e.Status).IsRequired();
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");

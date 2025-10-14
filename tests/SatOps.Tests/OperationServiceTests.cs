@@ -46,7 +46,7 @@ namespace SatOps.Tests
         {
             _dbContext.Satellites.Add(new Satellite { Id = 1, Name = "TestSat" });
             _dbContext.GroundStations.Add(new GroundStation { Id = 1, Name = "TestGS" });
-            _dbContext.FlightPlans.Add(new FlightPlan { Id = 1, Name = "TestFP", Body = JsonDocument.Parse("{}") });
+            _dbContext.FlightPlans.Add(new FlightPlan { Id = 1, Name = "TestFP" });
             _dbContext.SaveChanges();
         }
 
