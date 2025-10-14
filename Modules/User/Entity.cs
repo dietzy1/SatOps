@@ -24,8 +24,8 @@ namespace SatOps.Modules.User
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
         // Additional properties for RBAC tracking
-        public List<string> AdditionalScopes { get; set; } = new List<string>();
-        public List<string> AdditionalRoles { get; set; } = new List<string>();
+        public List<string> AdditionalScopes { get; set; } = [];
+        public List<string> AdditionalRoles { get; set; } = [];
     }
 
     public enum UserRole

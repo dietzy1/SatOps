@@ -12,15 +12,8 @@ namespace SatOps.Modules.FlightPlan
         );
     }
 
-    public class ImagingCalculation : IImagingCalculation
+    public class ImagingCalculation(ILogger<ImagingCalculation> logger) : IImagingCalculation
     {
-        private readonly ILogger<ImagingCalculation> _logger;
-
-        public ImagingCalculation(ILogger<ImagingCalculation> logger)
-        {
-            _logger = logger;
-        }
-
         public class Candidate
         {
             public DateTime Time { get; set; } = DateTime.MinValue;
@@ -94,29 +87,18 @@ namespace SatOps.Modules.FlightPlan
 
                     var offNadirDeg = OffNadirDegrees(target, position, currentTime);
 
-                    var maxOffNadir = top5Candidates.Max(c => c.OffNadirDegrees);
+                    var worstCandidate = top5Candidates.MaxBy(c => c.OffNadirDegrees);
 
-                    // Check if this is within our acceptable off-nadir range
-                    if (offNadirDeg <= maxOffNadir)
+                    // Check if the current time step is better than our worst candidate.
+                    if (worstCandidate != null && offNadirDeg < worstCandidate.OffNadirDegrees)
                     {
-                        int idx = top5Candidates.FindIndex(c => c.OffNadirDegrees == maxOffNadir);
-                        if (idx >= 0)
-                        {
-                            top5Candidates[idx] = new Candidate
-                            {
-                                Time = currentTime,
-                                OffNadirDegrees = offNadirDeg
-                            };
-                        }
-                        else
-                        {
-                            throw new InvalidOperationException("Index for max off-nadir candidate not found, this should never happen.");
-                        }
+                        // Replace the worst candidate's values.
+                        worstCandidate.Time = currentTime;
+                        worstCandidate.OffNadirDegrees = offNadirDeg;
                     }
                 }
                 catch (Exception)
                 {
-                    // The SGP4 calculation can fail for some time steps, just log and skip these
                     exceptionTimes.Add(currentTime);
                 }
 
@@ -194,7 +176,7 @@ namespace SatOps.Modules.FlightPlan
             // Log the exception times if needed for debugging
             if (exceptionTimes.Count > 0)
             {
-                _logger.LogWarning("Exceptions occurred during SGP4 propagation at {ExceptionCount} time steps.", exceptionTimes.Count);
+                logger.LogWarning("Exceptions occurred during SGP4 propagation at {ExceptionCount} time steps.", exceptionTimes.Count);
             }
 
             var bestCandidate = top5Candidates.OrderBy(c => c.OffNadirDegrees).First();

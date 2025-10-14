@@ -12,13 +12,12 @@ namespace SatOps.Tests
 {
     public class GatewayServiceTests
     {
-        private readonly Mock<ILogger<GroundStationGatewayService>> _mockLogger;
         private readonly GroundStationGatewayService _sut;
 
         public GatewayServiceTests()
         {
-            _mockLogger = new Mock<ILogger<GroundStationGatewayService>>();
-            _sut = new GroundStationGatewayService(_mockLogger.Object);
+            var mockLogger = new Mock<ILogger<GroundStationGatewayService>>();
+            _sut = new GroundStationGatewayService(mockLogger.Object);
         }
 
         /// <summary>
@@ -73,7 +72,7 @@ namespace SatOps.Tests
             var sentMessages = new ConcurrentBag<byte[]>();
 
             mockSocket.Setup(s => s.SendAsync(It.IsAny<ArraySegment<byte>>(), WebSocketMessageType.Text, true, CancellationToken.None))
-                .Callback<ArraySegment<byte>, WebSocketMessageType, bool, CancellationToken>((buffer, type, endOfMessage, token) =>
+                .Callback<ArraySegment<byte>, WebSocketMessageType, bool, CancellationToken>((buffer, _, _, _) =>
                 {
                     sentMessages.Add(buffer.ToArray());
                 })
@@ -130,7 +129,7 @@ namespace SatOps.Tests
             var nonExistentId = 99;
 
             // Act
-            Func<Task> act = () => _sut.SendScheduledCommand(nonExistentId, "any", DateTime.UtcNow, new List<string>());
+            Func<Task> act = () => _sut.SendScheduledCommand(nonExistentId, "any", DateTime.UtcNow, []);
 
             // Assert
             await act.Should().ThrowAsync<InvalidOperationException>()
@@ -154,8 +153,8 @@ namespace SatOps.Tests
             await _sut.RegisterConnection(groundStationId, "Test-GS-4", mockSocket.Object);
 
             // Act: Start two commands to the SAME ground station at the same time.
-            var task1 = _sut.SendScheduledCommand(groundStationId, "SAT-A", DateTime.UtcNow, new List<string> { "cmd1" });
-            var task2 = _sut.SendScheduledCommand(groundStationId, "SAT-B", DateTime.UtcNow, new List<string> { "cmd2" });
+            var task1 = _sut.SendScheduledCommand(groundStationId, "SAT-A", DateTime.UtcNow, ["cmd1"]);
+            var task2 = _sut.SendScheduledCommand(groundStationId, "SAT-B", DateTime.UtcNow, ["cmd2"]);
 
             // Wait for both tasks to complete
             await Task.WhenAll(task1, task2);

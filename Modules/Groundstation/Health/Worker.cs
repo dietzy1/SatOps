@@ -14,7 +14,7 @@ namespace SatOps.Modules.Groundstation.Health
             _serviceProvider = serviceProvider;
             _logger = logger;
 
-            var intervalSeconds = configuration.GetValue<int>("GroundStationHealthCheck:IntervalSeconds", 120);
+            var intervalSeconds = configuration.GetValue("GroundStationHealthCheck:IntervalSeconds", 120);
             _checkInterval = TimeSpan.FromSeconds(intervalSeconds);
         }
 

@@ -7,32 +7,23 @@ namespace SatOps.Modules.Satellite
         Task<List<Satellite>> GetActiveSatellitesAsync();
     }
 
-    public class SatelliteService : ISatelliteService
+    public class SatelliteService(ISatelliteRepository repository, ICelestrackClient celestrackClient) : ISatelliteService
     {
-        private readonly ISatelliteRepository _repository;
-        private readonly ICelestrackClient _celestrackClient;
-
-        public SatelliteService(ISatelliteRepository repository, ICelestrackClient celestrackClient)
-        {
-            _repository = repository;
-            _celestrackClient = celestrackClient;
-        }
-
         public Task<List<Satellite>> ListAsync()
         {
-            return _repository.GetAllAsync();
+            return repository.GetAllAsync();
         }
 
         public async Task<Satellite?> GetAsync(int id)
         {
-            var satellite = await _repository.GetByIdAsync(id);
+            var satellite = await repository.GetByIdAsync(id);
 
             if (satellite == null) return null;
 
             // Update TLE data if older than 6 hours
             if (satellite.LastUpdate.AddHours(6) < DateTime.UtcNow)
             {
-                var tleData = await _celestrackClient.FetchTleAsync(satellite.NoradId);
+                var tleData = await celestrackClient.FetchTleAsync(satellite.NoradId);
                 if (tleData != null)
                 {
                     var lines = tleData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -41,7 +32,7 @@ namespace SatOps.Modules.Satellite
                         var tleLine1 = lines[1].Trim();
                         var tleLine2 = lines[2].Trim();
 
-                        await _repository.UpdateTleAsync(id, tleLine1, tleLine2);
+                        await repository.UpdateTleAsync(id, tleLine1, tleLine2);
                         satellite.TleLine1 = tleLine1;
                         satellite.TleLine2 = tleLine2;
                         satellite.LastUpdate = DateTime.UtcNow;
@@ -54,7 +45,7 @@ namespace SatOps.Modules.Satellite
 
         public async Task<List<Satellite>> GetActiveSatellitesAsync()
         {
-            var allSatellites = await _repository.GetAllAsync();
+            var allSatellites = await repository.GetAllAsync();
             return allSatellites.Where(s => s.Status == SatelliteStatus.Active).ToList();
         }
     }

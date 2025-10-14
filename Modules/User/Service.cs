@@ -16,41 +16,34 @@ namespace SatOps.Modules.User
         Task<bool> HasRoleAsync(string email, string requiredRole);
     }
 
-    public class UserService : IUserService
+    public class UserService(IUserRepository repository) : IUserService
     {
-        private readonly IUserRepository _repository;
+        public Task<List<User>> ListAsync() => repository.GetAllAsync();
 
-        public UserService(IUserRepository repository)
-        {
-            _repository = repository;
-        }
+        public Task<User?> GetAsync(int id) => repository.GetByIdAsync(id);
 
-        public Task<List<User>> ListAsync() => _repository.GetAllAsync();
+        public Task<User?> GetByEmailAsync(string email) => repository.GetByEmailAsync(email);
 
-        public Task<User?> GetAsync(int id) => _repository.GetByIdAsync(id);
-
-        public Task<User?> GetByEmailAsync(string email) => _repository.GetByEmailAsync(email);
-
-        public Task<User> CreateAsync(User entity) => _repository.AddAsync(entity);
+        public Task<User> CreateAsync(User entity) => repository.AddAsync(entity);
 
         public async Task<User?> UpdateAsync(int id, User entity)
         {
             entity.Id = id;
-            return await _repository.UpdateAsync(entity);
+            return await repository.UpdateAsync(entity);
         }
 
-        public Task<bool> DeleteAsync(int id) => _repository.DeleteAsync(id);
+        public Task<bool> DeleteAsync(int id) => repository.DeleteAsync(id);
 
         public async Task<UserPermissions> GetUserPermissionsAsync(string email)
         {
-            var user = await _repository.GetByEmailAsync(email);
+            var user = await repository.GetByEmailAsync(email);
             if (user == null)
             {
                 return new UserPermissions
                 {
                     BaseRole = UserRole.Viewer,
-                    AllRoles = new List<string> { "Viewer" },
-                    AllScopes = new List<string>()
+                    AllRoles = ["Viewer"],
+                    AllScopes = []
                 };
             }
 
@@ -72,7 +65,7 @@ namespace SatOps.Modules.User
 
         public async Task<bool> GrantAdditionalPermissionsAsync(int userId, List<string> additionalScopes, List<string> additionalRoles)
         {
-            return await _repository.UpdateAdditionalPermissionsAsync(userId, additionalScopes, additionalRoles);
+            return await repository.UpdateAdditionalPermissionsAsync(userId, additionalScopes, additionalRoles);
         }
 
         public async Task<bool> HasPermissionAsync(string email, string requiredPermission)
@@ -91,20 +84,20 @@ namespace SatOps.Modules.User
         {
             return role switch
             {
-                UserRole.Viewer => new[] { "read:ground-stations", "read:satellites", "read:flight-plans" },
-                UserRole.Operator => new[]
-                {
+                UserRole.Viewer => ["read:ground-stations", "read:satellites", "read:flight-plans"],
+                UserRole.Operator =>
+                [
                     "read:ground-stations", "read:satellites", "read:flight-plans",
                     "write:flight-plans", "approve:flight-plans"
-                },
-                UserRole.Admin => new[]
-                {
+                ],
+                UserRole.Admin =>
+                [
                     "read:ground-stations", "read:satellites", "read:flight-plans",
                     "write:ground-stations", "write:satellites", "write:flight-plans",
                     "delete:ground-stations", "delete:satellites", "delete:flight-plans",
                     "approve:flight-plans", "manage:users"
-                },
-                _ => new string[0]
+                ],
+                _ => Array.Empty<string>()
             };
         }
     }
@@ -114,7 +107,7 @@ namespace SatOps.Modules.User
         public int UserId { get; set; }
         public string Email { get; set; } = string.Empty;
         public UserRole BaseRole { get; set; }
-        public List<string> AllRoles { get; set; } = new();
-        public List<string> AllScopes { get; set; } = new();
+        public List<string> AllRoles { get; set; } = [];
+        public List<string> AllScopes { get; set; } = [];
     }
 }

@@ -28,20 +28,12 @@ namespace SatOps.Modules.Groundstation
         Task<List<GroundStation>> GetActiveStationsAsync();
     }
 
-    public class GroundStationService : IGroundStationService
+    public class GroundStationService(IGroundStationRepository repository, IGroundStationHealthService healthService) : IGroundStationService
     {
-        private readonly IGroundStationRepository _repository;
-        private readonly IGroundStationHealthService _healthService;
+        private const double Epsilon = 1e-6;
+        public Task<List<GroundStation>> ListAsync() => repository.GetAllAsync();
 
-        public GroundStationService(IGroundStationRepository repository, IGroundStationHealthService healthService)
-        {
-            _repository = repository;
-            _healthService = healthService;
-        }
-
-        public Task<List<GroundStation>> ListAsync() => _repository.GetAllAsync();
-
-        public Task<GroundStation?> GetAsync(int id) => _repository.GetByIdAsync(id);
+        public Task<GroundStation?> GetAsync(int id) => repository.GetByIdAsync(id);
 
         public async Task<(GroundStation createdStation, string rawApiKey)> CreateAsync(GroundStation entity)
         {
@@ -54,14 +46,14 @@ namespace SatOps.Modules.Groundstation
             entity.ApiKeyHash = ApiKeyHasher.Hash(rawApiKey);
             entity.ApplicationId = Guid.NewGuid();
 
-            var createdEntity = await _repository.AddAsync(entity);
+            var createdEntity = await repository.AddAsync(entity);
 
             return (createdEntity, rawApiKey);
         }
 
         public async Task<GroundStation?> PatchAsync(int id, GroundStationPatchDto patchDto)
         {
-            var existing = await _repository.GetByIdTrackedAsync(id);
+            var existing = await repository.GetByIdTrackedAsync(id);
             if (existing == null)
             {
                 return null;
@@ -83,7 +75,9 @@ namespace SatOps.Modules.Groundstation
                 var newLon = patchDto.Location.Longitude ?? loc.Longitude;
                 var newAlt = patchDto.Location.Altitude ?? loc.Altitude;
 
-                if (loc.Latitude != newLat || loc.Longitude != newLon || loc.Altitude != newAlt)
+                if (IsDifferent(loc.Latitude, newLat) ||
+                    IsDifferent(loc.Longitude, newLon) ||
+                    IsDifferent(loc.Altitude, newAlt))
                 {
                     existing.Location = new Location { Latitude = newLat, Longitude = newLon, Altitude = newAlt };
                     hasChanges = true;
@@ -101,20 +95,20 @@ namespace SatOps.Modules.Groundstation
                 return existing;
             }
 
-            return await _repository.UpdateAsync(existing);
+            return await repository.UpdateAsync(existing);
         }
 
-        public Task<bool> DeleteAsync(int id) => _repository.DeleteAsync(id);
+        public Task<bool> DeleteAsync(int id) => repository.DeleteAsync(id);
 
         public async Task<List<GroundStation>> GetActiveStationsAsync()
         {
-            var allStations = await _repository.GetAllAsync();
+            var allStations = await repository.GetAllAsync();
             return allStations.Where(s => s.IsActive).ToList();
         }
 
         public async Task<bool> UpdateHealthStatusAsync(int id, bool isActive)
         {
-            var existing = await _repository.GetByIdTrackedAsync(id);
+            var existing = await repository.GetByIdTrackedAsync(id);
             if (existing == null) return false;
 
             if (existing.IsActive == isActive)
@@ -124,26 +118,28 @@ namespace SatOps.Modules.Groundstation
 
             existing.IsActive = isActive;
 
-            var updated = await _repository.UpdateAsync(existing);
+            var updated = await repository.UpdateAsync(existing);
             return updated != null;
         }
 
         public async Task<(GroundStation? station, bool isHealthy)> GetRealTimeHealthStatusAsync(int id)
         {
-            var station = await _repository.GetByIdAsync(id);
+            var station = await repository.GetByIdAsync(id);
             if (station == null) return (null, false);
 
             // Make actual HTTP call to the ground station's health endpoint
-            var isHealthy = await _healthService.CheckHealthAsync(station);
+            var isHealthy = await healthService.CheckHealthAsync(station);
 
             // Optionally update the database with the current health status
             if (station.IsActive != isHealthy)
             {
-                await _healthService.UpdateStationHealthAsync(id, isHealthy);
+                await healthService.UpdateStationHealthAsync(id, isHealthy);
             }
 
             return (station, isHealthy);
         }
+
+        private static bool IsDifferent(double a, double b) => Math.Abs(a - b) > Epsilon;
     }
 }
 

@@ -19,10 +19,8 @@ namespace SatOps.Tests
         private readonly Mock<IMinioService> _mockMinioService;
         private readonly SatOpsDbContext _dbContext;
 
-        private readonly Mock<ILogger<TelemetryService>> _mockTelemetryLogger;
         private readonly TelemetryService _telemetryService;
 
-        private readonly Mock<ILogger<ImageService>> _mockImageLogger;
         private readonly ImageService _imageService;
 
         public OperationServiceTests()
@@ -35,11 +33,11 @@ namespace SatOps.Tests
 
             _mockMinioService = new Mock<IMinioService>();
 
-            _mockTelemetryLogger = new Mock<ILogger<TelemetryService>>();
-            _telemetryService = new TelemetryService(_dbContext, _mockMinioService.Object, _mockTelemetryLogger.Object);
+            var mockTelemetryLogger = new Mock<ILogger<TelemetryService>>();
+            _telemetryService = new TelemetryService(_dbContext, _mockMinioService.Object, mockTelemetryLogger.Object);
 
-            _mockImageLogger = new Mock<ILogger<ImageService>>();
-            _imageService = new ImageService(_dbContext, _mockMinioService.Object, _mockImageLogger.Object);
+            var mockImageLogger = new Mock<ILogger<ImageService>>();
+            _imageService = new ImageService(_dbContext, _mockMinioService.Object, mockImageLogger.Object);
 
             SeedDatabase();
         }

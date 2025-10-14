@@ -17,34 +17,27 @@ namespace SatOps.Modules.Overpass
         Task<SatOps.Modules.FlightPlan.FlightPlan?> GetAssociatedFlightPlanAsync(int overpassId);
     }
 
-    public class OverpassRepository : IOverpassRepository
+    public class OverpassRepository(SatOpsDbContext dbContext) : IOverpassRepository
     {
-        private readonly SatOpsDbContext _dbContext;
-
-        public OverpassRepository(SatOpsDbContext dbContext)
-        {
-            _dbContext = dbContext;
-        }
-
         public async Task<Entity?> GetByIdAsync(int id)
         {
-            return await _dbContext.Overpasses.FindAsync(id);
+            return await dbContext.Overpasses.FindAsync(id);
         }
 
         public async Task<Entity?> GetByIdReadOnlyAsync(int id)
         {
-            return await _dbContext.Overpasses.AsNoTracking().FirstOrDefaultAsync(o => o.Id == id);
+            return await dbContext.Overpasses.AsNoTracking().FirstOrDefaultAsync(o => o.Id == id);
         }
 
         public async Task<List<Entity>> GetAllAsync()
         {
-            return await _dbContext.Overpasses.AsNoTracking().ToListAsync();
+            return await dbContext.Overpasses.AsNoTracking().ToListAsync();
         }
 
         public async Task<Entity> AddAsync(Entity overpass)
         {
-            _dbContext.Overpasses.Add(overpass);
-            await _dbContext.SaveChangesAsync();
+            dbContext.Overpasses.Add(overpass);
+            await dbContext.SaveChangesAsync();
             return overpass;
         }
 
@@ -52,8 +45,8 @@ namespace SatOps.Modules.Overpass
         {
             try
             {
-                _dbContext.Overpasses.Update(overpass);
-                await _dbContext.SaveChangesAsync();
+                dbContext.Overpasses.Update(overpass);
+                await dbContext.SaveChangesAsync();
                 return true;
             }
             catch
@@ -68,14 +61,14 @@ namespace SatOps.Modules.Overpass
             if (overpass == null)
                 return false;
 
-            _dbContext.Overpasses.Remove(overpass);
-            await _dbContext.SaveChangesAsync();
+            dbContext.Overpasses.Remove(overpass);
+            await dbContext.SaveChangesAsync();
             return true;
         }
 
         public async Task<List<Entity>> GetByTimeRangeAsync(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime)
         {
-            return await _dbContext.Overpasses
+            return await dbContext.Overpasses
                 .AsNoTracking()
                 .Where(o => o.SatelliteId == satelliteId &&
                            o.GroundStationId == groundStationId &&
@@ -90,7 +83,7 @@ namespace SatOps.Modules.Overpass
             // Find an existing overpass that matches the parameters (within a small tolerance)
             var toleranceMinutes = 5; // 5-minute tolerance
 
-            return await _dbContext.Overpasses
+            return await dbContext.Overpasses
                 .AsNoTracking()
                 .FirstOrDefaultAsync(o => o.SatelliteId == satelliteId &&
                                          o.GroundStationId == groundStationId &&
@@ -101,7 +94,7 @@ namespace SatOps.Modules.Overpass
 
         public async Task<List<Entity>> FindStoredOverpassesInTimeRange(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime)
         {
-            return await _dbContext.Overpasses
+            return await dbContext.Overpasses
                 .AsNoTracking()
                 .Where(o => o.SatelliteId == satelliteId &&
                            o.GroundStationId == groundStationId &&
@@ -114,7 +107,7 @@ namespace SatOps.Modules.Overpass
 
         public async Task<SatOps.Modules.FlightPlan.FlightPlan?> GetAssociatedFlightPlanAsync(int overpassId)
         {
-            return await _dbContext.FlightPlans
+            return await dbContext.FlightPlans
                 .AsNoTracking()
                 .FirstOrDefaultAsync(fp => fp.OverpassId == overpassId);
         }
