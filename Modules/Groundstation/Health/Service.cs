@@ -43,20 +43,20 @@ namespace SatOps.Modules.Groundstation.Health
 
                 var isHealthy = response.StatusCode == HttpStatusCode.OK;
 
-                _logger.LogInformation("Health check for ground station {Name}: {Status}",
+                _logger.LogDebug("Health check for ground station {Name}: {Status}",
                     groundStation.Name, isHealthy ? "Healthy" : "Unhealthy");
 
                 return isHealthy;
             }
             catch (HttpRequestException ex)
             {
-                _logger.LogWarning(ex, "HTTP error during health check for ground station {Name}",
+                _logger.LogDebug(ex, "HTTP error during health check for ground station {Name}",
                     groundStation.Name);
                 return false;
             }
             catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException)
             {
-                _logger.LogWarning("Timeout during health check for ground station {Name}",
+                _logger.LogDebug("Timeout during health check for ground station {Name}",
                     groundStation.Name);
                 return false;
             }

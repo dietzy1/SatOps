@@ -1,31 +1,31 @@
-using System.Text.Json;
-
 namespace SatOps.Modules.FlightPlan
 {
     public static class Mappers
     {
         public static FlightPlanDto ToDto(this FlightPlan entity)
         {
+            var commandSequence = entity.GetCommandSequence();
+
             return new FlightPlanDto
             {
                 Id = entity.Id,
-                FlightPlanBody = new FlightPlanBodyDto
-                {
-                    Name = entity.Name,
-                    Body = JsonSerializer.Deserialize<object>(entity.Body.RootElement.GetRawText())!
-                },
-                ScheduledAt = entity.ScheduledAt,
+                Name = entity.Name,
                 GsId = entity.GroundStationId,
                 SatId = entity.SatelliteId,
-                Name = entity.Name,
-                Status = entity.Status.ToScreamCase(),
                 OverpassId = entity.OverpassId,
-                PreviousPlanId = entity.PreviousPlanId?.ToString(),
-                ApproverId = entity.ApproverId,
-                ApprovalDate = entity.ApprovalDate
+                PreviousPlanId = entity.PreviousPlanId,
+                CreatedById = entity.CreatedById,
+                ApprovedById = entity.ApprovedById,
+                Commands = commandSequence.Commands,
+                ScheduledAt = entity.ScheduledAt,
+                Status = entity.Status.ToScreamCase(),
+                ApprovalDate = entity.ApprovalDate,
+                CreatedAt = entity.CreatedAt,
+                UpdatedAt = entity.UpdatedAt
             };
         }
     }
+
     public static class FlightPlanStatusExtensions
     {
         public static string ToScreamCase(this FlightPlanStatus status) =>
@@ -38,6 +38,18 @@ namespace SatOps.Modules.FlightPlan
                 FlightPlanStatus.Transmitted => "TRANSMITTED",
                 FlightPlanStatus.Superseded => "SUPERSEDED",
                 _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+            };
+
+        public static FlightPlanStatus FromScreamCase(string status) =>
+            status.ToUpperInvariant() switch
+            {
+                "DRAFT" => FlightPlanStatus.Draft,
+                "REJECTED" => FlightPlanStatus.Rejected,
+                "APPROVED" => FlightPlanStatus.Approved,
+                "ASSIGNED_TO_OVERPASS" => FlightPlanStatus.AssignedToOverpass,
+                "TRANSMITTED" => FlightPlanStatus.Transmitted,
+                "SUPERSEDED" => FlightPlanStatus.Superseded,
+                _ => throw new ArgumentException($"Invalid status: {status}", nameof(status))
             };
     }
 }

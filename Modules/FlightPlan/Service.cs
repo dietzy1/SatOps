@@ -18,6 +18,7 @@ namespace SatOps.Modules.FlightPlan
         Task<FlightPlan?> CreateNewVersionAsync(int id, CreateFlightPlanDto updateDto);
         Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status);
         Task<(bool Success, string Message)> AssociateWithOverpassAsync(int flightPlanId, AssociateOverpassDto overpassRequest);
+        Task<List<string>> CompileFlightPlanToCshAsync(int id);
         Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request);
     }
 
@@ -40,6 +41,7 @@ namespace SatOps.Modules.FlightPlan
         {
             // Validate that the groundstation exists
             var groundStation = await groundStationService.GetAsync(createDto.GsId);
+
             if (groundStation == null)
             {
                 throw new ArgumentException($"Ground station with ID {createDto.GsId} not found.", nameof(createDto.GsId));
@@ -52,98 +54,76 @@ namespace SatOps.Modules.FlightPlan
                 throw new ArgumentException($"Satellite with ID {createDto.SatId} not found.", nameof(createDto.SatId));
             }
 
+            var commandSequence = CommandSequence.FromJsonElement(createDto.Commands);
+            var (isValid, errors) = commandSequence.ValidateAll();
+            if (!isValid)
+            {
+                throw new ArgumentException(
+                    $"Command validation failed: {string.Join("; ", errors)}");
+            }
+
+            // Create entity
             var entity = new FlightPlan
             {
-                Name = createDto.FlightPlanBody.Name,
-                Body = JsonDocument.Parse(JsonSerializer.Serialize(createDto.FlightPlanBody.Body)),
+                Name = createDto.Name,
                 GroundStationId = createDto.GsId,
                 SatelliteId = createDto.SatId,
                 Status = FlightPlanStatus.Draft,
+                CreatedById = 1, // TODO: Extract from token
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
+
+            entity.SetCommandSequence(commandSequence);
             return await repository.AddAsync(entity);
         }
 
         public async Task<FlightPlan?> CreateNewVersionAsync(int id, CreateFlightPlanDto updateDto)
         {
-            await using var transaction = await dbContext.Database.BeginTransactionAsync();
-            try
+            var existing = await repository.GetByIdAsync(id);
+            if (existing == null)
             {
-                // Validate that the groundstation exists
-                var groundStation = await groundStationService.GetAsync(updateDto.GsId);
-                if (groundStation == null)
-                {
-                    throw new ArgumentException($"Ground station with ID {updateDto.GsId} not found.", nameof(updateDto.GsId));
-                }
-
-                // Validate that the satellite exists
-                var satellite = await satelliteService.GetAsync(updateDto.SatId);
-                if (satellite == null)
-                {
-                    throw new ArgumentException($"Satellite with ID {updateDto.SatId} not found.", nameof(updateDto.SatId));
-                }
-
-                var oldPlan = await repository.GetByIdAsync(id);
-                if (oldPlan == null)
-                {
-                    return null;
-                }
-
-                // Check if the current status allows creating a new version
-                bool canCreateNewVersion = oldPlan.Status switch
-                {
-                    FlightPlanStatus.Draft => true,
-                    FlightPlanStatus.Approved => true,
-                    FlightPlanStatus.Rejected => false,
-                    FlightPlanStatus.AssignedToOverpass => false,
-                    FlightPlanStatus.Transmitted => false,
-                    FlightPlanStatus.Superseded => false,
-                    _ => false
-                };
-
-                if (!canCreateNewVersion)
-                {
-                    return null;
-                }
-
-                // Determine the status for the new plan
-                var newPlanStatus = oldPlan.Status switch
-                {
-                    FlightPlanStatus.Draft => FlightPlanStatus.Draft,
-                    FlightPlanStatus.Approved => FlightPlanStatus.Draft, // Reset to draft when creating new version from approved plan
-                    _ => FlightPlanStatus.Draft
-                };
-
-                oldPlan.Status = FlightPlanStatus.Superseded;
-                oldPlan.UpdatedAt = DateTime.UtcNow;
-
-                var newPlan = new FlightPlan
-                {
-                    Name = updateDto.FlightPlanBody.Name,
-                    Body = JsonDocument.Parse(JsonSerializer.Serialize(updateDto.FlightPlanBody.Body)),
-                    ScheduledAt = null,
-                    GroundStationId = updateDto.GsId,
-                    SatelliteId = updateDto.SatId,
-                    Status = newPlanStatus,
-                    OverpassId = oldPlan.Status == FlightPlanStatus.Approved ? oldPlan.OverpassId : null, // Preserve overpass only if previously approved
-                    PreviousPlanId = oldPlan.Id,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                };
-
-                await repository.AddAsync(newPlan);
-                await repository.UpdateAsync(oldPlan);
-
-                await transaction.CommitAsync();
-
-                return newPlan;
+                return null;
             }
-            catch (Exception)
+
+            // Only certain statuses can be updated
+            if (existing.Status != FlightPlanStatus.Draft &&
+                existing.Status != FlightPlanStatus.Approved &&
+                existing.Status != FlightPlanStatus.AssignedToOverpass)
             {
-                await transaction.RollbackAsync();
-                throw;
+                return null;
             }
+
+            // Wrap commands in CommandSequence for validation
+            /*    var commandSequence = new CommandSequence { Commands = updateDto.Commands };
+               var (isValid, errors) = commandSequence.ValidateAll();
+               if (!isValid)
+               {
+                   throw new ArgumentException(
+                       $"Command validation failed: {string.Join("; ", errors)}");
+               } */
+
+            // Mark the old plan as superseded
+            existing.Status = FlightPlanStatus.Superseded;
+            existing.UpdatedAt = DateTime.UtcNow;
+            await repository.UpdateAsync(existing);
+
+            // Create new version
+            var newVersion = new FlightPlan
+            {
+                Name = updateDto.Name,
+                GroundStationId = updateDto.GsId,
+                SatelliteId = updateDto.SatId,
+                PreviousPlanId = existing.Id,
+                Status = FlightPlanStatus.Draft,
+                CreatedById = existing.CreatedById,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            //newVersion.SetCommandSequence(commandSequence);
+
+            return await repository.AddAsync(newVersion);
         }
 
         public async Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status)
@@ -174,38 +154,36 @@ namespace SatOps.Modules.FlightPlan
                     return (false, $"Unknown flight plan status: {plan.Status}");
             }
 
-            // Handle the approval/rejection action
-            switch (status.ToLower())
+            var newStatus = FlightPlanStatusExtensions.FromScreamCase(status);
+
+            if (newStatus == FlightPlanStatus.Approved)
             {
-                case "approved":
-                    plan.Status = FlightPlanStatus.Approved;
-                    break;
-                case "rejected":
-                    plan.Status = FlightPlanStatus.Rejected;
-                    break;
-                default:
-                    return (false, "Invalid status. Must be 'approved' or 'rejected'.");
+                // Re-validate before approval
+                var commandSequence = plan.GetCommandSequence();
+                var (isValid, errors) = commandSequence.ValidateAll();
+                if (!isValid)
+                {
+                    return (false, $"Cannot approve invalid flight plan: {string.Join("; ", errors)}");
+                }
             }
+
+            plan.Status = newStatus;
 
             plan.ApprovalDate = DateTime.UtcNow;
-            plan.ApproverId = "mock-user-id";
+            plan.ApprovedById = 1; // TODO: Extract from token
 
-            var success = await repository.UpdateAsync(plan);
+            await repository.UpdateAsync(plan);
 
-            if (success)
-            {
-                return (true, $"Flight plan successfully {status}.");
-            }
-
-            return (false, "Failed to update the flight plan.");
+            return (true, $"Flight plan {status.ToLowerInvariant()} successfully");
         }
 
-        public async Task<(bool Success, string Message)> AssociateWithOverpassAsync(int flightPlanId, AssociateOverpassDto overpassRequest)
+        public async Task<(bool Success, string Message)> AssociateWithOverpassAsync(
+            int id,
+            AssociateOverpassDto dto)
         {
-            await using var transaction = await dbContext.Database.BeginTransactionAsync();
             try
             {
-                var flightPlan = await repository.GetByIdAsync(flightPlanId);
+                var flightPlan = await repository.GetByIdAsync(id);
                 if (flightPlan == null)
                 {
                     return (false, "Flight plan not found.");
@@ -233,9 +211,10 @@ namespace SatOps.Modules.FlightPlan
 
                 // Calculate overpasses with a broader time window to allow for tolerance matching
                 var toleranceHours = 2; // Allow 2-hour tolerance around the requested time window
-                var expandedStartTime = overpassRequest.StartTime.AddHours(-toleranceHours);
-                var expandedEndTime = overpassRequest.EndTime.AddHours(toleranceHours);
+                var expandedStartTime = dto.StartTime.AddHours(-toleranceHours);
+                var expandedEndTime = dto.EndTime.AddHours(toleranceHours);
 
+                // Create overpass calculation request
                 var overpassCalculationRequest = new OverpassWindowsCalculationRequestDto
                 {
                     SatelliteId = flightPlan.SatelliteId,
@@ -245,125 +224,57 @@ namespace SatOps.Modules.FlightPlan
                 };
 
                 var availableOverpasses = await overpassService.CalculateOverpassesAsync(overpassCalculationRequest);
-                if (availableOverpasses.Count.Equals(0))
+                if (availableOverpasses?.Count == 0)
                 {
-                    return (false, "No suitable overpasses found within the specified timerange (including tolerance).");
+                    return (false, "No matching overpass found");
                 }
 
-                // Find the overpass that best matches the user's requested criteria
-                var toleranceMinutes = 10; // Allow 10-minute tolerance for time matching
-                var elevationTolerance = 2.0; // Allow 2-degree tolerance for elevation matching
-                var durationTolerance = 60; // Allow 60-second tolerance for duration matching
-
-                var candidateOverpasses = availableOverpasses.Where(o =>
-                    // Time window matching (with tolerance)
-                    Math.Abs((o.StartTime - overpassRequest.StartTime).TotalMinutes) <= toleranceMinutes ||
-                    Math.Abs((o.EndTime - overpassRequest.EndTime).TotalMinutes) <= toleranceMinutes ||
-                    (o.StartTime <= overpassRequest.StartTime && o.EndTime >= overpassRequest.EndTime) ||
-                    (overpassRequest.StartTime <= o.StartTime && overpassRequest.EndTime >= o.EndTime)
-                );
-
-                // Apply additional filtering criteria if provided
-                if (overpassRequest.MaxElevation.HasValue)
-                {
-                    candidateOverpasses = candidateOverpasses.Where(o =>
-                        Math.Abs(o.MaxElevation - overpassRequest.MaxElevation.Value) <= elevationTolerance);
-                }
-
-                if (overpassRequest.DurationSeconds.HasValue)
-                {
-                    candidateOverpasses = candidateOverpasses.Where(o =>
-                        Math.Abs(o.DurationSeconds - overpassRequest.DurationSeconds.Value) <= durationTolerance);
-                }
-
-                if (overpassRequest.MaxElevationTime.HasValue)
-                {
-                    candidateOverpasses = candidateOverpasses.Where(o =>
-                        Math.Abs((o.MaxElevationTime - overpassRequest.MaxElevationTime.Value).TotalMinutes) <= toleranceMinutes);
-                }
-
-                // Select the best matching overpass (prioritize by time accuracy, then elevation accuracy)
-                var selectedOverpass = candidateOverpasses
-                    .OrderBy(o => Math.Abs((o.StartTime - overpassRequest.StartTime).TotalMinutes))
-                    .ThenBy(o => overpassRequest.MaxElevation.HasValue ? Math.Abs(o.MaxElevation - overpassRequest.MaxElevation.Value) : 0)
-                    .FirstOrDefault();
-
+                var selectedOverpass = availableOverpasses?.FirstOrDefault();
                 if (selectedOverpass == null)
                 {
-                    var criteriaUsed = new List<string> { "time window" };
-                    if (overpassRequest.MaxElevation.HasValue) criteriaUsed.Add("max elevation");
-                    if (overpassRequest.DurationSeconds.HasValue) criteriaUsed.Add("duration");
-                    if (overpassRequest.MaxElevationTime.HasValue) criteriaUsed.Add("max elevation time");
-
-                    return (false, $"No overpass found matching the specified criteria: {string.Join(", ", criteriaUsed)} (within tolerance).");
+                    return (false, "No suitable overpass found");
                 }
 
-                // Store the selected overpass (since we have a 1:1 relationship with flight plans)
                 var storedOverpass = await overpassService.FindOrCreateOverpassAsync(selectedOverpass);
                 if (storedOverpass == null)
                 {
-                    return (false, "Failed to store overpass data.");
+                    return (false, "Failed to store overpass data");
                 }
 
-                // Associate the flight plan with the stored overpass and update status
                 flightPlan.OverpassId = storedOverpass.Id;
                 flightPlan.ScheduledAt = selectedOverpass.StartTime;
                 flightPlan.Status = FlightPlanStatus.AssignedToOverpass;
                 flightPlan.UpdatedAt = DateTime.UtcNow;
 
-                var success = await repository.UpdateAsync(flightPlan);
+                await repository.UpdateAsync(flightPlan);
 
-                if (success)
-                {
-                    await transaction.CommitAsync();
-
-                    try
-
-                    {
-                        var satellite = await satelliteService.GetAsync(flightPlan.SatelliteId);
-
-                        var commandSequence = CommandSequence.FromJson(flightPlan.Body.RootElement.GetRawText());
-
-                        if (commandSequence != null && satellite != null && flightPlan.ScheduledAt.HasValue)
-                        {
-                            var cshScript = new List<string>();
-                            foreach (var command in commandSequence.Commands)
-                            {
-                                var compiledCommands = await command.CompileToCsh();
-                                cshScript.AddRange(compiledCommands);
-                            }
-
-                            await gatewayService.SendScheduledCommand(
-                                flightPlan.GroundStationId,
-                                satellite.Name,
-                                flightPlan.ScheduledAt.Value,
-                                cshScript
-                            );
-                        }
-                        else
-                        {
-                            logger.LogError("Could not send command for Flight Plan {FlightPlanId}: satellite, command sequence or schedule time was null.", flightPlan.Id);
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        // Plan is saved but we failed to send it
-                        // Needs robust handling
-                        logger.LogError(ex, "Failed to send scheduled command for Flight Plan {FlightPlanId} to GS {GroundStationId}", flightPlan.Id, flightPlan.GroundStationId);
-                        return (true, $"Flight plan associated, but failed to schedule transmission to ground station: {ex.Message}");
-                    }
-
-                    return (true, "Flight plan successfully associated with overpass and scheduled for transmission.");
-                }
-
-                await transaction.RollbackAsync();
-                return (false, "Failed to update the flight plan.");
+                return (true, "Flight plan associated with overpass successfully");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
                 return (false, $"Error associating flight plan with overpass: {ex.Message}");
             }
+        }
+
+        public async Task<List<string>> CompileFlightPlanToCshAsync(int flightPlanId)
+        {
+            var flightPlan = await repository.GetByIdAsync(flightPlanId);
+            if (flightPlan == null)
+            {
+                throw new ArgumentException($"Flight plan with ID {flightPlanId} not found.");
+            }
+
+            var commandSequence = flightPlan.GetCommandSequence();
+
+            // Validate before compiling
+            var (isValid, errors) = commandSequence.ValidateAll();
+            if (!isValid)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot compile invalid flight plan. Errors: {string.Join("; ", errors)}");
+            }
+
+            return await commandSequence.CompileAllToCsh();
         }
 
         public async Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request)

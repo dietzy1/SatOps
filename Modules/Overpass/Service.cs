@@ -256,7 +256,7 @@ namespace SatOps.Modules.Overpass
                     Name = flightPlan.Name,
                     ScheduledAt = flightPlan.ScheduledAt,
                     Status = flightPlan.Status.ToString(),
-                    ApproverId = flightPlan.ApproverId,
+                    ApproverId = flightPlan.ApprovedById?.ToString(),
                     ApprovalDate = flightPlan.ApprovalDate
                 };
             }

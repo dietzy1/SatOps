@@ -178,7 +178,7 @@ namespace SatOps.Tests
                         p.Id == planId &&
                         p.Status == targetStatus &&
                         p.ApprovalDate.HasValue &&
-                        p.ApproverId == "mock-user-id"
+                        p.ApprovedById == 1
                     )), Times.Once);
                 }
 

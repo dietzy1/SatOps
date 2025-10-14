@@ -2,6 +2,9 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SatOps.Modules.FlightPlan.Commands
 {
+
+    // TODO: Command is currently in the raw format as per CSP specification.
+    // We need to add in the delay timing but perhaps that needs to be done in a separate command that sits in front of the trigger capture command.
     public class TriggerCaptureCommand : Command
     {
         public override string Name => "Trigger Camera Capture";
