@@ -51,7 +51,7 @@ The platform exposes two distinct APIs, documented via separate Swagger UIs.
 
 #### Public API (`/api/v1/...`)
 
-Intended for human operators and external management tools. Authentication is handled by an external OIDC provider.
+Intended for human operators and external management tools. Authentication is handled via local JWTs.
 
 - `GET /api/v1/ground-stations` - List all ground stations.
 - `POST /api/v1/ground-stations` - Create a new ground station.

@@ -154,37 +154,18 @@ builder.Services.AddDbContext<SatOpsDbContext>(options =>
     });
 });
 
-
-var wayfAuthority = builder.Configuration["WAYF:Authority"] ?? "https://wayf.wayf.dk";
-var wayfAudience = builder.Configuration["WAYF:Audience"] ?? "your-client-id"; // Get from WAYF secretariat
-var wayfIssuer = builder.Configuration["WAYF:Issuer"] ?? "https://wayf.wayf.dk";
-
-// Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options => // Scheme 1: For Users (WAYF)
-    {
-        options.Authority = wayfAuthority;
-        options.RequireHttpsMetadata = true;
-        options.MetadataAddress = $"{wayfAuthority}/oidc/config/.well-known/openid-configuration";
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = wayfIssuer,
-            ValidAudience = wayfAudience,
-        };
-    })
-    .AddJwtBearer(AuthConstants.GroundStationAuthScheme, options => // Scheme 2: For Ground Stations
+    .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
     {
         var jwtSettings = builder.Configuration.GetSection("Jwt");
+        var key = jwtSettings["Key"] ?? throw new InvalidOperationException("JWT Key not configured.");
+
         options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         options.SaveToken = true;
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
             ValidateIssuer = true,
             ValidIssuer = jwtSettings["Issuer"],
             ValidateAudience = true,
@@ -194,16 +175,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-
-
 // Authorization with custom policies
 builder.Services.AddAuthorization(options =>
 {
     // Policy for ground station authentication
     options.AddPolicy("RequireGroundStation", policy =>
     {
-        policy.AddAuthenticationSchemes(AuthConstants.GroundStationAuthScheme)
-              .RequireAuthenticatedUser()
+        policy.RequireAuthenticatedUser()
               .RequireClaim("type", "GroundStation");
     });
     // Scope-based policies for user permissions
@@ -358,8 +336,3 @@ using (var scope = app.Services.CreateScope())
 app.UseWebSockets();
 
 app.Run();
-
-public static class AuthConstants
-{
-    public const string GroundStationAuthScheme = "GroundStation_Bearer";
-}
