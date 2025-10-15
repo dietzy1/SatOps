@@ -12,7 +12,7 @@ namespace SatOps.Modules.FlightPlan
 
         public string Name { get; set; } = string.Empty;
         public DateTime? ScheduledAt { get; set; }
-        public List<Command> Commands { get; set; } = new();
+        public List<Command> Commands { get; set; } = [];
         public string Status { get; set; } = string.Empty;
         public int CreatedById { get; set; }
         public int? ApprovedById { get; set; }

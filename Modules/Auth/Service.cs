@@ -87,11 +87,11 @@ namespace SatOps.Modules.Auth
 
             var claims = new List<Claim>
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(JwtRegisteredClaimNames.Name, user.Name),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim("type", "User")
+                new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new(JwtRegisteredClaimNames.Email, user.Email),
+                new(JwtRegisteredClaimNames.Name, user.Name),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new("type", "User")
             };
 
             permissions.AllRoles.ForEach(role => claims.Add(new Claim(ClaimTypes.Role, role)));

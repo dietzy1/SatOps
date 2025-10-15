@@ -10,7 +10,6 @@ using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.FlightPlan;
 using System.Text;
-using System.Text.Json;
 
 namespace SatOps.Tests
 {

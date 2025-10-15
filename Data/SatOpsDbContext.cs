@@ -146,7 +146,7 @@ namespace SatOps.Data
                     Id = 1,
                     Name = "Admin User",
                     Email = "admin@example.com",
-                    Role = SatOps.Modules.User.UserRole.Admin,
+                    Role = Modules.User.UserRole.Admin,
                     PasswordHash = "$2a$11$N3CMfWFaZG7H.fuavEvLRuejsgLY25wYJXHMVFBxgxZvgiR4zha/.",
                     CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
                     UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)

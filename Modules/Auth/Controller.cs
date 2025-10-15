@@ -7,16 +7,8 @@ namespace SatOps.Modules.Auth
 {
     [ApiController]
     [Route("api/auth")]
-    public class AuthController : ControllerBase
+    public class AuthController(IAuthService authService, IUserService userService) : ControllerBase
     {
-        private readonly IAuthService authService;
-        private readonly IUserService userService;
-
-        public AuthController(IAuthService authService, IUserService userService)
-        {
-            this.authService = authService;
-            this.userService = userService;
-        }
         [HttpPost("station/token")]
         [AllowAnonymous]
         public async Task<ActionResult<TokenResponseDto>> GetStationToken([FromBody] TokenRequestDto request)

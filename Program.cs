@@ -101,7 +101,7 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 
