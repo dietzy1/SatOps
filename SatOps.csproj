@@ -1,10 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <InvariantGlobalization>true</InvariantGlobalization>
-    </PropertyGroup>
+      <UserSecretsId>97cc31ec-8109-48b4-b929-9aa24d1bc2b7</UserSecretsId>
+  </PropertyGroup>
     <ItemGroup>
         <Compile Remove="tests\**" />
         <EmbeddedResource Remove="tests\**" />

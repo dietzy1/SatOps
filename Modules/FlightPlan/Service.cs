@@ -1,4 +1,3 @@
-using System.Text.Json;
 using SatOps.Data;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
@@ -7,6 +6,7 @@ using SatOps.Modules.Gateway;
 using SGPdotNET.CoordinateSystem;
 using SGPdotNET.TLE;
 using SGPdotNET.Util;
+using SatOps.Modules.User;
 
 namespace SatOps.Modules.FlightPlan
 {
@@ -24,14 +24,12 @@ namespace SatOps.Modules.FlightPlan
 
     public class FlightPlanService(
         IFlightPlanRepository repository,
-        SatOpsDbContext dbContext,
         ISatelliteService satelliteService,
         IGroundStationService groundStationService,
         IOverpassService overpassService,
         IImagingCalculation imagingCalculation,
-        IGroundStationGatewayService gatewayService,
-        ILogger<IFlightPlanService> logger
-        ) : IFlightPlanService
+        ICurrentUserProvider currentUserProvider
+    ) : IFlightPlanService
     {
         public Task<List<FlightPlan>> ListAsync() => repository.GetAllAsync();
 
@@ -39,6 +37,8 @@ namespace SatOps.Modules.FlightPlan
 
         public async Task<FlightPlan> CreateAsync(CreateFlightPlanDto createDto)
         {
+            var currentUserId = currentUserProvider.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated.");
+
             // Validate that the groundstation exists
             var groundStation = await groundStationService.GetAsync(createDto.GsId);
 
@@ -69,7 +69,7 @@ namespace SatOps.Modules.FlightPlan
                 GroundStationId = createDto.GsId,
                 SatelliteId = createDto.SatId,
                 Status = FlightPlanStatus.Draft,
-                CreatedById = 1, // TODO: Extract from token
+                CreatedById = currentUserId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -128,6 +128,8 @@ namespace SatOps.Modules.FlightPlan
 
         public async Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status)
         {
+            var currentUserId = currentUserProvider.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated.");
+
             var plan = await repository.GetByIdAsync(id);
             if (plan == null)
             {
@@ -170,10 +172,9 @@ namespace SatOps.Modules.FlightPlan
             plan.Status = newStatus;
 
             plan.ApprovalDate = DateTime.UtcNow;
-            plan.ApprovedById = 1; // TODO: Extract from token
+            plan.ApprovedById = currentUserId;
 
             await repository.UpdateAsync(plan);
-
             return (true, $"Flight plan {status.ToLowerInvariant()} successfully");
         }
 

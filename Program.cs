@@ -256,11 +256,13 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<SatOps.Modules.Overpass.IOverpassRepository, SatOps.Modules.Overpass.OverpassRepository>();
 builder.Services.AddScoped<SatOps.Modules.Overpass.IOverpassService, SatOps.Modules.Overpass.OverpassService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
+builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddSingleton<IGroundStationGatewayService, GroundStationGatewayService>();
 
 // MinIO Configuration
-builder.Services.AddSingleton<IMinioClient>(sp =>
+builder.Services.AddSingleton(sp =>
 {
     var configuration = sp.GetRequiredService<IConfiguration>();
     var endpoint = configuration.GetValue<string>("MinIO:Endpoint") ?? "localhost:9000";

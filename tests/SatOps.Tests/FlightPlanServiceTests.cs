@@ -1,210 +1,131 @@
-using FluentAssertions;
+using Moq;
 using Xunit;
+using FluentAssertions;
+using Microsoft.Extensions.Logging;
+using SatOps.Modules.FlightPlan;
+using SatOps.Modules.User;
+using SatOps.Modules.Satellite;
+using SatOps.Modules.Groundstation;
+using SatOps.Modules.Overpass;
+using SatOps.Modules.Gateway;
+using System.Text.Json;
+using SatOps.Data;
 
 namespace SatOps.Tests
 {
-    public class FlightPlanServiceTests // : IDisposable
+    public class FlightPlanServiceTests
     {
-        // private readonly SqliteConnection _connection;
-        // private readonly DbContextOptions<SatOpsDbContext> _contextOptions;
+        // --- Mocks for all dependencies ---
+        private readonly Mock<IFlightPlanRepository> _mockFlightPlanRepo;
+        private readonly Mock<ISatelliteService> _mockSatelliteService;
+        private readonly Mock<IGroundStationService> _mockGroundStationService;
+        private readonly Mock<IOverpassService> _mockOverpassService;
+        private readonly Mock<IImagingCalculation> _mockImagingCalculation;
+        private readonly Mock<ICurrentUserProvider> _mockCurrentUserProvider;
+
+        private readonly FlightPlanService _sut;
 
         public FlightPlanServiceTests()
         {
-            // _connection = new SqliteConnection("Filename=:memory:");
-            // _connection.Open();
+            // Initialize all the mocks
+            _mockFlightPlanRepo = new Mock<IFlightPlanRepository>();
+            _mockSatelliteService = new Mock<ISatelliteService>();
+            _mockGroundStationService = new Mock<IGroundStationService>();
+            _mockOverpassService = new Mock<IOverpassService>();
+            _mockImagingCalculation = new Mock<IImagingCalculation>();
+            _mockCurrentUserProvider = new Mock<ICurrentUserProvider>();
 
-            // _contextOptions = new DbContextOptionsBuilder<SatOpsDbContext>()
-            // .UseSqlite(_connection)
-            // .Options;
-
-            // using var context = new SatOpsDbContext(_contextOptions);
-            // context.Database.EnsureCreated();
+            // Create the service instance
+            _sut = new FlightPlanService(
+                _mockFlightPlanRepo.Object,
+                _mockSatelliteService.Object,
+                _mockGroundStationService.Object,
+                _mockOverpassService.Object,
+                _mockImagingCalculation.Object,
+                _mockCurrentUserProvider.Object
+            );
         }
-
-        // private SatOpsDbContext CreateContext() => new SatOpsDbContext(_contextOptions);
-
-        // public void Dispose()
-        // {
-        // _connection.Dispose();
-        // }
 
         [Fact]
-        public void Placeholder_Test_Should_Always_Pass()
+        public async Task CreateAsync_WhenUserIsAuthenticated_AssignsCurrentUserIdToCreatedById()
         {
-            true.Should().BeTrue();
+            // Arrange
+            var testUserId = 123;
+            var createDto = new CreateFlightPlanDto
+            {
+                Name = "Test Plan",
+                GsId = 1,
+                SatId = 1,
+                Commands = JsonDocument.Parse("[]").RootElement
+            };
+
+            // Setup mocks
+            _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(testUserId);
+            _mockGroundStationService.Setup(s => s.GetAsync(createDto.GsId)).ReturnsAsync(new GroundStation());
+            _mockSatelliteService.Setup(s => s.GetAsync(createDto.SatId)).ReturnsAsync(new Satellite());
+            _mockFlightPlanRepo.Setup(r => r.AddAsync(It.IsAny<FlightPlan>()))
+                .ReturnsAsync((FlightPlan fp) => fp); // Return the plan that was passed in
+
+            // Act
+            var result = await _sut.CreateAsync(createDto);
+
+            // Assert
+            result.Should().NotBeNull();
+            result.CreatedById.Should().Be(testUserId);
+
+            // Verify that the repository was called with an entity that has the correct user ID
+            _mockFlightPlanRepo.Verify(r => r.AddAsync(It.Is<FlightPlan>(fp => fp.CreatedById == testUserId)), Times.Once);
         }
 
+        [Theory]
+        [InlineData("APPROVED")]
+        [InlineData("REJECTED")]
+        public async Task ApproveOrRejectAsync_WhenPlanIsDraft_UpdatesStatusAndAssignsCurrentUserAsApprover(string targetStatus)
+        {
+            // Arrange
+            var testUserId = 456;
+            var planId = 1;
+            var draftPlan = new FlightPlan { Id = planId, Status = FlightPlanStatus.Draft };
 
-        /*         [Fact(Skip = "Temporarily disabled until DB provider issues in tests are resolved.")]
-                public async Task CreateAsync_ShouldCreateAndReturnPendingFlightPlan()
-                {
-                    // Arrange
-                    await using var dbContext = CreateContext();
-                    var repository = new FlightPlanRepository(dbContext);
-                    var service = new FlightPlanService(repository, dbContext);
+            // Setup mocks
+            _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(testUserId);
+            _mockFlightPlanRepo.Setup(r => r.GetByIdAsync(planId)).ReturnsAsync(draftPlan);
 
-                    var createDto = new CreateFlightPlanDto
-                    {
-                        GsId = Guid.NewGuid().ToString(),
-                        SatName = "ISS",
-                        ScheduledAt = DateTime.UtcNow.AddDays(1),
-                        FlightPlanBody = new FlightPlanBodyDto
-                        {
-                            Name = "Test Plan",
-                            Body = new { command = "test" }
-                        }
-                    };
+            // Act
+            var (success, _) = await _sut.ApproveOrRejectAsync(planId, targetStatus);
 
-                    // Act
-                    var result = await service.CreateAsync(createDto);
+            // Assert
+            success.Should().BeTrue();
 
-                    // Assert
-                    result.Should().NotBeNull();
-                    result.Name.Should().Be("Test Plan");
-                    result.Status.Should().Be("pending");
-                    result.PreviousPlanId.Should().BeNull();
+            // Verify that UpdateAsync was called with the correct status AND the correct user ID
+            _mockFlightPlanRepo.Verify(r => r.UpdateAsync(It.Is<FlightPlan>(p =>
+                p.Id == planId &&
+                p.Status == FlightPlanStatusExtensions.FromScreamCase(targetStatus) &&
+                p.ApprovedById == testUserId
+            )), Times.Once);
+        }
 
-                    var savedPlan = await dbContext.FlightPlans.FindAsync(result.Id);
-                    savedPlan.Should().NotBeNull();
-                    savedPlan!.Status.Should().Be("pending");
-                }
+        [Fact]
+        public async Task ApproveOrRejectAsync_WhenPlanIsNotDraft_ReturnsFailure()
+        {
+            // Arrange
+            var planId = 1;
+            var approvedPlan = new FlightPlan { Id = planId, Status = FlightPlanStatus.Approved };
 
-                [Fact(Skip = "Temporarily disabled until DB provider issues in tests are resolved.")]
-                public async Task CreateNewVersionAsync_ShouldSupersedeOldPlanAndCreateNewOne()
-                {
-                    // Arrange
-                    await using var dbContext = CreateContext();
-                    var repository = new FlightPlanRepository(dbContext);
-                    var service = new FlightPlanService(repository, dbContext);
-                    var groundStationId = Guid.NewGuid();
+            _mockFlightPlanRepo.Setup(r => r.GetByIdAsync(planId)).ReturnsAsync(approvedPlan);
 
-                    var originalPlan = new FlightPlan
-                    {
-                        Id = Guid.NewGuid(),
-                        Name = "Original Plan",
-                        Status = "pending",
-                        GroundStationId = groundStationId,
-                        Body = JsonDocument.Parse("{}"),
-                        ScheduledAt = DateTime.UtcNow,
-                        SatelliteName = "SAT-1"
-                    };
-                    await dbContext.FlightPlans.AddAsync(originalPlan);
-                    await dbContext.SaveChangesAsync();
+            // We need to simulate an authenticated user, even if we don't use the ID.
+            _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(123);
 
-                    var updateDto = new CreateFlightPlanDto
-                    {
-                        GsId = groundStationId.ToString(),
-                        SatName = "SAT-1 Updated",
-                        ScheduledAt = DateTime.UtcNow.AddHours(1),
-                        FlightPlanBody = new FlightPlanBodyDto
-                        {
-                            Name = "Updated Plan",
-                            Body = new { command = "update" }
-                        }
-                    };
+            // Act
+            var (success, message) = await _sut.ApproveOrRejectAsync(planId, "APPROVED");
 
-                    // Act
-                    var newVersion = await service.CreateNewVersionAsync(originalPlan.Id, updateDto);
+            // Assert
+            success.Should().BeFalse();
+            message.Should().Be("Cannot modify a plan that has already been approved.");
 
-                    // Assert
-                    newVersion.Should().NotBeNull();
-                    newVersion!.Name.Should().Be("Updated Plan");
-                    newVersion.Status.Should().Be("pending");
-                    newVersion.PreviousPlanId.Should().Be(originalPlan.Id);
-                    newVersion.SatelliteName.Should().Be("SAT-1 Updated");
-
-                    var oldPlanInDb = await dbContext.FlightPlans.FindAsync(originalPlan.Id);
-                    oldPlanInDb.Should().NotBeNull();
-                    oldPlanInDb!.Status.Should().Be("superseded");
-                }
-
-                [Fact(Skip = "Temporarily disabled until DB provider issues in tests are resolved.")]
-                public async Task CreateNewVersionAsync_ShouldReturnNull_WhenPlanIsNotPending()
-                {
-                    // Arrange
-                    await using var dbContext = CreateContext();
-                    var repository = new FlightPlanRepository(dbContext);
-                    var service = new FlightPlanService(repository, dbContext);
-
-                    var approvedPlan = new FlightPlan
-                    {
-                        Id = Guid.NewGuid(),
-                        Status = "approved", // Not pending
-                        Body = JsonDocument.Parse("{}"),
-                        Name = "Approved Plan",
-                        GroundStationId = Guid.NewGuid(),
-                        ScheduledAt = DateTime.UtcNow,
-                        SatelliteName = "SAT-1"
-                    };
-                    await dbContext.FlightPlans.AddAsync(approvedPlan);
-                    await dbContext.SaveChangesAsync();
-
-                    var updateDto = new CreateFlightPlanDto { GsId = Guid.NewGuid().ToString() };
-
-                    // Act
-                    var result = await service.CreateNewVersionAsync(approvedPlan.Id, updateDto);
-
-                    // Assert
-                    result.Should().BeNull();
-                }
-
-                [Theory(Skip = "Temporarily disabled until DB provider issues in tests are resolved.")]
-                [InlineData("approved")]
-                [InlineData("rejected")]
-                public async Task ApproveOrRejectAsync_ShouldUpdateStatus_WhenPlanIsPending(string targetStatus)
-                {
-                    // Arrange
-                    var mockRepository = new Mock<IFlightPlanRepository>();
-                    var service = new FlightPlanService(mockRepository.Object, null!);
-
-                    var planId = Guid.NewGuid();
-                    var pendingPlan = new FlightPlan
-                    {
-                        Id = planId,
-                        Status = "pending"
-                    };
-
-                    mockRepository.Setup(r => r.GetByIdAsync(planId)).ReturnsAsync(pendingPlan);
-                    mockRepository.Setup(r => r.UpdateAsync(It.IsAny<FlightPlan>())).ReturnsAsync(true);
-
-                    // Act
-                    var (success, message) = await service.ApproveOrRejectAsync(planId, targetStatus);
-
-                    // Assert
-                    success.Should().BeTrue();
-                    message.Should().Be($"Flight plan successfully {targetStatus}.");
-
-                    mockRepository.Verify(r => r.UpdateAsync(It.Is<FlightPlan>(p =>
-                        p.Id == planId &&
-                        p.Status == targetStatus &&
-                        p.ApprovalDate.HasValue &&
-                        p.ApprovedById == 1
-                    )), Times.Once);
-                }
-
-                [Fact(Skip = "Temporarily disabled until DB provider issues in tests are resolved.")]
-                public async Task ApproveOrRejectAsync_ShouldFail_WhenPlanIsNotPending()
-                {
-                    // Arrange
-                    var mockRepository = new Mock<IFlightPlanRepository>();
-                    var service = new FlightPlanService(mockRepository.Object, null!);
-
-                    var planId = Guid.NewGuid();
-                    var approvedPlan = new FlightPlan
-                    {
-                        Id = planId,
-                        Status = "approved"
-                    };
-
-                    mockRepository.Setup(r => r.GetByIdAsync(planId)).ReturnsAsync(approvedPlan);
-
-                    // Act
-                    var (success, message) = await service.ApproveOrRejectAsync(planId, "approved");
-
-                    // Assert
-                    success.Should().BeFalse();
-                    message.Should().Be("Cannot update a plan with status 'approved'.");
-                    mockRepository.Verify(r => r.UpdateAsync(It.IsAny<FlightPlan>()), Times.Never);
-                } */
+            // Verify that we NEVER called the update method
+            _mockFlightPlanRepo.Verify(r => r.UpdateAsync(It.IsAny<FlightPlan>()), Times.Never);
+        }
     }
 }
