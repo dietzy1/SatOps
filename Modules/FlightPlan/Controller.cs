@@ -1,12 +1,15 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace SatOps.Modules.FlightPlan
 {
     [ApiController]
     [Route("api/v1/flight-plans")]
+    [Authorize]
     public class FlightPlansController(IFlightPlanService service) : ControllerBase
     {
         [HttpGet]
+        [Authorize(Policy = "ReadFlightPlans")]
         public async Task<ActionResult<List<FlightPlanDto>>> List()
         {
             var items = await service.ListAsync();
@@ -14,6 +17,7 @@ namespace SatOps.Modules.FlightPlan
         }
 
         [HttpGet("{id}")]
+        [Authorize(Policy = "ReadFlightPlans")]
         public async Task<ActionResult<FlightPlanDto>> Get(int id)
         {
             var item = await service.GetByIdAsync(id);
@@ -22,8 +26,8 @@ namespace SatOps.Modules.FlightPlan
         }
 
         [HttpPost]
-        public async Task<ActionResult<FlightPlanDto>> Create(
-            [FromBody] CreateFlightPlanDto input)
+        [Authorize(Policy = "WriteFlightPlans")]
+        public async Task<ActionResult<FlightPlanDto>> Create([FromBody] CreateFlightPlanDto input)
         {
             try
             {
@@ -35,9 +39,14 @@ namespace SatOps.Modules.FlightPlan
             {
                 return BadRequest(new { detail = ex.Message });
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
         }
 
         [HttpPut("{id}")]
+        [Authorize(Policy = "WriteFlightPlans")]
         public async Task<ActionResult<FlightPlanDto>> Update(
             int id,
             [FromBody] CreateFlightPlanDto input)
@@ -63,9 +72,8 @@ namespace SatOps.Modules.FlightPlan
         }
 
         [HttpPatch("{id}")]
-        public async Task<ActionResult> Approve(
-            int id,
-            [FromBody] ApproveFlightPlanDto input)
+        [Authorize(Policy = "ApproveFlightPlans")]
+        public async Task<ActionResult> Approve(int id, [FromBody] ApproveFlightPlanDto input)
         {
             if (input.Status != "APPROVED" && input.Status != "REJECTED")
             {
@@ -85,6 +93,7 @@ namespace SatOps.Modules.FlightPlan
         }
 
         [HttpPost("{id}/associate-overpass")]
+        [Authorize(Policy = "WriteFlightPlans")]
         public async Task<ActionResult> AssociateOverpass(
             int id,
             [FromBody] AssociateOverpassDto input)
@@ -99,6 +108,7 @@ namespace SatOps.Modules.FlightPlan
         }
 
         [HttpGet("{id}/csh")]
+        [Authorize(Policy = "ReadFlightPlans")]
         public async Task<ActionResult<List<string>>> CompileFlightPlan(int id)
         {
             try
@@ -118,9 +128,8 @@ namespace SatOps.Modules.FlightPlan
 
 
         [HttpGet("imaging-opportunity")]
-        public async Task<ActionResult<ImagingTimingResponseDto>> GetImagingOpportunity(
-            [FromQuery] ImagingTimingRequestDto request
-        )
+        [Authorize(Policy = "ReadFlightPlans")]
+        public async Task<ActionResult<ImagingTimingResponseDto>> GetImagingOpportunity([FromQuery] ImagingTimingRequestDto request)
         {
             // Validate request parameters
             if (request.SatelliteId <= 0)
