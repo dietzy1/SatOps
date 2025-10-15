@@ -47,7 +47,7 @@ namespace SatOps.Modules.FlightPlan
 
         [HttpPut("{id}")]
         [Authorize(Policy = "WriteFlightPlans")]
-        public async Task<ActionResult<FlightPlanDto>> Update(
+        public ActionResult<FlightPlanDto> Update(
             int id,
             [FromBody] CreateFlightPlanDto input)
         {

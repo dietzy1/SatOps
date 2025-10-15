@@ -24,15 +24,12 @@ namespace SatOps.Modules.FlightPlan
 
     public class FlightPlanService(
         IFlightPlanRepository repository,
-        SatOpsDbContext dbContext,
         ISatelliteService satelliteService,
         IGroundStationService groundStationService,
         IOverpassService overpassService,
         IImagingCalculation imagingCalculation,
-        IGroundStationGatewayService gatewayService,
-        ICurrentUserProvider currentUserProvider,
-        ILogger<IFlightPlanService> logger
-        ) : IFlightPlanService
+        ICurrentUserProvider currentUserProvider
+    ) : IFlightPlanService
     {
         public Task<List<FlightPlan>> ListAsync() => repository.GetAllAsync();
 
