@@ -16,6 +16,7 @@ using System.Text.Json;
 using Microsoft.OpenApi.Models;
 using SatOps.Data;
 using Minio;
+using Npgsql;
 using System.Text;
 using SatOps.Modules.Auth;
 using SatOps.Modules.Gateway;
@@ -100,7 +101,7 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 
@@ -136,12 +137,23 @@ builder.Services.AddCors(options =>
 });
 
 // Database
+var dataSourceBuilder = new NpgsqlDataSourceBuilder(
+    builder.Configuration.GetConnectionString("DefaultConnection")!
+);
+
+// Enable dynamic JSON serialization support (for List<string>, etc.)
+dataSourceBuilder.EnableDynamicJson();
+
+var dataSource = dataSourceBuilder.Build();
+
 builder.Services.AddDbContext<SatOpsDbContext>(options =>
 {
-    options.UseNpgsql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        npgsqlOptions => npgsqlOptions.MigrationsAssembly("SatOps"));
+    options.UseNpgsql(dataSource, npgsqlOptions =>
+    {
+        npgsqlOptions.MigrationsAssembly("SatOps");
+    });
 });
+
 
 var wayfAuthority = builder.Configuration["WAYF:Authority"] ?? "https://wayf.wayf.dk";
 var wayfAudience = builder.Configuration["WAYF:Audience"] ?? "your-client-id"; // Get from WAYF secretariat

@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json.Serialization;
 
 namespace SatOps.Modules.User
 {
@@ -26,6 +27,9 @@ namespace SatOps.Modules.User
         // Additional properties for RBAC tracking
         public List<string> AdditionalScopes { get; set; } = [];
         public List<string> AdditionalRoles { get; set; } = [];
+
+        [JsonIgnore]
+        public string? PasswordHash { get; set; }
     }
 
     public enum UserRole

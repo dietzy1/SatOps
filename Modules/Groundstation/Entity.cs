@@ -14,7 +14,7 @@ namespace SatOps.Modules.Groundstation
         public string Name { get; set; } = string.Empty;
 
         [Required]
-        public Location Location { get; set; } = default!;
+        public Location Location { get; set; } = null!;
 
         [Required]
         public string HttpUrl { get; set; } = string.Empty;

@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SatOps.Data;
@@ -13,9 +14,11 @@ using SatOps.Data;
 namespace SatOps.data.migrations
 {
     [DbContext(typeof(SatOpsDbContext))]
-    partial class SatOpsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251015110850_AddPasswordHashToUser")]
+    partial class AddPasswordHashToUser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -132,12 +135,12 @@ namespace SatOps.data.migrations
                         {
                             Id = 1,
                             ApiKeyHash = "",
-                            ApplicationId = new Guid("fb8c6450-755c-42cf-bca2-cc0d8070a695"),
-                            CreatedAt = new DateTime(2025, 10, 15, 12, 54, 51, 792, DateTimeKind.Utc).AddTicks(4025),
+                            ApplicationId = new Guid("c6ca6523-abaa-4128-b695-fcaea8a6a600"),
+                            CreatedAt = new DateTime(2025, 10, 15, 11, 8, 50, 135, DateTimeKind.Utc).AddTicks(2131),
                             HttpUrl = "http://aarhus-groundstation.example.com",
                             IsActive = false,
                             Name = "Aarhus",
-                            UpdatedAt = new DateTime(2025, 10, 15, 12, 54, 51, 792, DateTimeKind.Utc).AddTicks(4025)
+                            UpdatedAt = new DateTime(2025, 10, 15, 11, 8, 50, 135, DateTimeKind.Utc).AddTicks(2133)
                         });
                 });
 
@@ -379,8 +382,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 15, 12, 54, 51, 792, DateTimeKind.Utc).AddTicks(7684),
-                            LastUpdate = new DateTime(2025, 10, 15, 12, 54, 51, 792, DateTimeKind.Utc).AddTicks(7685),
+                            CreatedAt = new DateTime(2025, 10, 15, 11, 8, 50, 135, DateTimeKind.Utc).AddTicks(5781),
+                            LastUpdate = new DateTime(2025, 10, 15, 11, 8, 50, 135, DateTimeKind.Utc).AddTicks(5782),
                             Name = "International Space Station (ISS)",
                             NoradId = 25544,
                             Status = 0,
@@ -390,8 +393,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 15, 12, 54, 51, 792, DateTimeKind.Utc).AddTicks(7719),
-                            LastUpdate = new DateTime(2025, 10, 15, 12, 54, 51, 792, DateTimeKind.Utc).AddTicks(7719),
+                            CreatedAt = new DateTime(2025, 10, 15, 11, 8, 50, 135, DateTimeKind.Utc).AddTicks(5785),
+                            LastUpdate = new DateTime(2025, 10, 15, 11, 8, 50, 135, DateTimeKind.Utc).AddTicks(5785),
                             Name = "SENTINEL-2C",
                             NoradId = 60989,
                             Status = 0,
@@ -450,20 +453,6 @@ namespace SatOps.data.migrations
                     b.HasIndex("Role");
 
                     b.ToTable("users", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            AdditionalRoles = new List<string>(),
-                            AdditionalScopes = new List<string>(),
-                            CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc),
-                            Email = "admin@example.com",
-                            Name = "Admin User",
-                            PasswordHash = "$2a$11$N3CMfWFaZG7H.fuavEvLRuejsgLY25wYJXHMVFBxgxZvgiR4zha/.",
-                            Role = 2,
-                            UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
-                        });
                 });
 
             modelBuilder.Entity("SatOps.Modules.Groundstation.GroundStation", b =>
