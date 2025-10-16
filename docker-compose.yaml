@@ -68,7 +68,7 @@ services:
       - JWT__Key=${JWT_KEY}
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
-      - Seq__ServerUrl=${SEQ_URL}
+      - SEQ_URL=${SEQ_URL}
     depends_on:
       postgres:
         condition: service_healthy
