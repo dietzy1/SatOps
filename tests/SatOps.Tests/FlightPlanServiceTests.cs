@@ -1,15 +1,12 @@
 using Moq;
 using Xunit;
 using FluentAssertions;
-using Microsoft.Extensions.Logging;
 using SatOps.Modules.FlightPlan;
 using SatOps.Modules.User;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Overpass;
-using SatOps.Modules.Gateway;
 using System.Text.Json;
-using SatOps.Data;
 
 namespace SatOps.Tests
 {

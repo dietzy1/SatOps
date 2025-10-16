@@ -11,7 +11,6 @@ namespace SatOps.Modules.User
         Task<User> AddAsync(User entity);
         Task<User?> UpdateAsync(User entity);
         Task<bool> DeleteAsync(int id);
-        Task<bool> UpdateAdditionalPermissionsAsync(int id, List<string> additionalScopes, List<string> additionalRoles);
     }
 
     public class UserRepository(SatOpsDbContext dbContext) : IUserRepository
@@ -66,22 +65,6 @@ namespace SatOps.Modules.User
             }
 
             dbContext.Users.Remove(existing);
-            await dbContext.SaveChangesAsync();
-            return true;
-        }
-
-        public async Task<bool> UpdateAdditionalPermissionsAsync(int id, List<string> additionalScopes, List<string> additionalRoles)
-        {
-            var user = await dbContext.Users.FirstOrDefaultAsync(u => u.Id == id);
-            if (user == null)
-            {
-                return false;
-            }
-
-            user.AdditionalScopes = additionalScopes;
-            user.AdditionalRoles = additionalRoles;
-            user.UpdatedAt = DateTime.UtcNow;
-
             await dbContext.SaveChangesAsync();
             return true;
         }
