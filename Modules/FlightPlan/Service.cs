@@ -18,6 +18,8 @@ namespace SatOps.Modules.FlightPlan
         Task<(bool Success, string Message)> AssociateWithOverpassAsync(int flightPlanId, AssociateOverpassDto overpassRequest);
         Task<List<string>> CompileFlightPlanToCshAsync(int id);
         Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request);
+        Task UpdateFlightPlanStatusAsync(int flightPlanId, FlightPlanStatus newStatus, string? failureReason = null);
+        Task<List<FlightPlan>> GetPlansReadyForTransmissionAsync(TimeSpan lookahead);
     }
 
     public class FlightPlanService(
@@ -332,6 +334,23 @@ namespace SatOps.Modules.FlightPlan
             }
 
             return result;
+        }
+
+        public async Task UpdateFlightPlanStatusAsync(int flightPlanId, FlightPlanStatus newStatus, string? failureReason = null)
+        {
+            var plan = await repository.GetByIdAsync(flightPlanId);
+            if (plan != null)
+            {
+                plan.Status = newStatus;
+                plan.FailureReason = failureReason;
+                await repository.UpdateAsync(plan);
+            }
+        }
+
+        public Task<List<FlightPlan>> GetPlansReadyForTransmissionAsync(TimeSpan lookahead)
+        {
+            var horizon = DateTime.UtcNow.Add(lookahead);
+            return repository.GetPlansReadyForTransmissionAsync(horizon);
         }
     }
 }

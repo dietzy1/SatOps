@@ -37,6 +37,7 @@ namespace SatOps.Modules.FlightPlan
                 FlightPlanStatus.AssignedToOverpass => "ASSIGNED_TO_OVERPASS",
                 FlightPlanStatus.Transmitted => "TRANSMITTED",
                 FlightPlanStatus.Superseded => "SUPERSEDED",
+                FlightPlanStatus.Failed => "FAILED",
                 _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
             };
 
@@ -49,6 +50,7 @@ namespace SatOps.Modules.FlightPlan
                 "ASSIGNED_TO_OVERPASS" => FlightPlanStatus.AssignedToOverpass,
                 "TRANSMITTED" => FlightPlanStatus.Transmitted,
                 "SUPERSEDED" => FlightPlanStatus.Superseded,
+                "FAILED" => FlightPlanStatus.Failed,
                 _ => throw new ArgumentException($"Invalid status: {status}", nameof(status))
             };
     }

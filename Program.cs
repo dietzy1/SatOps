@@ -270,6 +270,10 @@ builder.Services.AddScoped<IClaimsTransformation, UserPermissionsClaimsTransform
 builder.Services.AddHttpClient<IGroundStationHealthService, GroundStationHealthService>();
 builder.Services.AddHostedService<GroundStationHealthCheckWorker>();
 
+// Scheduler
+builder.Services.AddHostedService<SchedulerService>();
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
