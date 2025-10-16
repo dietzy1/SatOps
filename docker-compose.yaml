@@ -33,6 +33,23 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+    
+  
+  seq:
+    image: datalust/seq:latest
+    restart: unless-stopped
+    ports:
+      - "5341:80"
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_NOAUTHENTICATION=true
+    volumes:
+      - seq_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   satops-api:
     build:
@@ -51,12 +68,16 @@ services:
       - JWT__Key=${JWT_KEY}
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
+      - Seq__ServerUrl=${SEQ_URL}
     depends_on:
       postgres:
         condition: service_healthy
       minio:
         condition: service_healthy
+      seq:
+        condition: service_healthy
 
 volumes:
   postgres_data:
   minio_data:
+  seq_data:
