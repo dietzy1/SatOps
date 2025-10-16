@@ -43,6 +43,7 @@ namespace SatOps.Tests
             );
         }
 
+
         [Fact]
         public async Task CreateAsync_WhenUserIsAuthenticated_AssignsCurrentUserIdToCreatedById()
         {
@@ -61,7 +62,7 @@ namespace SatOps.Tests
             _mockGroundStationService.Setup(s => s.GetAsync(createDto.GsId)).ReturnsAsync(new GroundStation());
             _mockSatelliteService.Setup(s => s.GetAsync(createDto.SatId)).ReturnsAsync(new Satellite());
             _mockFlightPlanRepo.Setup(r => r.AddAsync(It.IsAny<FlightPlan>()))
-                .ReturnsAsync((FlightPlan fp) => fp); // Return the plan that was passed in
+                .ReturnsAsync((FlightPlan fp) => fp);
 
             // Act
             var result = await _sut.CreateAsync(createDto);
@@ -69,8 +70,6 @@ namespace SatOps.Tests
             // Assert
             result.Should().NotBeNull();
             result.CreatedById.Should().Be(testUserId);
-
-            // Verify that the repository was called with an entity that has the correct user ID
             _mockFlightPlanRepo.Verify(r => r.AddAsync(It.Is<FlightPlan>(fp => fp.CreatedById == testUserId)), Times.Once);
         }
 
@@ -83,8 +82,8 @@ namespace SatOps.Tests
             var testUserId = 456;
             var planId = 1;
             var draftPlan = new FlightPlan { Id = planId, Status = FlightPlanStatus.Draft };
+            draftPlan.SetCommandSequence(new CommandSequence()); // Ensure commands are valid
 
-            // Setup mocks
             _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(testUserId);
             _mockFlightPlanRepo.Setup(r => r.GetByIdAsync(planId)).ReturnsAsync(draftPlan);
 
@@ -93,8 +92,6 @@ namespace SatOps.Tests
 
             // Assert
             success.Should().BeTrue();
-
-            // Verify that UpdateAsync was called with the correct status AND the correct user ID
             _mockFlightPlanRepo.Verify(r => r.UpdateAsync(It.Is<FlightPlan>(p =>
                 p.Id == planId &&
                 p.Status == FlightPlanStatusExtensions.FromScreamCase(targetStatus) &&
@@ -110,8 +107,6 @@ namespace SatOps.Tests
             var approvedPlan = new FlightPlan { Id = planId, Status = FlightPlanStatus.Approved };
 
             _mockFlightPlanRepo.Setup(r => r.GetByIdAsync(planId)).ReturnsAsync(approvedPlan);
-
-            // We need to simulate an authenticated user, even if we don't use the ID.
             _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(123);
 
             // Act
@@ -120,9 +115,50 @@ namespace SatOps.Tests
             // Assert
             success.Should().BeFalse();
             message.Should().Be("Cannot modify a plan that has already been approved.");
-
-            // Verify that we NEVER called the update method
             _mockFlightPlanRepo.Verify(r => r.UpdateAsync(It.IsAny<FlightPlan>()), Times.Never);
+        }
+
+
+        [Fact]
+        public async Task UpdateFlightPlanStatusAsync_WhenPlanExists_UpdatesStatusAndFailureReason()
+        {
+            // Arrange
+            var planId = 1;
+            var plan = new FlightPlan { Id = planId, Status = FlightPlanStatus.AssignedToOverpass };
+            var newStatus = FlightPlanStatus.Failed;
+            var reason = "Ground station offline";
+
+            _mockFlightPlanRepo.Setup(r => r.GetByIdAsync(planId)).ReturnsAsync(plan);
+
+            // Act
+            await _sut.UpdateFlightPlanStatusAsync(planId, newStatus, reason);
+
+            // Assert
+            _mockFlightPlanRepo.Verify(r => r.UpdateAsync(It.Is<FlightPlan>(p =>
+                p.Id == planId &&
+                p.Status == newStatus &&
+                p.FailureReason == reason
+            )), Times.Once);
+        }
+
+        [Fact]
+        public async Task GetPlansReadyForTransmissionAsync_CallsRepositoryWithCorrectHorizon()
+        {
+            // Arrange
+            var lookahead = TimeSpan.FromMinutes(5);
+            var expectedHorizon = DateTime.UtcNow.Add(lookahead);
+
+            _mockFlightPlanRepo.Setup(r => r.GetPlansReadyForTransmissionAsync(It.IsAny<DateTime>()))
+                .ReturnsAsync(new List<FlightPlan>());
+
+            // Act
+            await _sut.GetPlansReadyForTransmissionAsync(lookahead);
+
+            // Assert
+            // Verify that the repository was called with a DateTime that is very close to what we expect
+            _mockFlightPlanRepo.Verify(r => r.GetPlansReadyForTransmissionAsync(
+                It.Is<DateTime>(dt => dt > expectedHorizon.AddSeconds(-1) && dt < expectedHorizon.AddSeconds(1))
+            ), Times.Once);
         }
     }
 }
