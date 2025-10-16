@@ -7,6 +7,7 @@ namespace SatOps.Modules.User
         Task<User?> GetByEmailAsync(string email);
         Task<User> CreateAsync(User entity);
         Task<User?> UpdateAsync(int id, User entity);
+        Task<User?> UpdatePermissionsAsync(int userId, UserRole role, List<string> additionalRoles, List<string> additionalScopes);
         Task<bool> DeleteAsync(int id);
 
         // RBAC methods for "default lowest role + elevated permissions" model
@@ -30,6 +31,21 @@ namespace SatOps.Modules.User
         {
             entity.Id = id;
             return await repository.UpdateAsync(entity);
+        }
+
+        public async Task<User?> UpdatePermissionsAsync(int userId, UserRole role, List<string> additionalRoles, List<string> additionalScopes)
+        {
+            var user = await repository.GetByIdAsync(userId);
+            if (user == null)
+            {
+                return null;
+            }
+
+            user.Role = role;
+            user.AdditionalRoles = additionalRoles;
+            user.AdditionalScopes = additionalScopes;
+
+            return await repository.UpdateAsync(user);
         }
 
         public Task<bool> DeleteAsync(int id) => repository.DeleteAsync(id);
