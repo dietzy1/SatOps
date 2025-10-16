@@ -10,7 +10,8 @@ namespace SatOps.Modules.FlightPlan
         Approved,
         AssignedToOverpass,
         Transmitted,
-        Superseded
+        Superseded,
+        Failed
     }
 
     [Table("flight_plans")]
@@ -24,6 +25,8 @@ namespace SatOps.Modules.FlightPlan
         public int? PreviousPlanId { get; set; }
         public int CreatedById { get; set; }
         public int? ApprovedById { get; set; }
+
+        public string? FailureReason { get; set; }
 
         // Store as flat array in JSONB
         [Column(TypeName = "jsonb")]

@@ -11,6 +11,7 @@ namespace SatOps.Modules.FlightPlan
         Task<List<FlightPlan>> GetAllAsync();
         Task UpdateAsync(FlightPlan entity);
         Task DeleteAsync(int id);
+        Task<List<FlightPlan>> GetPlansReadyForTransmissionAsync(DateTime horizon);
     }
 
     public class FlightPlanRepository(SatOpsDbContext dbContext) : IFlightPlanRepository
@@ -55,6 +56,17 @@ namespace SatOps.Modules.FlightPlan
                 dbContext.FlightPlans.Remove(entity);
                 await dbContext.SaveChangesAsync();
             }
+        }
+
+        public Task<List<FlightPlan>> GetPlansReadyForTransmissionAsync(DateTime horizon)
+        {
+            // Find plans that are ready and scheduled to happen between now and the 'horizon' time.
+            return dbContext.FlightPlans
+                .AsNoTracking()
+                .Where(fp => fp.Status == FlightPlanStatus.AssignedToOverpass &&
+                             fp.ScheduledAt.HasValue &&
+                             fp.ScheduledAt.Value <= horizon)
+                .ToListAsync();
         }
     }
 }
