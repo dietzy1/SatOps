@@ -1,8 +1,6 @@
-using SatOps.Data;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Overpass;
-using SatOps.Modules.Gateway;
 using SGPdotNET.CoordinateSystem;
 using SGPdotNET.TLE;
 using SGPdotNET.Util;

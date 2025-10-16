@@ -22,4 +22,16 @@ namespace SatOps.Modules.User
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
     }
+
+    public class UpdateUserInfoDto
+    {
+        [Required]
+        [StringLength(255)]
+        public string Name { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(255)]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+    }
 }

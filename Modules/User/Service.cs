@@ -9,12 +9,7 @@ namespace SatOps.Modules.User
         Task<User?> UpdateAsync(int id, User entity);
         Task<User?> UpdatePermissionsAsync(int userId, UserRole role, List<string> additionalRoles, List<string> additionalScopes);
         Task<bool> DeleteAsync(int id);
-
-        // RBAC methods for "default lowest role + elevated permissions" model
         Task<UserPermissions> GetUserPermissionsAsync(string email);
-        Task<bool> GrantAdditionalPermissionsAsync(int userId, List<string> additionalScopes, List<string> additionalRoles);
-        Task<bool> HasPermissionAsync(string email, string requiredPermission);
-        Task<bool> HasRoleAsync(string email, string requiredRole);
     }
 
     public class UserService(IUserRepository repository) : IUserService
@@ -77,23 +72,6 @@ namespace SatOps.Modules.User
                 AllRoles = allRoles.Distinct().ToList(),
                 AllScopes = allScopes.Distinct().ToList()
             };
-        }
-
-        public async Task<bool> GrantAdditionalPermissionsAsync(int userId, List<string> additionalScopes, List<string> additionalRoles)
-        {
-            return await repository.UpdateAdditionalPermissionsAsync(userId, additionalScopes, additionalRoles);
-        }
-
-        public async Task<bool> HasPermissionAsync(string email, string requiredPermission)
-        {
-            var permissions = await GetUserPermissionsAsync(email);
-            return permissions.AllScopes.Contains(requiredPermission);
-        }
-
-        public async Task<bool> HasRoleAsync(string email, string requiredRole)
-        {
-            var permissions = await GetUserPermissionsAsync(email);
-            return permissions.AllRoles.Contains(requiredRole);
         }
 
         private IEnumerable<string> GetDefaultScopesForRole(UserRole role)

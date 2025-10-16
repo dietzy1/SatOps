@@ -28,6 +28,48 @@ namespace SatOps.Modules.User
             return Ok(userDtos);
         }
 
+        [HttpGet("{id}")]
+        [Authorize(Policy = "ManageUsers")]
+        public async Task<ActionResult<UserDto>> GetUser(int id)
+        {
+            var user = await userService.GetAsync(id);
+            if (user == null)
+            {
+                return NotFound();
+            }
+
+            var userDto = new UserDto
+            {
+                Id = user.Id,
+                Name = user.Name,
+                Email = user.Email,
+                Role = user.Role,
+                AdditionalRoles = user.AdditionalRoles,
+                AdditionalScopes = user.AdditionalScopes,
+                CreatedAt = user.CreatedAt,
+                UpdatedAt = user.UpdatedAt
+            };
+            return Ok(userDto);
+        }
+
+        [HttpPut("{id}")]
+        [Authorize(Policy = "ManageUsers")]
+        public async Task<IActionResult> UpdateUserInfo(int id, [FromBody] UpdateUserInfoDto request)
+        {
+            var existingUser = await userService.GetAsync(id);
+            if (existingUser == null)
+            {
+                return NotFound(new { message = "User not found." });
+            }
+
+            existingUser.Name = request.Name;
+            existingUser.Email = request.Email;
+
+            await userService.UpdateAsync(id, existingUser);
+
+            return NoContent();
+        }
+
         [HttpPut("{id}/permissions")]
         [Authorize(Policy = "ManageUsers")]
         public async Task<IActionResult> UpdateUserPermissions(int id, [FromBody] UpdateUserPermissionsRequestDto request)
