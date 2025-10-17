@@ -54,7 +54,7 @@ namespace SatOps.Modules.FlightPlan
         public double TargetLongitude { get; set; }
 
         // Off-nadir imaging parameters (replaces fixed MaxDistanceKm)
-        public double MaxOffNadirDegrees { get; set; } = 10.0; // Default 10° off-nadir maximum
+        public double MaxOffNadirDegrees { get; set; } = 10.0; // Default 10ï¿½ off-nadir maximum
 
         // Search parameters
         public int MaxSearchDurationHours { get; set; } = 48; // Search up to 48 hours ahead

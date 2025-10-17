@@ -6,7 +6,7 @@ namespace SatOps.Modules.FlightPlan
     [ApiController]
     [Route("api/v1/flight-plans")]
     [Authorize]
-    public class FlightPlansController(IFlightPlanService service) : ControllerBase
+    public class FlightPlansController(IFlightPlanService service, ILogger<FlightPlansController> logger) : ControllerBase
     {
         [HttpGet]
         [Authorize(Policy = "ReadFlightPlans")]
@@ -37,10 +37,12 @@ namespace SatOps.Modules.FlightPlan
             }
             catch (ArgumentException ex)
             {
+                logger.LogWarning(ex, "Invalid flight plan JSON: {Message}", ex.Message);
                 return BadRequest(new { detail = ex.Message });
             }
             catch (UnauthorizedAccessException ex)
             {
+                logger.LogWarning(ex, "Unauthorized flight plan creation attempt: {Detail}", ex.Message);
                 return Forbid(ex.Message);
             }
         }

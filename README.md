@@ -67,3 +67,11 @@ A machine-to-machine API for ground stations. It is protected and requires a gro
 - `POST /api/auth/token` - Acquire a JWT using the ground station's Application ID & API Key.
 - `POST /api/internal/operations/telemetry` - Upload telemetry data files from a ground station.
 - `POST /api/internal/operations/images` - Upload captured image files from a ground station.
+
+## Logging & Monitoring
+
+This project is configured with [Serilog](https://serilog.net/) for powerful structured logging.
+
+When running with Docker Compose, all logs from the `satops-api` service are automatically sent to a [Seq](https://datalust.co/seq) container. This provides a rich, searchable interface for viewing and analyzing log data.
+
+- **Seq UI:** Available at `http://localhost:5341`
