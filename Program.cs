@@ -341,11 +341,15 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
     app.MapControllers();
 
     // Apply pending migrations on startup
-    using (var scope = app.Services.CreateScope())
+    if (!AppDomain.CurrentDomain.FriendlyName.Equals("ef", StringComparison.OrdinalIgnoreCase))
     {
-        var db = scope.ServiceProvider.GetRequiredService<SatOpsDbContext>();
-        db.Database.Migrate();
+        using (var scope = app.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<SatOpsDbContext>();
+            db.Database.Migrate();
+        }
     }
+
     app.UseWebSockets();
 
     app.Run();

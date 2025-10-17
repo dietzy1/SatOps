@@ -209,6 +209,7 @@ namespace SatOps.Data
                 entity.ToTable("overpasses");
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
+
                 entity.Property(e => e.SatelliteId).IsRequired();
                 entity.Property(e => e.GroundStationId).IsRequired();
                 entity.Property(e => e.StartTime).IsRequired();
@@ -219,6 +220,17 @@ namespace SatOps.Data
                 entity.Property(e => e.StartAzimuth).IsRequired();
                 entity.Property(e => e.EndAzimuth).IsRequired();
 
+                // Relationships
+                entity.HasOne(e => e.Satellite)
+                    .WithMany()
+                    .HasForeignKey(e => e.SatelliteId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.GroundStation)
+                    .WithMany()
+                    .HasForeignKey(e => e.GroundStationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
                 // Indexes for faster lookups
                 entity.HasIndex(e => e.SatelliteId);
                 entity.HasIndex(e => e.GroundStationId);
@@ -226,6 +238,8 @@ namespace SatOps.Data
                 entity.HasIndex(e => e.EndTime);
                 entity.HasIndex(e => new { e.SatelliteId, e.GroundStationId, e.StartTime });
             });
+
+
 
             // Seed data for Satellites - ISS
             modelBuilder.Entity<SatelliteEntity>().HasData(

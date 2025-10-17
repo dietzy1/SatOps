@@ -1,25 +1,26 @@
-
-
-// Overpass entity model for a satellite
-
-// Potential useful libraries here:
-// https://github.com/1manprojects/one_Sgp4
-// https://github.com/parzivail/SGP.NET
-
-
 using System.ComponentModel.DataAnnotations.Schema;
+using SatelliteModel = SatOps.Modules.Satellite.Satellite;
+using SatOps.Modules.Groundstation;
 
-//TODO: Make sure scheduler uses this entity to store overpass data and handle cascaded delete
-
-//TODO: Add TLE update time so it is possible to know if it was old TLE data
 namespace SatOps.Modules.Overpass
 {
     [Table("overpasses")]
     public class Entity
     {
         public int Id { get; set; }
+
+        // Foreign key fields
         public int SatelliteId { get; set; }
         public int GroundStationId { get; set; }
+
+        // Navigation properties
+        [ForeignKey(nameof(SatelliteId))]
+        public SatelliteModel Satellite { get; set; } = null!;
+
+        [ForeignKey(nameof(GroundStationId))]
+        public GroundStation GroundStation { get; set; } = null!;
+
+        // Data
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }
         public DateTime MaxElevationTime { get; set; }
@@ -28,7 +29,7 @@ namespace SatOps.Modules.Overpass
         public double StartAzimuth { get; set; }
         public double EndAzimuth { get; set; }
 
-        // TLE data used for calculation - stored when overpass is associated with a flight plan
+        // TLE data
         public string? TleLine1 { get; set; }
         public string? TleLine2 { get; set; }
         public DateTime? TleUpdateTime { get; set; }
