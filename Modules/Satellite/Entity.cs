@@ -21,6 +21,12 @@ namespace SatOps.Modules.Satellite
         public SatelliteStatus Status { get; set; } = SatelliteStatus.Inactive;
         public string TleLine1 { get; set; } = string.Empty;
         public string TleLine2 { get; set; } = string.Empty;
+
+        // Inverse Navigation Properties
+        public virtual ICollection<FlightPlan.FlightPlan> FlightPlans { get; set; } = new List<FlightPlan.FlightPlan>();
+        public virtual ICollection<Overpass.Entity> Overpasses { get; set; } = new List<Overpass.Entity>();
+        public virtual ICollection<Operation.ImageData> Images { get; set; } = new List<Operation.ImageData>();
+        public virtual ICollection<Operation.TelemetryData> Telemetry { get; set; } = new List<Operation.TelemetryData>();
     }
 
     public enum SatelliteStatus
