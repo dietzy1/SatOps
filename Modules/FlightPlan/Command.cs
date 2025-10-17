@@ -163,11 +163,19 @@ namespace SatOps.Modules.FlightPlan
         }
 
         // Deserialize from flat Commands array
-        public static CommandSequence? FromJson(string json)
+        public static CommandSequence FromJson(string json)
         {
             var options = JsonSerializerOptionsFactory.Create();
-            var commands = JsonSerializer.Deserialize<List<Command>>(json, options);
-            return commands != null ? new CommandSequence { Commands = commands } : null;
+
+            try
+            {
+                var commands = JsonSerializer.Deserialize<List<Command>>(json, options);
+                return commands != null ? new CommandSequence { Commands = commands } : new CommandSequence();
+            }
+            catch (JsonException ex)
+            {
+                throw new ArgumentException($"Invalid commands JSON: {ex.Message}", ex);
+            }
         }
 
         public JsonDocument ToJsonDocument()
