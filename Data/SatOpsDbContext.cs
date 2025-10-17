@@ -12,8 +12,6 @@ namespace SatOps.Data
 {
     public class SatOpsDbContext(DbContextOptions<SatOpsDbContext> options) : DbContext(options)
     {
-
-        // Use aliases for the DbSet properties
         public DbSet<GroundStationEntity> GroundStations => Set<GroundStationEntity>();
         public DbSet<FlightPlanEntity> FlightPlans => Set<FlightPlanEntity>();
         public DbSet<SatelliteEntity> Satellites => Set<SatelliteEntity>();
@@ -26,101 +24,12 @@ namespace SatOps.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            modelBuilder.Entity<GroundStationEntity>(entity =>
-            {
-                entity.ToTable("ground_stations");
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
-                entity.Property(e => e.Name).IsRequired();
-                entity.Property(e => e.HttpUrl).IsRequired();
-                entity.HasIndex(e => e.ApplicationId).IsUnique();
+            // ====================================================================================
+            // Entity Schema Configurations
+            // ====================================================================================
 
-                // Configure Location as owned entity
-                entity.OwnsOne(e => e.Location, location =>
-                {
-                    location.Property(l => l.Latitude).IsRequired().HasColumnName("latitude");
-                    location.Property(l => l.Longitude).IsRequired().HasColumnName("longitude");
-                    location.Property(l => l.Altitude).HasColumnName("altitude").HasDefaultValue(0);
-                });
+            #region Core Entities (Users, Satellites, Ground Stations)
 
-                entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
-                entity.Property(e => e.IsActive).HasDefaultValue(false);
-            });
-
-            // Use alias for the FlightPlan entity configuration
-            modelBuilder.Entity<FlightPlanEntity>(entity =>
-            {
-                entity.ToTable("flight_plans");
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).UseIdentityByDefaultColumn();
-                entity.Property(e => e.Name).IsRequired();
-                // Configure Commands property differently depending on provider
-                if (Database.ProviderName != "Npgsql.EntityFrameworkCore.PostgreSQL")
-                {
-                    entity.Property(e => e.Commands)
-                        .HasConversion(
-                            v => v.RootElement.GetRawText(),
-                            v => JsonDocument.Parse(v, new JsonDocumentOptions()))
-                        .HasColumnType("text")
-                        .IsRequired();
-                }
-                else
-                {
-                    entity.Property(e => e.Commands)
-                        .HasColumnType("jsonb")
-                        .IsRequired();
-                }
-
-                entity.Property(e => e.Status).IsRequired();
-                entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
-                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("timezone('utc', now())");
-
-                entity.HasIndex(e => e.Status);
-            });
-
-
-            // Configure Satellite entity
-            modelBuilder.Entity<SatelliteEntity>(entity =>
-            {
-                entity.ToTable("satellites");
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
-                entity.Property(e => e.Name).IsRequired();
-                entity.Property(e => e.NoradId).IsRequired();
-                entity.Property(e => e.Status).IsRequired();
-                entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
-                entity.Property(e => e.LastUpdate).HasDefaultValueSql("timezone('utc', now())");
-
-                // Index for faster lookups by NORAD ID and status
-                entity.HasIndex(e => e.NoradId).IsUnique();
-                entity.HasIndex(e => e.Status);
-            });
-
-            // Seed data for Ground Stations
-            modelBuilder.Entity<GroundStationEntity>().HasData(
-                new GroundStationEntity
-                {
-                    Id = 1,
-                    Name = "Aarhus",
-                    HttpUrl = "http://aarhus-groundstation.example.com",
-                    IsActive = false,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow
-                }
-            );
-
-            // Configure seed data for Location using OwnsOne
-            modelBuilder.Entity<GroundStationEntity>()
-                .OwnsOne(e => e.Location)
-                .HasData(new
-                {
-                    GroundStationId = 1,
-                    Latitude = 56.17197289799066, // Aarhus coordinates
-                    Longitude = 10.191659216036516,
-                    Altitude = 62.0 // 205ft might need to add more to account for building height
-                });
-
-            // Configure Users entity
             modelBuilder.Entity<UserEntity>(entity =>
             {
                 entity.ToTable("users");
@@ -131,7 +40,6 @@ namespace SatOps.Data
                 entity.Property(e => e.Role).IsRequired();
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("timezone('utc', now())");
-
                 entity.Property(e => e.AdditionalScopes).HasColumnType("jsonb");
                 entity.Property(e => e.AdditionalRoles).HasColumnType("jsonb");
 
@@ -139,7 +47,164 @@ namespace SatOps.Data
                 entity.HasIndex(e => e.Role);
             });
 
-            // Seed Admin user for development
+            modelBuilder.Entity<SatelliteEntity>(entity =>
+            {
+                entity.ToTable("satellites");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn();
+                entity.Property(e => e.Name).IsRequired();
+                entity.Property(e => e.NoradId).IsRequired();
+                entity.Property(e => e.Status).IsRequired();
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
+                entity.Property(e => e.LastUpdate).HasDefaultValueSql("timezone('utc', now())");
+
+                entity.HasIndex(e => e.NoradId).IsUnique();
+                entity.HasIndex(e => e.Status);
+            });
+
+            modelBuilder.Entity<GroundStationEntity>(entity =>
+            {
+                entity.ToTable("ground_stations");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn();
+                entity.Property(e => e.Name).IsRequired();
+                entity.Property(e => e.HttpUrl).IsRequired();
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
+                entity.Property(e => e.IsActive).HasDefaultValue(false);
+
+                entity.HasIndex(e => e.ApplicationId).IsUnique();
+
+                entity.OwnsOne(e => e.Location, location =>
+                {
+                    location.Property(l => l.Latitude).IsRequired().HasColumnName("latitude");
+                    location.Property(l => l.Longitude).IsRequired().HasColumnName("longitude");
+                    location.Property(l => l.Altitude).HasColumnName("altitude").HasDefaultValue(0);
+                });
+            });
+
+            #endregion
+
+            #region Relational & Data Entities (FlightPlans, Overpasses, etc.)
+
+            modelBuilder.Entity<FlightPlanEntity>(entity =>
+            {
+                entity.ToTable("flight_plans");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn();
+                entity.Property(e => e.Name).IsRequired();
+                entity.Property(e => e.Status).IsRequired();
+                entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
+                entity.Property(e => e.UpdatedAt).HasDefaultValueSql("timezone('utc', now())");
+
+                if (Database.ProviderName == "Npgsql.EntityFrameworkCore.PostgreSQL")
+                {
+                    entity.Property(e => e.Commands).HasColumnType("jsonb").IsRequired();
+                }
+                else
+                {
+                    entity.Property(e => e.Commands)
+                        .HasConversion(v => v.RootElement.GetRawText(), v => JsonDocument.Parse(v, new JsonDocumentOptions()))
+                        .HasColumnType("text").IsRequired();
+                }
+
+                entity.HasIndex(e => e.Status);
+
+                // --- Relationships ---
+                entity.HasOne(fp => fp.GroundStation)
+                    .WithMany(gs => gs.FlightPlans)
+                    .HasForeignKey(fp => fp.GroundStationId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(fp => fp.Satellite)
+                    .WithMany(s => s.FlightPlans)
+                    .HasForeignKey(fp => fp.SatelliteId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(fp => fp.CreatedBy)
+                    .WithMany(u => u.CreatedFlightPlans)
+                    .HasForeignKey(fp => fp.CreatedById)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(fp => fp.ApprovedBy)
+                    .WithMany(u => u.ApprovedFlightPlans)
+                    .HasForeignKey(fp => fp.ApprovedById)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(fp => fp.PreviousPlan)
+                    .WithMany()
+                    .HasForeignKey(fp => fp.PreviousPlanId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            modelBuilder.Entity<OverpassEntity>(entity =>
+            {
+                entity.ToTable("overpasses");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn();
+
+                // --- Relationships ---
+                entity.HasOne(e => e.Satellite)
+                    .WithMany()
+                    .HasForeignKey(e => e.SatelliteId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(e => e.GroundStation)
+                    .WithMany()
+                    .HasForeignKey(e => e.GroundStationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // --- Indexes ---
+                entity.HasIndex(e => new { e.SatelliteId, e.GroundStationId, e.StartTime });
+            });
+
+            modelBuilder.Entity<TelemetryDataEntity>(entity =>
+            {
+                entity.ToTable("telemetry_data");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn();
+                entity.Property(e => e.S3ObjectPath).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.ReceivedAt).HasDefaultValueSql("timezone('utc', now())");
+
+                // --- Relationships ---
+                entity.HasOne(td => td.FlightPlan).WithMany().HasForeignKey(td => td.FlightPlanId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(td => td.Satellite).WithMany().HasForeignKey(td => td.SatelliteId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(td => td.GroundStation).WithMany().HasForeignKey(td => td.GroundStationId).OnDelete(DeleteBehavior.Cascade);
+
+                // --- Indexes ---
+                entity.HasIndex(e => new { e.SatelliteId, e.GroundStationId, e.Timestamp });
+            });
+
+            modelBuilder.Entity<ImageDataEntity>(entity =>
+            {
+                entity.ToTable("image_data");
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityByDefaultColumn();
+                entity.Property(e => e.S3ObjectPath).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+                entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
+                entity.Property(e => e.ReceivedAt).HasDefaultValueSql("timezone('utc', now())");
+                entity.Property(e => e.Latitude).HasPrecision(9, 6);
+                entity.Property(e => e.Longitude).HasPrecision(9, 6);
+                entity.Property(e => e.Metadata).HasColumnType("jsonb");
+
+                // --- Relationships ---
+                // Images are dependent data. Cascade deletes are appropriate.
+                entity.HasOne(id => id.Satellite).WithMany().HasForeignKey(id => id.SatelliteId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(id => id.GroundStation).WithMany().HasForeignKey(id => id.GroundStationId).OnDelete(DeleteBehavior.Cascade);
+
+                // --- Indexes ---
+                entity.HasIndex(e => new { e.Latitude, e.Longitude });
+                entity.HasIndex(e => e.CaptureTime);
+            });
+
+            #endregion
+
+            // ====================================================================================
+            // Seeding Data
+            // ====================================================================================
+
             modelBuilder.Entity<UserEntity>().HasData(
                 new UserEntity
                 {
@@ -153,95 +218,28 @@ namespace SatOps.Data
                 }
             );
 
-            // Configure TelemetryData entity
-            modelBuilder.Entity<TelemetryDataEntity>(entity =>
-            {
-                entity.ToTable("telemetry_data");
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
-                entity.Property(e => e.GroundStationId).IsRequired();
-                entity.Property(e => e.SatelliteId).IsRequired();
-                entity.Property(e => e.FlightPlanId).IsRequired();
-                entity.Property(e => e.Timestamp).IsRequired();
-                entity.Property(e => e.S3ObjectPath).IsRequired().HasMaxLength(500);
-                entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
-                entity.Property(e => e.FileSize).IsRequired();
-                entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.ReceivedAt).HasDefaultValueSql("timezone('utc', now())");
+            modelBuilder.Entity<GroundStationEntity>().HasData(
+                new GroundStationEntity
+                {
+                    Id = 1,
+                    Name = "Aarhus",
+                    HttpUrl = "http://aarhus-groundstation.example.com",
+                    IsActive = false,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                }
+            );
 
-                // Indexes for faster lookups
-                entity.HasIndex(e => e.GroundStationId);
-                entity.HasIndex(e => e.SatelliteId);
-                entity.HasIndex(e => e.FlightPlanId);
-                entity.HasIndex(e => e.Timestamp);
-                entity.HasIndex(e => e.ReceivedAt);
-            });
+            modelBuilder.Entity<GroundStationEntity>()
+                .OwnsOne(e => e.Location)
+                .HasData(new
+                {
+                    GroundStationId = 1,
+                    Latitude = 56.17197289799066,
+                    Longitude = 10.191659216036516,
+                    Altitude = 62.0
+                });
 
-            // Configure ImageData entity
-            modelBuilder.Entity<ImageDataEntity>(entity =>
-            {
-                entity.ToTable("image_data");
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
-                entity.Property(e => e.SatelliteId).IsRequired();
-                entity.Property(e => e.GroundStationId).IsRequired();
-                entity.Property(e => e.CaptureTime).IsRequired();
-                entity.Property(e => e.S3ObjectPath).IsRequired().HasMaxLength(500);
-                entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
-                entity.Property(e => e.FileSize).IsRequired();
-                entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.ReceivedAt).HasDefaultValueSql("timezone('utc', now())");
-                entity.Property(e => e.Latitude).HasPrecision(9, 6);
-                entity.Property(e => e.Longitude).HasPrecision(9, 6);
-                entity.Property(e => e.Metadata).HasColumnType("jsonb");
-
-                // Indexes for faster lookups
-                entity.HasIndex(e => e.SatelliteId);
-                entity.HasIndex(e => e.GroundStationId);
-                entity.HasIndex(e => e.CaptureTime);
-                entity.HasIndex(e => e.ReceivedAt);
-                entity.HasIndex(e => new { e.Latitude, e.Longitude });
-            });
-
-            // Configure Overpass entity
-            modelBuilder.Entity<OverpassEntity>(entity =>
-            {
-                entity.ToTable("overpasses");
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
-
-                entity.Property(e => e.SatelliteId).IsRequired();
-                entity.Property(e => e.GroundStationId).IsRequired();
-                entity.Property(e => e.StartTime).IsRequired();
-                entity.Property(e => e.EndTime).IsRequired();
-                entity.Property(e => e.MaxElevationTime).IsRequired();
-                entity.Property(e => e.MaxElevation).IsRequired();
-                entity.Property(e => e.DurationSeconds).IsRequired();
-                entity.Property(e => e.StartAzimuth).IsRequired();
-                entity.Property(e => e.EndAzimuth).IsRequired();
-
-                // Relationships
-                entity.HasOne(e => e.Satellite)
-                    .WithMany()
-                    .HasForeignKey(e => e.SatelliteId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(e => e.GroundStation)
-                    .WithMany()
-                    .HasForeignKey(e => e.GroundStationId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                // Indexes for faster lookups
-                entity.HasIndex(e => e.SatelliteId);
-                entity.HasIndex(e => e.GroundStationId);
-                entity.HasIndex(e => e.StartTime);
-                entity.HasIndex(e => e.EndTime);
-                entity.HasIndex(e => new { e.SatelliteId, e.GroundStationId, e.StartTime });
-            });
-
-
-
-            // Seed data for Satellites - ISS
             modelBuilder.Entity<SatelliteEntity>().HasData(
                 new SatelliteEntity
                 {

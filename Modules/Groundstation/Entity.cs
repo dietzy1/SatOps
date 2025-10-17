@@ -28,6 +28,13 @@ namespace SatOps.Modules.Groundstation
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         public bool IsActive { get; set; } = false; // Maybe rename to IsHealthy or similar
+
+        // Inverse Navigation Properties
+        public virtual ICollection<FlightPlan.FlightPlan> FlightPlans { get; set; } = new List<FlightPlan.FlightPlan>();
+        public virtual ICollection<Overpass.Entity> Overpasses { get; set; } = new List<Overpass.Entity>();
+        public virtual ICollection<Operation.ImageData> Images { get; set; } = new List<Operation.ImageData>();
+        public virtual ICollection<Operation.TelemetryData> Telemetry { get; set; } = new List<Operation.TelemetryData>();
+
     }
 
     public class Location

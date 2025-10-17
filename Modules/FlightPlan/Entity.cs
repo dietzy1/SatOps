@@ -19,12 +19,33 @@ namespace SatOps.Modules.FlightPlan
     {
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
+
+        // --- Foreign Key Properties ---
         public int GroundStationId { get; set; }
         public int SatelliteId { get; set; }
         public int? OverpassId { get; set; }
         public int? PreviousPlanId { get; set; }
         public int CreatedById { get; set; }
         public int? ApprovedById { get; set; }
+
+        // --- Navigation Properties ---
+        [ForeignKey(nameof(GroundStationId))]
+        public virtual Groundstation.GroundStation GroundStation { get; set; } = null!;
+
+        [ForeignKey(nameof(SatelliteId))]
+        public virtual Satellite.Satellite Satellite { get; set; } = null!;
+
+        [ForeignKey(nameof(OverpassId))]
+        public virtual Overpass.Entity? Overpass { get; set; }
+
+        [ForeignKey(nameof(PreviousPlanId))]
+        public virtual FlightPlan? PreviousPlan { get; set; }
+
+        [ForeignKey(nameof(CreatedById))]
+        public virtual User.User CreatedBy { get; set; } = null!;
+
+        [ForeignKey(nameof(ApprovedById))]
+        public virtual User.User? ApprovedBy { get; set; }
 
         public string? FailureReason { get; set; }
 

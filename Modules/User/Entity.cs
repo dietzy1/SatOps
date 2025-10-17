@@ -24,6 +24,13 @@ namespace SatOps.Modules.User
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
+        // Inverse navigation properties
+        [InverseProperty(nameof(FlightPlan.FlightPlan.CreatedBy))]
+        public virtual ICollection<FlightPlan.FlightPlan> CreatedFlightPlans { get; set; } = new List<FlightPlan.FlightPlan>();
+
+        [InverseProperty(nameof(FlightPlan.FlightPlan.ApprovedBy))]
+        public virtual ICollection<FlightPlan.FlightPlan> ApprovedFlightPlans { get; set; } = new List<FlightPlan.FlightPlan>();
+
         // Additional properties for RBAC tracking
         public List<string> AdditionalScopes { get; set; } = [];
         public List<string> AdditionalRoles { get; set; } = [];
