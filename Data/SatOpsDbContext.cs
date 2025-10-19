@@ -7,6 +7,10 @@ using UserEntity = SatOps.Modules.User.User;
 using TelemetryDataEntity = SatOps.Modules.Operation.TelemetryData;
 using ImageDataEntity = SatOps.Modules.Operation.ImageData;
 using OverpassEntity = SatOps.Modules.Overpass.Entity;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using SatOps.Modules.FlightPlan;
+using System.Text.Json.Serialization.Metadata;
 
 namespace SatOps.Data
 {
@@ -57,7 +61,9 @@ namespace SatOps.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).UseIdentityByDefaultColumn(); // PostgreSQL serial
                 entity.Property(e => e.Name).IsRequired();
-                entity.Property(e => e.Body).HasColumnType("jsonb").IsRequired();
+
+                // CommandsJson property is configured via Column attribute on the entity
+                entity.Property(e => e.CommandsJson).IsRequired().HasColumnType("jsonb").HasDefaultValue("{}");
                 entity.Property(e => e.Status).IsRequired();
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("timezone('utc', now())");

@@ -19,6 +19,13 @@ namespace SatOps.Modules.Schedule
         public async Task<ActionResult<List<FlightPlanDto>>> List()
         {
             var items = await _service.ListAsync();
+            // Log the items using Console.WriteLine for demonstration purposes
+            Console.WriteLine($"Retrieved {items.Count} flight plans.");
+            foreach (var item in items)
+            {
+                Console.WriteLine($"FlightPlan ID: {item.Id}, Name: {item.Name}, Status: {item.Status}");
+            }
+
             return Ok(items.Select(Mappers.ToDto).ToList());
         }
 
@@ -30,12 +37,40 @@ namespace SatOps.Modules.Schedule
             return Ok(Mappers.ToDto(item));
         }
 
+        /// <summary>
+        /// Create a new flight plan with command sequence
+        /// </summary>
+        /// <param name="input">Flight plan creation data</param>
+        /// <returns>Created flight plan</returns>
+        /// <response code="201">Flight plan created successfully</response>
+        /// <response code="400">Invalid input or validation errors</response>
+        /// <response code="404">Ground station or satellite not found</response>
         [HttpPost]
+        [ProducesResponseType(typeof(FlightPlanDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<ActionResult<FlightPlanDto>> Create([FromBody] CreateFlightPlanDto input)
         {
-            var created = await _service.CreateAsync(input);
-            var dto = Mappers.ToDto(created);
-            return CreatedAtAction(nameof(Get), new { id = created.Id }, dto);
+            // Model validation happens automatically via [ApiController]
+            // This includes DataAnnotations AND IValidatableObject.Validate()
+            if (!ModelState.IsValid)
+            {
+                return ValidationProblem(ModelState);
+            }
+
+            try
+            {
+                var created = await _service.CreateAsync(input);
+                var dto = Mappers.ToDto(created);
+                return CreatedAtAction(nameof(Get), new { id = created.Id }, dto);
+            }
+            catch (EntityNotFoundException ex)
+            {
+                return NotFound(new { error = ex.Message });
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(new { error = ex.Message });
+            }
         }
 
         [HttpPut("{id}")]
@@ -76,6 +111,22 @@ namespace SatOps.Modules.Schedule
             }
 
             return Ok(new { success = true, message });
+        }
+    }
+
+    [Serializable]
+    internal class EntityNotFoundException : Exception
+    {
+        public EntityNotFoundException()
+        {
+        }
+
+        public EntityNotFoundException(string? message) : base(message)
+        {
+        }
+
+        public EntityNotFoundException(string? message, Exception? innerException) : base(message, innerException)
+        {
         }
     }
 }

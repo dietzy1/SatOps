@@ -11,6 +11,7 @@ using SGPdotNET.TLE;
 using SGPdotNET.Util;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Satellite;
+using SatOps.Modules.Schedule;
 
 namespace SatOps.Modules.Overpass
 {
@@ -274,8 +275,7 @@ namespace SatOps.Modules.Overpass
                     Id = flightPlan.Id,
                     Name = flightPlan.Name,
                     ScheduledAt = flightPlan.ScheduledAt,
-                    Status = flightPlan.Status.ToString(),
-                    ApproverId = flightPlan.ApproverId,
+                    Status = flightPlan.Status.ToScreamCase(),
                     ApprovalDate = flightPlan.ApprovalDate
                 };
             }

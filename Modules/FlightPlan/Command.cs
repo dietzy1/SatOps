@@ -1,64 +1,64 @@
 using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using SatOps.Modules.FlightPlan.Commands;
 
 namespace SatOps.Modules.FlightPlan
 {
-    public interface ICommand
+    public enum CommandType
     {
-        string Name { get; }
-        string Description { get; }
-        string CommandType { get; }
+        TriggerCapture,
+        TriggerPipeline
+    }
 
-        ValidationResult Validate();
+    public static class CommandTypeConstants
+    {
+        public const string TriggerCapture = "TRIGGER_CAPTURE";
+        public const string TriggerPipeline = "TRIGGER_PIPELINE";
+    }
 
+    public interface ICompilableCommand
+    {
         Task<List<string>> CompileToCsh();
-
-        string ToJson();
     }
 
     [JsonPolymorphic(TypeDiscriminatorPropertyName = "commandType")]
-    [JsonDerivedType(typeof(TriggerCaptureCommand), "triggerCapture")]
-    // TODO: Add [JsonDerivedType] for every new command class
-    public abstract class Command : ICommand
+    [JsonDerivedType(typeof(TriggerCaptureCommand), typeDiscriminator: CommandTypeConstants.TriggerCapture)]
+    [JsonDerivedType(typeof(TriggerPipelineCommand), typeDiscriminator: CommandTypeConstants.TriggerPipeline)]
+    public class Command : IValidatableObject, ICompilableCommand
     {
-        public abstract string Name { get; }
-        public abstract string Description { get; }
-        public abstract string CommandType { get; }
+        public virtual CommandType CommandType { get; }
 
-        public abstract ValidationResult Validate();
-        public abstract Task<List<string>> CompileToCsh();
-
-        public virtual string ToJson()
+        [Required]
+        public DateTime ExecutionTime { get; set; } = DateTime.UtcNow;
+        public virtual IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            };
-            return JsonSerializer.Serialize(this, this.GetType(), options);
+            // No custom validation needed beyond DataAnnotations
+            // Just return empty - ASP.NET Core handles DataAnnotations automatically
+            yield break;
+        }
+
+        public virtual Task<List<string>> CompileToCsh()
+        {
+            return Task.FromResult(new List<string>());
         }
     }
 
     public class CommandSequence
     {
+        [JsonPropertyName("commands")]
         public List<Command> Commands { get; set; } = new();
 
         public void AddCommand(Command command) => Commands.Add(command);
 
-        public List<ValidationResult> ValidateAll() => Commands.Select(cmd => cmd.Validate()).ToList();
-
-        public string ToJson()
+        public List<ValidationResult> ValidateAll()
         {
-            var options = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-            return JsonSerializer.Serialize(this, options);
-        }
-
-        public static CommandSequence? FromJson(string json)
-        {
-            var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-            return JsonSerializer.Deserialize<CommandSequence>(json, options);
+            var results = new List<ValidationResult>();
+            foreach (var cmd in Commands)
+            {
+                var context = new ValidationContext(cmd);
+                Validator.TryValidateObject(cmd, context, results, validateAllProperties: true);
+            }
+            return results;
         }
     }
 }

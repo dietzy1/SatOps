@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Text.Json;
+using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -22,14 +22,15 @@ namespace SatOps.data.migrations
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    Body = table.Column<JsonDocument>(type: "jsonb", nullable: false),
+                    Commands = table.Column<string>(type: "jsonb", nullable: false, defaultValue: "{}"),
                     ScheduledAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     GroundStationId = table.Column<int>(type: "integer", nullable: false),
                     SatelliteId = table.Column<int>(type: "integer", nullable: false),
                     OverpassId = table.Column<int>(type: "integer", nullable: true),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     PreviousPlanId = table.Column<int>(type: "integer", nullable: true),
-                    ApproverId = table.Column<string>(type: "text", nullable: true),
+                    CreatedById = table.Column<int>(type: "integer", nullable: false),
+                    ApproverId = table.Column<int>(type: "integer", nullable: true),
                     ApprovalDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "timezone('utc', now())"),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "timezone('utc', now())")
@@ -100,7 +101,10 @@ namespace SatOps.data.migrations
                     MaxElevation = table.Column<double>(type: "double precision", nullable: false),
                     DurationSeconds = table.Column<int>(type: "integer", nullable: false),
                     StartAzimuth = table.Column<double>(type: "double precision", nullable: false),
-                    EndAzimuth = table.Column<double>(type: "double precision", nullable: false)
+                    EndAzimuth = table.Column<double>(type: "double precision", nullable: false),
+                    TleLine1 = table.Column<string>(type: "text", nullable: true),
+                    TleLine2 = table.Column<string>(type: "text", nullable: true),
+                    TleUpdateTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -158,8 +162,8 @@ namespace SatOps.data.migrations
                     Role = table.Column<int>(type: "integer", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "timezone('utc', now())"),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "timezone('utc', now())"),
-                    AdditionalScopes = table.Column<string>(type: "text", nullable: false, defaultValue: ""),
-                    AdditionalRoles = table.Column<string>(type: "text", nullable: false, defaultValue: "")
+                    AdditionalScopes = table.Column<List<string>>(type: "jsonb", nullable: false),
+                    AdditionalRoles = table.Column<List<string>>(type: "jsonb", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -169,15 +173,15 @@ namespace SatOps.data.migrations
             migrationBuilder.InsertData(
                 table: "ground_stations",
                 columns: new[] { "Id", "ApiKeyHash", "ApplicationId", "CreatedAt", "HttpUrl", "Name", "UpdatedAt", "altitude", "latitude", "longitude" },
-                values: new object[] { 1, "", new Guid("ea3da4e4-d012-4c34-9c96-3add56639761"), new DateTime(2025, 10, 1, 14, 41, 12, 246, DateTimeKind.Utc).AddTicks(330), "http://aarhus-groundstation.example.com", "Aarhus", new DateTime(2025, 10, 1, 14, 41, 12, 246, DateTimeKind.Utc).AddTicks(330), 62.0, 56.171972897990663, 10.191659216036516 });
+                values: new object[] { 1, "", new Guid("f90c735c-012e-4426-8eba-f65f5a6f7339"), new DateTime(2025, 10, 12, 15, 53, 50, 801, DateTimeKind.Utc).AddTicks(1490), "http://aarhus-groundstation.example.com", "Aarhus", new DateTime(2025, 10, 12, 15, 53, 50, 801, DateTimeKind.Utc).AddTicks(1490), 62.0, 56.171972897990663, 10.191659216036516 });
 
             migrationBuilder.InsertData(
                 table: "satellites",
                 columns: new[] { "Id", "CreatedAt", "LastUpdate", "Name", "NoradId", "Status", "TleLine1", "TleLine2" },
                 values: new object[,]
                 {
-                    { 1, new DateTime(2025, 10, 1, 14, 41, 12, 246, DateTimeKind.Utc).AddTicks(9170), new DateTime(2025, 10, 1, 14, 41, 12, 246, DateTimeKind.Utc).AddTicks(9170), "International Space Station (ISS)", 25544, 0, "1 25544U 98067A   23256.90616898  .00020137  00000-0  35438-3 0  9992", "2 25544  51.6416 339.0970 0003835  48.3825  73.2709 15.50030022414673" },
-                    { 2, new DateTime(2025, 10, 1, 14, 41, 12, 246, DateTimeKind.Utc).AddTicks(9170), new DateTime(2025, 10, 1, 14, 41, 12, 246, DateTimeKind.Utc).AddTicks(9170), "SENTINEL-2C", 60989, 0, "1 60989U 24157A   25270.79510520  .00000303  00000-0  13232-3 0  9996", "2 60989  98.5675 344.4033 0001006  86.9003 273.2295 14.30815465 55465" }
+                    { 1, new DateTime(2025, 10, 12, 15, 53, 50, 801, DateTimeKind.Utc).AddTicks(5770), new DateTime(2025, 10, 12, 15, 53, 50, 801, DateTimeKind.Utc).AddTicks(5770), "International Space Station (ISS)", 25544, 0, "1 25544U 98067A   23256.90616898  .00020137  00000-0  35438-3 0  9992", "2 25544  51.6416 339.0970 0003835  48.3825  73.2709 15.50030022414673" },
+                    { 2, new DateTime(2025, 10, 12, 15, 53, 50, 801, DateTimeKind.Utc).AddTicks(5770), new DateTime(2025, 10, 12, 15, 53, 50, 801, DateTimeKind.Utc).AddTicks(5770), "SENTINEL-2C", 60989, 0, "1 60989U 24157A   25270.79510520  .00000303  00000-0  13232-3 0  9996", "2 60989  98.5675 344.4033 0001006  86.9003 273.2295 14.30815465 55465" }
                 });
 
             migrationBuilder.CreateIndex(

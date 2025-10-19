@@ -3,6 +3,8 @@ using SatOps.Data;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Overpass;
+using SatOps.Modules.FlightPlan;
+using System.ComponentModel.DataAnnotations;
 
 namespace SatOps.Modules.Schedule
 {
@@ -40,32 +42,37 @@ namespace SatOps.Modules.Schedule
 
         public async Task<FlightPlan> CreateAsync(CreateFlightPlanDto createDto)
         {
+            // Validation has already been done by the controller via ModelState
+            // We only need to check business rules here
+
             // Validate that the groundstation exists
             var groundStation = await _groundStationService.GetAsync(createDto.GsId);
             if (groundStation == null)
             {
-                throw new ArgumentException($"Ground station with ID {createDto.GsId} not found.", nameof(createDto.GsId));
+                throw new EntityNotFoundException($"Ground station with ID {createDto.GsId} not found");
             }
 
             // Validate that the satellite exists
             var satellite = await _satelliteService.GetAsync(createDto.SatId);
             if (satellite == null)
             {
-                throw new ArgumentException($"Satellite with ID {createDto.SatId} not found.", nameof(createDto.SatId));
+                throw new EntityNotFoundException($"Satellite with ID {createDto.SatId} not found");
             }
 
             var entity = new FlightPlan
             {
-                Name = createDto.FlightPlanBody.Name,
-                Body = JsonDocument.Parse(JsonSerializer.Serialize(createDto.FlightPlanBody.Body)),
+                Name = createDto.Name,
                 GroundStationId = createDto.GsId,
                 SatelliteId = createDto.SatId,
                 Status = FlightPlanStatus.Draft,
+                Commands = new CommandSequence { Commands = createDto.Commands },
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
+
             return await _repository.AddAsync(entity);
         }
+
 
         public async Task<FlightPlan?> CreateNewVersionAsync(int id, CreateFlightPlanDto updateDto)
         {
@@ -122,8 +129,8 @@ namespace SatOps.Modules.Schedule
 
                 var newPlan = new FlightPlan
                 {
-                    Name = updateDto.FlightPlanBody.Name,
-                    Body = JsonDocument.Parse(JsonSerializer.Serialize(updateDto.FlightPlanBody.Body)),
+                    Name = updateDto.Name,
+                    //Body = JsonDocument.Parse(JsonSerializer.Serialize(updateDto.FlightPlanBody.Body)),
                     ScheduledAt = null,
                     GroundStationId = updateDto.GsId,
                     SatelliteId = updateDto.SatId,
@@ -190,7 +197,7 @@ namespace SatOps.Modules.Schedule
             }
 
             plan.ApprovalDate = DateTime.UtcNow;
-            plan.ApproverId = "mock-user-id";
+            plan.ApproverId = 1;
 
             var success = await _repository.UpdateAsync(plan);
 
@@ -257,7 +264,7 @@ namespace SatOps.Modules.Schedule
                 var elevationTolerance = 2.0; // Allow 2-degree tolerance for elevation matching
                 var durationTolerance = 60; // Allow 60-second tolerance for duration matching
 
-                var candidateOverpasses = availableOverpasses.Where(o => 
+                var candidateOverpasses = availableOverpasses.Where(o =>
                     // Time window matching (with tolerance)
                     Math.Abs((o.StartTime - overpassRequest.StartTime).TotalMinutes) <= toleranceMinutes ||
                     Math.Abs((o.EndTime - overpassRequest.EndTime).TotalMinutes) <= toleranceMinutes ||
@@ -268,19 +275,19 @@ namespace SatOps.Modules.Schedule
                 // Apply additional filtering criteria if provided
                 if (overpassRequest.MaxElevation.HasValue)
                 {
-                    candidateOverpasses = candidateOverpasses.Where(o => 
+                    candidateOverpasses = candidateOverpasses.Where(o =>
                         Math.Abs(o.MaxElevation - overpassRequest.MaxElevation.Value) <= elevationTolerance);
                 }
 
                 if (overpassRequest.DurationSeconds.HasValue)
                 {
-                    candidateOverpasses = candidateOverpasses.Where(o => 
+                    candidateOverpasses = candidateOverpasses.Where(o =>
                         Math.Abs(o.DurationSeconds - overpassRequest.DurationSeconds.Value) <= durationTolerance);
                 }
 
                 if (overpassRequest.MaxElevationTime.HasValue)
                 {
-                    candidateOverpasses = candidateOverpasses.Where(o => 
+                    candidateOverpasses = candidateOverpasses.Where(o =>
                         Math.Abs((o.MaxElevationTime - overpassRequest.MaxElevationTime.Value).TotalMinutes) <= toleranceMinutes);
                 }
 
@@ -296,7 +303,7 @@ namespace SatOps.Modules.Schedule
                     if (overpassRequest.MaxElevation.HasValue) criteriaUsed.Add("max elevation");
                     if (overpassRequest.DurationSeconds.HasValue) criteriaUsed.Add("duration");
                     if (overpassRequest.MaxElevationTime.HasValue) criteriaUsed.Add("max elevation time");
-                    
+
                     return (false, $"No overpass found matching the specified criteria: {string.Join(", ", criteriaUsed)} (within tolerance).");
                 }
 

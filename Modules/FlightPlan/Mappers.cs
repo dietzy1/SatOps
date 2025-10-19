@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using SatOps.Modules.FlightPlan;
 
 
 namespace SatOps.Modules.Schedule
@@ -11,21 +12,22 @@ namespace SatOps.Modules.Schedule
             return new FlightPlanDto
             {
                 Id = entity.Id,
-                FlightPlanBody = new FlightPlanBodyDto
-                {
-                    Name = entity.Name,
-                    Body = JsonSerializer.Deserialize<object>(entity.Body.RootElement.GetRawText())!
-                },
-                ScheduledAt = entity.ScheduledAt,
+                Name = entity.Name,
                 GsId = entity.GroundStationId,
                 SatId = entity.SatelliteId,
-                Name = entity.Name,
-                Status = entity.Status.ToScreamCase(),
                 OverpassId = entity.OverpassId,
-                PreviousPlanId = entity.PreviousPlanId?.ToString(),
+                PreviousPlanId = entity.PreviousPlanId,
+                Commands = entity.Commands.Commands,
+                CreatedById = entity.CreatedById,
+                CreatedAt = entity.CreatedAt,
+                UpdatedAt = entity.UpdatedAt,
+                ScheduledAt = entity.ScheduledAt,
+                Status = entity.Status.ToScreamCase(),
                 ApproverId = entity.ApproverId,
                 ApprovalDate = entity.ApprovalDate
             };
+
+
         }
     }
     public static class FlightPlanStatusExtensions

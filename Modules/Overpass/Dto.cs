@@ -43,7 +43,6 @@ namespace SatOps.Modules.Overpass
         public string Name { get; set; } = string.Empty;
         public DateTime? ScheduledAt { get; set; }
         public string Status { get; set; } = string.Empty;
-        public string? ApproverId { get; set; }
         public DateTime? ApprovalDate { get; set; }
     }
 
