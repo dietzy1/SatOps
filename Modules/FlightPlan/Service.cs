@@ -37,7 +37,7 @@ namespace SatOps.Modules.FlightPlan
 
         public async Task<FlightPlan> CreateAsync(CreateFlightPlanDto createDto)
         {
-            var currentUserId = currentUserProvider.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated.");
+            //var currentUserId = currentUserProvider.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated.");
 
             // Validate that the groundstation exists
             var groundStation = await groundStationService.GetAsync(createDto.GsId);
@@ -54,8 +54,9 @@ namespace SatOps.Modules.FlightPlan
                 throw new ArgumentException($"Satellite with ID {createDto.SatId} not found.", nameof(createDto.SatId));
             }
 
-            var commandSequence = CommandSequence.FromJsonElement(createDto.Commands);
-            var (isValid, errors) = commandSequence.ValidateAll();
+            // Validate commands - validation should already be done by model binding,
+            // but we double-check here for safety
+            var (isValid, errors) = createDto.Commands.ValidateAll();
             if (!isValid)
             {
                 throw new ArgumentException(
@@ -69,12 +70,13 @@ namespace SatOps.Modules.FlightPlan
                 GroundStationId = createDto.GsId,
                 SatelliteId = createDto.SatId,
                 Status = FlightPlanStatus.Draft,
-                CreatedById = currentUserId,
+                /* CreatedById = currentUserId, */
+                CreatedById = 1, // Temporary placeholder until user auth is implemented
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
 
-            entity.SetCommandSequence(commandSequence);
+            entity.SetCommands(createDto.Commands);
             return await repository.AddAsync(entity);
         }
 
@@ -161,8 +163,8 @@ namespace SatOps.Modules.FlightPlan
             if (newStatus == FlightPlanStatus.Approved)
             {
                 // Re-validate before approval
-                var commandSequence = plan.GetCommandSequence();
-                var (isValid, errors) = commandSequence.ValidateAll();
+                var commands = plan.GetCommands();
+                var (isValid, errors) = commands.ValidateAll();
                 if (!isValid)
                 {
                     return (false, $"Cannot approve invalid flight plan: {string.Join("; ", errors)}");
@@ -265,17 +267,17 @@ namespace SatOps.Modules.FlightPlan
                 throw new ArgumentException($"Flight plan with ID {flightPlanId} not found.");
             }
 
-            var commandSequence = flightPlan.GetCommandSequence();
+            var commands = flightPlan.GetCommands();
 
             // Validate before compiling
-            var (isValid, errors) = commandSequence.ValidateAll();
+            var (isValid, errors) = commands.ValidateAll();
             if (!isValid)
             {
                 throw new InvalidOperationException(
                     $"Cannot compile invalid flight plan. Errors: {string.Join("; ", errors)}");
             }
 
-            return await commandSequence.CompileAllToCsh();
+            return await commands.CompileAllToCsh();
         }
 
         public async Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request)

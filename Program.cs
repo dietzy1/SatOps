@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication;
-using Microsoft.OpenApi.Models;
 using SatOps.Modules.Auth;
+using SatOps.Configuration;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.FlightPlan;
 using SatOps.Modules.Satellite;
@@ -21,6 +21,9 @@ using Minio;
 using Npgsql;
 using System.Text;
 using Serilog;
+using dotenv.net;
+
+DotEnv.Load();
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -37,101 +40,18 @@ try
         .ReadFrom.Services(services)
         .Enrich.FromLogContext());
 
-    builder.Services.AddControllers();
+    builder.Services.AddControllers()
+        .AddJsonOptions(options =>
+        {
+            // Configure JSON serialization
+            options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+            options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+            options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseUpper));
+            // Note: CommandJsonConverter is registered via [JsonConverter] attribute on Command class
+        });
+
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen(options =>
-    {
-        // Public API documentation
-        options.SwaggerDoc("v1", new OpenApiInfo
-        {
-            Version = "v1",
-            Title = "SatOps Public API",
-            Description = @"
-A comprehensive **ASP.NET Core Web API** for managing satellite operations including:
-
-- 🛰️ Satellite tracking and monitoring
-- 📡 Communication scheduling  
-- 🔧 Maintenance operations
-- 📊 Data access and reporting
-
-## Features
-- Real-time satellite status updates
-- Automated orbit calculations
-- Mission planning tools
-- Role-Based Access Control (RBAC) with scope and role-based permissions
-
-**Note**: This is the public-facing API. Internal operations are available on a separate endpoint.
-        ".Trim()
-        });
-
-        // Internal API documentation
-        options.SwaggerDoc("internal", new OpenApiInfo
-        {
-            Version = "v1",
-            Title = "SatOps Internal API",
-            Description = @"
-**Internal Operations API** for satellite communications and data processing:
-
-- 📤 Command transmission to satellites
-- 📥 Telemetry data reception from satellites
-- 🖼️ Image data reception and processing
-- 🔄 Real-time operational status updates
-
-## Features
-- Command lifecycle management (Pending → Sent → Acknowledged)
-- Large file handling for telemetry and images
-- MinIO object storage integration
-- Ground station communication endpoints
-
-**Note**: These endpoints are intended for internal ground station operations and satellite communications.
-        ".Trim()
-        });
-
-        options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-        {
-            Name = "Authorization",
-            Type = SecuritySchemeType.Http,
-            Scheme = "bearer",
-            BearerFormat = "JWT",
-            In = ParameterLocation.Header,
-            Description = "Enter 'Bearer' [space] and then your token.\n\nExample: \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...\""
-        });
-
-        options.AddSecurityRequirement(new OpenApiSecurityRequirement
-        {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-        });
-
-        // Configure which controllers belong to which API
-        options.DocInclusionPredicate((docName, apiDesc) =>
-        {
-            var controllerName = apiDesc.ActionDescriptor.RouteValues["controller"];
-
-            return docName switch
-            {
-                "v1" => !IsInternalController(controllerName),
-                "internal" => IsInternalController(controllerName),
-                _ => false
-            };
-        });
-    });
-
-    // Helper method to determine if a controller is internal
-    static bool IsInternalController(string? controllerName)
-    {
-        var internalControllers = new[] { "Operations", "Auth", "Gateway" };
-        return controllerName != null && internalControllers.Contains(controllerName);
-    }
+    builder.Services.AddSwaggerConfiguration();
 
     builder.Services.AddCors(options =>
     {
@@ -319,20 +239,7 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
         });
     });
 
-    if (app.Environment.IsDevelopment())
-    {
-        app.UseSwagger();
-        app.UseSwaggerUI(c =>
-        {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "SatOps Public API v1");
-            c.SwaggerEndpoint("/swagger/internal/swagger.json", "SatOps Internal API v1");
-            c.RoutePrefix = "swagger";
-            c.DocumentTitle = "SatOps API Documentation";
-            c.DefaultModelsExpandDepth(-1); // Hide schemas section by default
-            c.DisplayRequestDuration();
-            c.EnableTryItOutByDefault();
-        });
-    }
+    app.UseSwaggerConfiguration();
 
     app.UseHttpsRedirection();
     app.UseCors();

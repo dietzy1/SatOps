@@ -5,56 +5,53 @@ using SatOps.Modules.FlightPlan.Commands;
 
 namespace SatOps.Modules.FlightPlan
 {
-    public interface ICommand
+    /// <summary>
+    /// Constants for command type discriminators matching the API contract
+    /// </summary>
+    public static class CommandTypeConstants
     {
-        string Name { get; }
-        string Description { get; }
-        string CommandType { get; }
-
-        ValidationResult Validate();
-
-        Task<List<string>> CompileToCsh();
-
-        string ToJson();
+        public const string TriggerCapture = "TRIGGER_CAPTURE";
+        public const string TriggerPipeline = "TRIGGER_PIPELINE";
     }
 
-    public abstract class Command : ICommand
+    /// <summary>
+    /// Base command class with polymorphic JSON serialization support.
+    /// Uses custom JsonConverter for type discrimination and clear error messages.
+    /// </summary>
+    [JsonConverter(typeof(CommandJsonConverter))]
+    public abstract class Command : IValidatableObject
     {
-        public abstract string Name { get; }
-        public abstract string Description { get; }
-
+        /// <summary>
+        /// The type discriminator for this command (e.g., "TRIGGER_CAPTURE")
+        /// </summary>
         [JsonPropertyName("commandType")]
-
         public abstract string CommandType { get; }
 
-        public abstract ValidationResult Validate();
+        /// <summary>
+        /// When this command should be executed (UTC)
+        /// </summary>
+        [Required(ErrorMessage = "ExecutionTime is required")]
+        [JsonPropertyName("executionTime")]
+        public DateTime? ExecutionTime { get; set; }
+
+        /// <summary>
+        /// Validates the command using data annotations and custom logic
+        /// </summary>
+        public virtual IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            // Default implementation - derived classes can override for custom validation
+            yield break;
+        }
+
+        /// <summary>
+        /// Compiles this command into CSH (Cubesat Space Protocol Shell) commands
+        /// </summary>
         public abstract Task<List<string>> CompileToCsh();
-
-        public virtual string ToJson()
-        {
-            var options = JsonSerializerOptionsFactory.Create();
-            return JsonSerializer.Serialize(this, this.GetType(), options);
-        }
-
-        public static class JsonConfig
-        {
-            public static JsonSerializerOptions CreateOptions()
-            {
-                var options = new JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-                    WriteIndented = false,
-                    UnmappedMemberHandling = JsonUnmappedMemberHandling.Skip
-                };
-
-                options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
-
-                return options;
-            }
-        }
     }
 
+    /// <summary>
+    /// Custom JSON converter for Command that provides clear error messages for validation failures
+    /// </summary>
     public class CommandJsonConverter : JsonConverter<Command>
     {
         public override Command? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -90,9 +87,9 @@ namespace SatOps.Modules.FlightPlan
                 {
                     return commandType switch
                     {
-                        "triggerCapture" => JsonSerializer.Deserialize<TriggerCaptureCommand>(root.GetRawText(), options),
-                        "triggerPipeline" => JsonSerializer.Deserialize<TriggerPipelineCommand>(root.GetRawText(), options),
-                        _ => throw new JsonException($"Unknown commandType '{commandType}'. Supported types: 'triggerCapture', 'triggerPipeline'")
+                        CommandTypeConstants.TriggerCapture => JsonSerializer.Deserialize<TriggerCaptureCommand>(root.GetRawText(), options),
+                        CommandTypeConstants.TriggerPipeline => JsonSerializer.Deserialize<TriggerPipelineCommand>(root.GetRawText(), options),
+                        _ => throw new JsonException($"Unknown commandType '{commandType}'. Supported types: '{CommandTypeConstants.TriggerCapture}', '{CommandTypeConstants.TriggerPipeline}'")
                     };
                 }
                 catch (JsonException)
@@ -120,83 +117,9 @@ namespace SatOps.Modules.FlightPlan
         }
     }
 
-    public class CommandSequence
-    {
-        public List<Command> Commands { get; set; } = [];
-
-        public void AddCommand(Command command) => Commands.Add(command);
-
-        public (bool IsValid, List<string> Errors) ValidateAll()
-        {
-            var errors = new List<string>();
-
-            foreach (var command in Commands)
-            {
-                var result = command.Validate();
-                if (result != ValidationResult.Success)
-                {
-                    errors.Add($"{command.Name}: {result.ErrorMessage}");
-                }
-            }
-
-            return (errors.Count == 0, errors);
-        }
-
-        public async Task<List<string>> CompileAllToCsh()
-        {
-            var allCommands = new List<string>();
-
-            foreach (var command in Commands)
-            {
-                var commandCsh = await command.CompileToCsh();
-                allCommands.AddRange(commandCsh);
-            }
-
-            return allCommands;
-        }
-
-        // Serialize just the Commands list (flat structure)
-        public string ToJson()
-        {
-            var options = JsonSerializerOptionsFactory.Create();
-            return JsonSerializer.Serialize(Commands, options);
-        }
-
-        // Deserialize from flat Commands array
-        public static CommandSequence FromJson(string json)
-        {
-            var options = JsonSerializerOptionsFactory.Create();
-
-            try
-            {
-                var commands = JsonSerializer.Deserialize<List<Command>>(json, options);
-                return commands != null ? new CommandSequence { Commands = commands } : new CommandSequence();
-            }
-            catch (JsonException ex)
-            {
-                throw new ArgumentException($"Invalid commands JSON: {ex.Message}", ex);
-            }
-        }
-
-        public JsonDocument ToJsonDocument()
-        {
-            var json = ToJson();
-            return JsonDocument.Parse(json);
-        }
-
-        public static CommandSequence FromJsonDocument(JsonDocument document)
-        {
-            var json = document.RootElement.GetRawText();
-            return FromJson(json) ?? new CommandSequence();
-        }
-
-        public static CommandSequence FromJsonElement(JsonElement element)
-        {
-            var json = element.GetRawText();
-            return FromJson(json) ?? new CommandSequence();
-        }
-    }
-
+    /// <summary>
+    /// Factory for creating JSON serializer options with command serialization support
+    /// </summary>
     public static class JsonSerializerOptionsFactory
     {
         public static JsonSerializerOptions Create(bool writeIndented = false)
@@ -205,13 +128,128 @@ namespace SatOps.Modules.FlightPlan
             {
                 WriteIndented = writeIndented,
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+                UnmappedMemberHandling = JsonUnmappedMemberHandling.Skip
             };
 
             options.Converters.Add(new CommandJsonConverter());
             options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
 
             return options;
+        }
+    }
+
+    /// <summary>
+    /// Extension methods for working with command lists
+    /// </summary>
+    public static class CommandExtensions
+    {
+        /// <summary>
+        /// Validates all commands in the list
+        /// </summary>
+        public static (bool IsValid, List<string> Errors) ValidateAll(this List<Command> commands)
+        {
+            var errors = new List<string>();
+
+            for (int i = 0; i < commands.Count; i++)
+            {
+                var command = commands[i];
+                var context = new ValidationContext(command);
+                var results = new List<ValidationResult>();
+
+                // Validate data annotations
+                bool isValid = Validator.TryValidateObject(command, context, results, validateAllProperties: true);
+
+                if (!isValid)
+                {
+                    foreach (var result in results)
+                    {
+                        errors.Add($"Command {i + 1} ({command.CommandType}): {result.ErrorMessage}");
+                    }
+                }
+
+                // Validate custom logic via IValidatableObject
+                var customResults = command.Validate(context);
+                foreach (var result in customResults)
+                {
+                    if (result != ValidationResult.Success)
+                    {
+                        errors.Add($"Command {i + 1} ({command.CommandType}): {result.ErrorMessage}");
+                    }
+                }
+            }
+
+            return (errors.Count == 0, errors);
+        }
+
+        /// <summary>
+        /// Compiles all commands to CSH format
+        /// </summary>
+        public static async Task<List<string>> CompileAllToCsh(this List<Command> commands)
+        {
+            var allCommands = new List<string>();
+
+            foreach (var command in commands)
+            {
+                var commandCsh = await command.CompileToCsh();
+                allCommands.AddRange(commandCsh);
+            }
+
+            return allCommands;
+        }
+
+        /// <summary>
+        /// Serializes commands to JSON string
+        /// </summary>
+        public static string ToJson(this List<Command> commands)
+        {
+            var options = JsonSerializerOptionsFactory.Create();
+            return JsonSerializer.Serialize(commands, options);
+        }
+
+        /// <summary>
+        /// Deserializes commands from JSON string
+        /// </summary>
+        public static List<Command> FromJson(string json)
+        {
+            var options = JsonSerializerOptionsFactory.Create();
+
+            try
+            {
+                var commands = JsonSerializer.Deserialize<List<Command>>(json, options);
+                return commands ?? new List<Command>();
+            }
+            catch (JsonException ex)
+            {
+                throw new ArgumentException($"Invalid commands JSON: {ex.Message}", ex);
+            }
+        }
+
+        /// <summary>
+        /// Converts commands to JsonDocument for database storage
+        /// </summary>
+        public static JsonDocument ToJsonDocument(this List<Command> commands)
+        {
+            var json = commands.ToJson();
+            return JsonDocument.Parse(json);
+        }
+
+        /// <summary>
+        /// Deserializes commands from JsonDocument
+        /// </summary>
+        public static List<Command> FromJsonDocument(JsonDocument document)
+        {
+            var json = document.RootElement.GetRawText();
+            return FromJson(json);
+        }
+
+        /// <summary>
+        /// Deserializes commands from JsonElement
+        /// </summary>
+        public static List<Command> FromJsonElement(JsonElement element)
+        {
+            var json = element.GetRawText();
+            return FromJson(json);
         }
     }
 }

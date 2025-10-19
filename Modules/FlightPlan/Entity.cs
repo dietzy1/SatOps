@@ -49,7 +49,7 @@ namespace SatOps.Modules.FlightPlan
 
         public string? FailureReason { get; set; }
 
-        // Store as flat array in JSONB
+        // Store commands as JSONB array in database
         [Column(TypeName = "jsonb")]
         public JsonDocument Commands { get; set; } = JsonDocument.Parse("[]");
 
@@ -59,15 +59,15 @@ namespace SatOps.Modules.FlightPlan
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
 
-        // Helper methods for working with commands via CommandSequence
-        public CommandSequence GetCommandSequence()
+        // Helper methods for working with commands
+        public List<Command> GetCommands()
         {
-            return CommandSequence.FromJsonDocument(Commands);
+            return CommandExtensions.FromJsonDocument(Commands);
         }
 
-        public void SetCommandSequence(CommandSequence sequence)
+        public void SetCommands(List<Command> commands)
         {
-            Commands = sequence.ToJsonDocument();
+            Commands = commands.ToJsonDocument();
         }
     }
 }

@@ -54,7 +54,7 @@ namespace SatOps.Tests
                 Name = "Test Plan",
                 GsId = 1,
                 SatId = 1,
-                Commands = JsonDocument.Parse("[]").RootElement
+                Commands = new List<Command>() // Empty command list
             };
 
             // Setup mocks
@@ -82,7 +82,7 @@ namespace SatOps.Tests
             var testUserId = 456;
             var planId = 1;
             var draftPlan = new FlightPlan { Id = planId, Status = FlightPlanStatus.Draft };
-            draftPlan.SetCommandSequence(new CommandSequence()); // Ensure commands are valid
+            draftPlan.SetCommands(new List<Command>()); // Ensure commands are valid
 
             _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(testUserId);
             _mockFlightPlanRepo.Setup(r => r.GetByIdAsync(planId)).ReturnsAsync(draftPlan);

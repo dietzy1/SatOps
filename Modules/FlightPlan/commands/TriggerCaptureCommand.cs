@@ -1,88 +1,92 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace SatOps.Modules.FlightPlan.Commands
 {
-
-    // TODO: Command is currently in the raw format as per CSP specification.
-    // We need to add in the delay timing but perhaps that needs to be done in a separate command that sits in front of the trigger capture command.
+    /// <summary>
+    /// Command to trigger image capture on the satellite camera
+    /// </summary>
     public class TriggerCaptureCommand : Command
     {
-        public override string Name => "Trigger Camera Capture";
-        public override string Description => "Configures and triggers the satellite's camera controller.";
-        public override string CommandType => "triggerCapture";
+        public override string CommandType => CommandTypeConstants.TriggerCapture;
 
         // Hardcoded CSP node address for the Camera Controller.
         // TODO: Find out if this is the correct node address. Might be in systemd.
         private const int CameraControllerNode = 2;
 
-        [Required]
-        [StringLength(128, MinimumLength = 1, ErrorMessage = "CameraId must be a valid string.")]
-        public string CameraId { get; set; } = "1800 U-500c";
+        [Required(ErrorMessage = "CameraId is required")]
+        [StringLength(128, MinimumLength = 1, ErrorMessage = "CameraId must be between 1 and 128 characters")]
+        [JsonPropertyName("cameraId")]
+        public string? CameraId { get; set; }
 
-        [Required]
-        public CameraType Type { get; set; } = CameraType.VMB;
+        [Required(ErrorMessage = "Type is required")]
+        [JsonPropertyName("type")]
+        public CameraType? Type { get; set; }
 
-        [Range(0, 2_000_000, ErrorMessage = "Exposure must be between 0 and 2,000,000 microseconds.")]
-        public int ExposureMicroseconds { get; set; } = 55000;
+        [Required(ErrorMessage = "ExposureMicroseconds is required")]
+        [Range(0, 2_000_000, ErrorMessage = "ExposureMicroseconds must be between 0 and 2,000,000")]
+        [JsonPropertyName("exposureMicroseconds")]
+        public int? ExposureMicroseconds { get; set; }
 
-        [Range(0.1, 10.0, ErrorMessage = "ISO must be between 0.1 and 10.0.")]
-        public double Iso { get; set; } = 1.0;
+        [Required(ErrorMessage = "Iso is required")]
+        [Range(0.1, 10.0, ErrorMessage = "Iso must be between 0.1 and 10.0")]
+        [JsonPropertyName("iso")]
+        public double? Iso { get; set; }
 
-        [Range(1, 1000, ErrorMessage = "Number of images must be between 1 and 1000.")]
-        public int NumImages { get; set; } = 1;
+        [Required(ErrorMessage = "NumImages is required")]
+        [Range(1, 1000, ErrorMessage = "NumImages must be between 1 and 1000")]
+        [JsonPropertyName("numImages")]
+        public int? NumImages { get; set; }
 
-        [Range(0, 60_000_000, ErrorMessage = "Interval must be a positive number of microseconds.")]
-        public int IntervalMicroseconds { get; set; } = 0;
+        [Required(ErrorMessage = "IntervalMicroseconds is required")]
+        [Range(0, 60_000_000, ErrorMessage = "IntervalMicroseconds must be between 0 and 60,000,000")]
+        [JsonPropertyName("intervalMicroseconds")]
+        public int? IntervalMicroseconds { get; set; }
 
-        [Range(1, int.MaxValue, ErrorMessage = "ObservationId must be a positive integer.")]
-        public int ObservationId { get; set; } = 1;
+        [Required(ErrorMessage = "ObservationId is required")]
+        [Range(1, int.MaxValue, ErrorMessage = "ObservationId must be a positive integer")]
+        [JsonPropertyName("observationId")]
+        public int? ObservationId { get; set; }
 
-        [Range(1, int.MaxValue, ErrorMessage = "PipelineId must be a positive integer.")]
-        public int PipelineId { get; set; } = 1;
+        [Required(ErrorMessage = "PipelineId is required")]
+        [Range(1, int.MaxValue, ErrorMessage = "PipelineId must be a positive integer")]
+        [JsonPropertyName("pipelineId")]
+        public int? PipelineId { get; set; }
 
+        public override IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
+        {
+            // Custom validation: if capturing multiple images, interval must be > 0
+            if (NumImages.HasValue && IntervalMicroseconds.HasValue && NumImages > 1 && IntervalMicroseconds == 0)
+            {
+                yield return new ValidationResult(
+                    "IntervalMicroseconds must be greater than 0 when capturing multiple images",
+                    new[] { nameof(IntervalMicroseconds) }
+                );
+            }
+        }
 
         public override Task<List<string>> CompileToCsh()
         {
             var script = new List<string>
             {
                 $"set camera_id_param \"{CameraId}\" -n {CameraControllerNode}",
-                $"set camera_type_param {(int)Type} -n {CameraControllerNode}",
-                $"set exposure_param {ExposureMicroseconds} -n {CameraControllerNode}",
-                $"set iso_param {Iso} -n {CameraControllerNode}",
-                $"set num_images_param {NumImages} -n {CameraControllerNode}",
-                $"set interval_param {IntervalMicroseconds} -n {CameraControllerNode}",
-                $"set obid_param {ObservationId} -n {CameraControllerNode}",
-                $"set pipeline_id_param {PipelineId} -n {CameraControllerNode}",
-
+                $"set camera_type_param {(int)Type!.Value} -n {CameraControllerNode}",
+                $"set exposure_param {ExposureMicroseconds!.Value} -n {CameraControllerNode}",
+                $"set iso_param {Iso!.Value} -n {CameraControllerNode}",
+                $"set num_images_param {NumImages!.Value} -n {CameraControllerNode}",
+                $"set interval_param {IntervalMicroseconds!.Value} -n {CameraControllerNode}",
+                $"set obid_param {ObservationId!.Value} -n {CameraControllerNode}",
+                $"set pipeline_id_param {PipelineId!.Value} -n {CameraControllerNode}",
                 $"set capture_param 1 -n {CameraControllerNode}"
             };
 
             return Task.FromResult(script);
         }
-
-
-        public override ValidationResult Validate()
-        {
-            var validationContext = new ValidationContext(this);
-            var results = new List<ValidationResult>();
-
-            bool isValid = Validator.TryValidateObject(this, validationContext, results, true);
-
-            if (!isValid)
-            {
-                string errorMessages = string.Join("; ", results.Select(r => r.ErrorMessage));
-                return new ValidationResult(errorMessages);
-            }
-
-            if (NumImages > 1 && IntervalMicroseconds == 0)
-            {
-                return new ValidationResult("Interval must be greater than 0 when capturing multiple images.");
-            }
-
-            return ValidationResult.Success!;
-        }
     }
 
+    /// <summary>
+    /// Camera types supported by the satellite
+    /// </summary>
     public enum CameraType
     {
         VMB = 0,

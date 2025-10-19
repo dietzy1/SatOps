@@ -4,8 +4,6 @@ namespace SatOps.Modules.FlightPlan
     {
         public static FlightPlanDto ToDto(this FlightPlan entity)
         {
-            var commandSequence = entity.GetCommandSequence();
-
             return new FlightPlanDto
             {
                 Id = entity.Id,
@@ -16,7 +14,7 @@ namespace SatOps.Modules.FlightPlan
                 PreviousPlanId = entity.PreviousPlanId,
                 CreatedById = entity.CreatedById,
                 ApprovedById = entity.ApprovedById,
-                Commands = commandSequence.Commands,
+                Commands = entity.GetCommands(),
                 ScheduledAt = entity.ScheduledAt,
                 Status = entity.Status.ToScreamCase(),
                 ApprovalDate = entity.ApprovalDate,

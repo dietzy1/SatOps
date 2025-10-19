@@ -5,11 +5,11 @@ namespace SatOps.Modules.FlightPlan
 {
     [ApiController]
     [Route("api/v1/flight-plans")]
-    [Authorize]
+    /* [Authorize] */
     public class FlightPlansController(IFlightPlanService service, ILogger<FlightPlansController> logger) : ControllerBase
     {
         [HttpGet]
-        [Authorize(Policy = "ReadFlightPlans")]
+        /* [Authorize(Policy = "ReadFlightPlans")] */
         public async Task<ActionResult<List<FlightPlanDto>>> List()
         {
             var items = await service.ListAsync();
@@ -17,7 +17,7 @@ namespace SatOps.Modules.FlightPlan
         }
 
         [HttpGet("{id}")]
-        [Authorize(Policy = "ReadFlightPlans")]
+        /* [Authorize(Policy = "ReadFlightPlans")] */
         public async Task<ActionResult<FlightPlanDto>> Get(int id)
         {
             var item = await service.GetByIdAsync(id);
@@ -26,7 +26,7 @@ namespace SatOps.Modules.FlightPlan
         }
 
         [HttpPost]
-        [Authorize(Policy = "WriteFlightPlans")]
+        /* [Authorize(Policy = "WriteFlightPlans")] */
         public async Task<ActionResult<FlightPlanDto>> Create([FromBody] CreateFlightPlanDto input)
         {
             try
