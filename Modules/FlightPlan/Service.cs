@@ -35,13 +35,15 @@ namespace SatOps.Modules.FlightPlan
 
         public Task<FlightPlan?> GetByIdAsync(int id) => repository.GetByIdReadOnlyAsync(id);
 
+        // In Modules/FlightPlan/Service.cs
+
         public async Task<FlightPlan> CreateAsync(CreateFlightPlanDto createDto)
         {
-            //var currentUserId = currentUserProvider.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated.");
+            var currentUserId = currentUserProvider.GetUserId()
+                                ?? throw new UnauthorizedAccessException("User not authenticated.");
 
             // Validate that the groundstation exists
             var groundStation = await groundStationService.GetAsync(createDto.GsId);
-
             if (groundStation == null)
             {
                 throw new ArgumentException($"Ground station with ID {createDto.GsId} not found.", nameof(createDto.GsId));
@@ -54,8 +56,7 @@ namespace SatOps.Modules.FlightPlan
                 throw new ArgumentException($"Satellite with ID {createDto.SatId} not found.", nameof(createDto.SatId));
             }
 
-            // Validate commands - validation should already be done by model binding,
-            // but we double-check here for safety
+            // Validate commands
             var (isValid, errors) = createDto.Commands.ValidateAll();
             if (!isValid)
             {
@@ -70,8 +71,7 @@ namespace SatOps.Modules.FlightPlan
                 GroundStationId = createDto.GsId,
                 SatelliteId = createDto.SatId,
                 Status = FlightPlanStatus.Draft,
-                /* CreatedById = currentUserId, */
-                CreatedById = 1, // Temporary placeholder until user auth is implemented
+                CreatedById = currentUserId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

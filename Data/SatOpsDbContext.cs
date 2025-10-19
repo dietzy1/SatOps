@@ -144,12 +144,12 @@ namespace SatOps.Data
 
                 // --- Relationships ---
                 entity.HasOne(e => e.Satellite)
-                    .WithMany()
+                    .WithMany(s => s.Overpasses)
                     .HasForeignKey(e => e.SatelliteId)
                     .OnDelete(DeleteBehavior.Cascade);
 
                 entity.HasOne(e => e.GroundStation)
-                    .WithMany()
+                    .WithMany(gs => gs.Overpasses)
                     .HasForeignKey(e => e.GroundStationId)
                     .OnDelete(DeleteBehavior.Cascade);
 
@@ -168,9 +168,20 @@ namespace SatOps.Data
                 entity.Property(e => e.ReceivedAt).HasDefaultValueSql("timezone('utc', now())");
 
                 // --- Relationships ---
-                entity.HasOne(td => td.FlightPlan).WithMany().HasForeignKey(td => td.FlightPlanId).OnDelete(DeleteBehavior.Cascade);
-                entity.HasOne(td => td.Satellite).WithMany().HasForeignKey(td => td.SatelliteId).OnDelete(DeleteBehavior.Cascade);
-                entity.HasOne(td => td.GroundStation).WithMany().HasForeignKey(td => td.GroundStationId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(td => td.FlightPlan)
+                    .WithMany()
+                    .HasForeignKey(td => td.FlightPlanId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(td => td.Satellite)
+                    .WithMany(s => s.Telemetry)
+                    .HasForeignKey(td => td.SatelliteId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(td => td.GroundStation)
+                    .WithMany(gs => gs.Telemetry)
+                    .HasForeignKey(td => td.GroundStationId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
                 // --- Indexes ---
                 entity.HasIndex(e => new { e.SatelliteId, e.GroundStationId, e.Timestamp });
@@ -191,8 +202,15 @@ namespace SatOps.Data
 
                 // --- Relationships ---
                 // Images are dependent data. Cascade deletes are appropriate.
-                entity.HasOne(id => id.Satellite).WithMany().HasForeignKey(id => id.SatelliteId).OnDelete(DeleteBehavior.Cascade);
-                entity.HasOne(id => id.GroundStation).WithMany().HasForeignKey(id => id.GroundStationId).OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(id => id.Satellite)
+                    .WithMany(s => s.Images)
+                    .HasForeignKey(id => id.SatelliteId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(id => id.GroundStation)
+                    .WithMany(gs => gs.Images)
+                    .HasForeignKey(id => id.GroundStationId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
                 // --- Indexes ---
                 entity.HasIndex(e => new { e.Latitude, e.Longitude });
