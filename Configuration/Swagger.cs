@@ -164,15 +164,24 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
                 schema.Example = new OpenApiObject
                 {
                     ["commandType"] = new OpenApiString(CommandTypeConstants.TriggerCapture),
-                    ["executionTime"] = new OpenApiString("2025-10-10T12:00:00Z"),
-                    ["cameraId"] = new OpenApiString("1800 U-500c"),
-                    ["type"] = new OpenApiInteger(0),
-                    ["exposureMicroseconds"] = new OpenApiInteger(55000),
-                    ["iso"] = new OpenApiDouble(1.0),
-                    ["numImages"] = new OpenApiInteger(5),
-                    ["intervalMicroseconds"] = new OpenApiInteger(1000000),
-                    ["observationId"] = new OpenApiInteger(1),
-                    ["pipelineId"] = new OpenApiInteger(1)
+                    ["captureLocation"] = new OpenApiObject
+                    {
+                        ["latitude"] = new OpenApiDouble(55.6761),  // Copenhagen
+                        ["longitude"] = new OpenApiDouble(12.5683)
+                    },
+                    ["cameraSettings"] = new OpenApiObject
+                    {
+                        ["cameraId"] = new OpenApiString("1800 U-500c"),
+                        ["type"] = new OpenApiInteger(0),
+                        ["exposureMicroseconds"] = new OpenApiInteger(55000),
+                        ["iso"] = new OpenApiDouble(1.0),
+                        ["numImages"] = new OpenApiInteger(5),
+                        ["intervalMicroseconds"] = new OpenApiInteger(1000000),
+                        ["observationId"] = new OpenApiInteger(1),
+                        ["pipelineId"] = new OpenApiInteger(1)
+                    },
+                    ["maxOffNadirDegrees"] = new OpenApiDouble(10.0),
+                    ["maxSearchDurationHours"] = new OpenApiInteger(48)
                 };
             }
             else if (context.Type == typeof(TriggerPipelineCommand))
@@ -196,15 +205,24 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
                         new OpenApiObject
                         {
                             ["commandType"] = new OpenApiString(CommandTypeConstants.TriggerCapture),
-                            ["executionTime"] = new OpenApiString("2025-10-10T12:00:00Z"),
-                            ["cameraId"] = new OpenApiString("1800 U-500c"),
-                            ["type"] = new OpenApiInteger(0),
-                            ["exposureMicroseconds"] = new OpenApiInteger(55000),
-                            ["iso"] = new OpenApiDouble(1.0),
-                            ["numImages"] = new OpenApiInteger(5),
-                            ["intervalMicroseconds"] = new OpenApiInteger(1000000),
-                            ["observationId"] = new OpenApiInteger(1),
-                            ["pipelineId"] = new OpenApiInteger(1)
+                            ["captureLocation"] = new OpenApiObject
+                            {
+                                ["latitude"] = new OpenApiDouble(55.6761),  // Copenhagen
+                                ["longitude"] = new OpenApiDouble(12.5683)
+                            },
+                            ["cameraSettings"] = new OpenApiObject
+                            {
+                                ["cameraId"] = new OpenApiString("1800 U-500c"),
+                                ["type"] = new OpenApiInteger(0),
+                                ["exposureMicroseconds"] = new OpenApiInteger(55000),
+                                ["iso"] = new OpenApiDouble(1.0),
+                                ["numImages"] = new OpenApiInteger(5),
+                                ["intervalMicroseconds"] = new OpenApiInteger(1000000),
+                                ["observationId"] = new OpenApiInteger(1),
+                                ["pipelineId"] = new OpenApiInteger(1)
+                            },
+                            ["maxOffNadirDegrees"] = new OpenApiDouble(10.0),
+                            ["maxSearchDurationHours"] = new OpenApiInteger(48)
                         },
                         new OpenApiObject
                         {

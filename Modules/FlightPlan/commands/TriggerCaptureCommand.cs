@@ -4,93 +4,133 @@ using System.Text.Json.Serialization;
 namespace SatOps.Modules.FlightPlan.Commands
 {
     /// <summary>
-    /// Command to trigger image capture on the satellite camera
+    /// Command to trigger image capture on the satellite camera.
+    /// The execution time is automatically calculated based on the target location and satellite orbit.
     /// </summary>
     public class TriggerCaptureCommand : Command
     {
         public override string CommandType => CommandTypeConstants.TriggerCapture;
 
+        /// <summary>
+        /// This command requires execution time calculation based on imaging opportunities
+        /// </summary>
+        public override bool RequiresExecutionTimeCalculation => true;
+
         // Hardcoded CSP node address for the Camera Controller.
         // TODO: Find out if this is the correct node address. Might be in systemd.
         private const int CameraControllerNode = 2;
 
-        [Required(ErrorMessage = "CameraId is required")]
-        [StringLength(128, MinimumLength = 1, ErrorMessage = "CameraId must be between 1 and 128 characters")]
-        [JsonPropertyName("cameraId")]
-        public string? CameraId { get; set; }
+        /// <summary>
+        /// Geographic coordinates where the image should be captured.
+        /// The execution time will be calculated based on this location and the satellite's orbit.
+        /// </summary>
+        [Required(ErrorMessage = "CaptureLocation is required")]
+        [JsonPropertyName("captureLocation")]
+        public CaptureLocation? CaptureLocation { get; set; }
 
-        [Required(ErrorMessage = "Type is required")]
-        [JsonPropertyName("type")]
-        public CameraType? Type { get; set; }
+        /// <summary>
+        /// Camera configuration settings for the image capture
+        /// </summary>
+        [Required(ErrorMessage = "CameraSettings is required")]
+        [JsonPropertyName("cameraSettings")]
+        public CameraSettings? CameraSettings { get; set; }
 
-        [Required(ErrorMessage = "ExposureMicroseconds is required")]
-        [Range(0, 2_000_000, ErrorMessage = "ExposureMicroseconds must be between 0 and 2,000,000")]
-        [JsonPropertyName("exposureMicroseconds")]
-        public int? ExposureMicroseconds { get; set; }
+        /// <summary>
+        /// Maximum off-nadir angle (in degrees) acceptable for the image capture.
+        /// Lower values result in better image quality but fewer opportunities.
+        /// Default is 10 degrees.
+        /// </summary>
+        [Range(0.1, 45.0, ErrorMessage = "MaxOffNadirDegrees must be between 0.1 and 45 degrees")]
+        [JsonPropertyName("maxOffNadirDegrees")]
+        public double MaxOffNadirDegrees { get; set; } = 10.0;
 
-        [Required(ErrorMessage = "Iso is required")]
-        [Range(0.1, 10.0, ErrorMessage = "Iso must be between 0.1 and 10.0")]
-        [JsonPropertyName("iso")]
-        public double? Iso { get; set; }
-
-        [Required(ErrorMessage = "NumImages is required")]
-        [Range(1, 1000, ErrorMessage = "NumImages must be between 1 and 1000")]
-        [JsonPropertyName("numImages")]
-        public int? NumImages { get; set; }
-
-        [Required(ErrorMessage = "IntervalMicroseconds is required")]
-        [Range(0, 60_000_000, ErrorMessage = "IntervalMicroseconds must be between 0 and 60,000,000")]
-        [JsonPropertyName("intervalMicroseconds")]
-        public int? IntervalMicroseconds { get; set; }
-
-        [Required(ErrorMessage = "ObservationId is required")]
-        [Range(1, int.MaxValue, ErrorMessage = "ObservationId must be a positive integer")]
-        [JsonPropertyName("observationId")]
-        public int? ObservationId { get; set; }
-
-        [Required(ErrorMessage = "PipelineId is required")]
-        [Range(1, int.MaxValue, ErrorMessage = "PipelineId must be a positive integer")]
-        [JsonPropertyName("pipelineId")]
-        public int? PipelineId { get; set; }
+        /// <summary>
+        /// Maximum time window (in hours) to search for an imaging opportunity.
+        /// Default is 48 hours.
+        /// </summary>
+        [Range(1, 168, ErrorMessage = "MaxSearchDurationHours must be between 1 and 168 hours (1 week)")]
+        [JsonPropertyName("maxSearchDurationHours")]
+        public int MaxSearchDurationHours { get; set; } = 48;
 
         public override IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            // Custom validation: if capturing multiple images, interval must be > 0
-            if (NumImages.HasValue && IntervalMicroseconds.HasValue && NumImages > 1 && IntervalMicroseconds == 0)
+            // Call base validation (checks ExecutionTime requirements)
+            foreach (var result in base.Validate(validationContext))
             {
-                yield return new ValidationResult(
-                    "IntervalMicroseconds must be greater than 0 when capturing multiple images",
-                    new[] { nameof(IntervalMicroseconds) }
-                );
+                yield return result;
+            }
+
+            // Validate nested CameraSettings
+            if (CameraSettings != null)
+            {
+                // Custom validation: if capturing multiple images, interval must be > 0
+                if (CameraSettings.NumImages > 1 && CameraSettings.IntervalMicroseconds == 0)
+                {
+                    yield return new ValidationResult(
+                        "IntervalMicroseconds must be greater than 0 when capturing multiple images",
+                        new[] { nameof(CameraSettings.IntervalMicroseconds) }
+                    );
+                }
+
+                // Validate the CameraSettings object
+                var context = new ValidationContext(CameraSettings);
+                var results = new List<ValidationResult>();
+                if (!Validator.TryValidateObject(CameraSettings, context, results, validateAllProperties: true))
+                {
+                    foreach (var result in results)
+                    {
+                        yield return result;
+                    }
+                }
+            }
+
+            // Validate CaptureLocation
+            if (CaptureLocation != null)
+            {
+                var context = new ValidationContext(CaptureLocation);
+                var results = new List<ValidationResult>();
+                if (!Validator.TryValidateObject(CaptureLocation, context, results, validateAllProperties: true))
+                {
+                    foreach (var result in results)
+                    {
+                        yield return result;
+                    }
+                }
             }
         }
 
         public override Task<List<string>> CompileToCsh()
         {
+            // ExecutionTime must be set before compilation (via CalculateExecutionTimes)
+            if (!ExecutionTime.HasValue)
+            {
+                throw new InvalidOperationException(
+                    "ExecutionTime must be calculated before compiling TriggerCaptureCommand. " +
+                    "Ensure CalculateExecutionTimes() is called before CompileToCsh().");
+            }
+
+            if (CameraSettings == null)
+            {
+                throw new InvalidOperationException("CameraSettings is required for TriggerCaptureCommand compilation.");
+            }
+
+            //TODO: We need to figure out how to sleep/wait until ExecutionTime before running the capture commands
+            // Then we add that stuff here infront :)
+
             var script = new List<string>
             {
-                $"set camera_id_param \"{CameraId}\" -n {CameraControllerNode}",
-                $"set camera_type_param {(int)Type!.Value} -n {CameraControllerNode}",
-                $"set exposure_param {ExposureMicroseconds!.Value} -n {CameraControllerNode}",
-                $"set iso_param {Iso!.Value} -n {CameraControllerNode}",
-                $"set num_images_param {NumImages!.Value} -n {CameraControllerNode}",
-                $"set interval_param {IntervalMicroseconds!.Value} -n {CameraControllerNode}",
-                $"set obid_param {ObservationId!.Value} -n {CameraControllerNode}",
-                $"set pipeline_id_param {PipelineId!.Value} -n {CameraControllerNode}",
+                $"set camera_id_param \"{CameraSettings.CameraId}\" -n {CameraControllerNode}",
+                $"set camera_type_param {(int)CameraSettings.Type} -n {CameraControllerNode}",
+                $"set exposure_param {CameraSettings.ExposureMicroseconds} -n {CameraControllerNode}",
+                $"set iso_param {CameraSettings.Iso} -n {CameraControllerNode}",
+                $"set num_images_param {CameraSettings.NumImages} -n {CameraControllerNode}",
+                $"set interval_param {CameraSettings.IntervalMicroseconds} -n {CameraControllerNode}",
+                $"set obid_param {CameraSettings.ObservationId} -n {CameraControllerNode}",
+                $"set pipeline_id_param {CameraSettings.PipelineId} -n {CameraControllerNode}",
                 $"set capture_param 1 -n {CameraControllerNode}"
             };
 
             return Task.FromResult(script);
         }
-    }
-
-    /// <summary>
-    /// Camera types supported by the satellite
-    /// </summary>
-    public enum CameraType
-    {
-        VMB = 0,
-        IR = 1,
-        Test = 2
     }
 }

@@ -267,14 +267,31 @@ namespace SatOps.Modules.FlightPlan
                 throw new ArgumentException($"Flight plan with ID {flightPlanId} not found.");
             }
 
+            var satellite = await satelliteService.GetAsync(flightPlan.SatelliteId);
+            if (satellite == null)
+            {
+                throw new ArgumentException($"Satellite with ID {flightPlan.SatelliteId} not found.");
+            }
+
             var commands = flightPlan.GetCommands();
 
-            // Validate before compiling
+            // Validate before calculating execution times
             var (isValid, errors) = commands.ValidateAll();
             if (!isValid)
             {
                 throw new InvalidOperationException(
                     $"Cannot compile invalid flight plan. Errors: {string.Join("; ", errors)}");
+            }
+
+            // Calculate execution times for commands that require it (e.g., TriggerCaptureCommand)
+            try
+            {
+                await commands.CalculateExecutionTimesAsync(satellite, imagingCalculation);
+            }
+            catch (InvalidOperationException ex)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to calculate execution times: {ex.Message}", ex);
             }
 
             return await commands.CompileAllToCsh();

@@ -28,19 +28,42 @@ namespace SatOps.Modules.FlightPlan
         public abstract string CommandType { get; }
 
         /// <summary>
-        /// When this command should be executed (UTC)
+        /// When this command should be executed (UTC).
+        /// For some commands (like TriggerCaptureCommand), this is calculated automatically
+        /// based on target location and satellite orbit. For others, it must be provided by the user.
         /// </summary>
-        [Required(ErrorMessage = "ExecutionTime is required")]
         [JsonPropertyName("executionTime")]
         public DateTime? ExecutionTime { get; set; }
+
+        /// <summary>
+        /// Indicates whether this command requires execution time calculation
+        /// based on imaging opportunities (e.g., TriggerCaptureCommand).
+        /// Commands that override this to return true will have their ExecutionTime
+        /// calculated before compilation.
+        /// </summary>
+        public virtual bool RequiresExecutionTimeCalculation => false;
 
         /// <summary>
         /// Validates the command using data annotations and custom logic
         /// </summary>
         public virtual IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            // Default implementation - derived classes can override for custom validation
-            yield break;
+            // For commands that don't require execution time calculation, ExecutionTime is required
+            if (!RequiresExecutionTimeCalculation && !ExecutionTime.HasValue)
+            {
+                yield return new ValidationResult(
+                    "ExecutionTime is required",
+                    new[] { nameof(ExecutionTime) }
+                );
+            }
+            // For commands that do require calculation, ExecutionTime should not be provided by user
+            else if (RequiresExecutionTimeCalculation && ExecutionTime.HasValue)
+            {
+                yield return new ValidationResult(
+                    $"ExecutionTime should not be provided for {CommandType}. It will be calculated automatically based on target location.",
+                    new[] { nameof(ExecutionTime) }
+                );
+            }
         }
 
         /// <summary>
@@ -180,6 +203,65 @@ namespace SatOps.Modules.FlightPlan
             }
 
             return (errors.Count == 0, errors);
+        }
+
+        /// <summary>
+        /// Calculates execution times for commands that require it (e.g., TriggerCaptureCommand).
+        /// This should be called before CompileAllToCsh() for flight plans containing such commands.
+        /// </summary>
+        public static async Task CalculateExecutionTimesAsync(
+            this List<Command> commands,
+            SatOps.Modules.Satellite.Satellite satellite,
+            IImagingCalculation imagingCalculation,
+            DateTime? commandReceptionTime = null)
+        {
+            if (string.IsNullOrWhiteSpace(satellite.TleLine1) || string.IsNullOrWhiteSpace(satellite.TleLine2))
+            {
+                throw new InvalidOperationException($"Satellite '{satellite.Name}' does not have valid TLE data.");
+            }
+
+            var tle = new SGPdotNET.TLE.Tle(satellite.Name, satellite.TleLine1, satellite.TleLine2);
+            var sgp4Satellite = new SGPdotNET.Observation.Satellite(tle);
+            var receptionTime = commandReceptionTime ?? DateTime.UtcNow;
+
+            foreach (var command in commands)
+            {
+                if (command is TriggerCaptureCommand captureCommand && captureCommand.RequiresExecutionTimeCalculation)
+                {
+                    if (captureCommand.CaptureLocation == null)
+                    {
+                        throw new InvalidOperationException(
+                            $"TriggerCaptureCommand requires CaptureLocation to calculate execution time.");
+                    }
+
+                    // Create target coordinate
+                    var targetCoordinate = new SGPdotNET.CoordinateSystem.GeodeticCoordinate(
+                        SGPdotNET.Util.Angle.FromDegrees(captureCommand.CaptureLocation.Latitude),
+                        SGPdotNET.Util.Angle.FromDegrees(captureCommand.CaptureLocation.Longitude),
+                        0); // Ground level
+
+                    var maxSearchDuration = TimeSpan.FromHours(captureCommand.MaxSearchDurationHours);
+
+                    var imagingOpportunity = imagingCalculation.FindBestImagingOpportunity(
+                        sgp4Satellite,
+                        targetCoordinate,
+                        receptionTime,
+                        maxSearchDuration
+                    );
+
+                    // Check if the opportunity is within acceptable off-nadir angle
+                    if (imagingOpportunity.OffNadirDegrees > captureCommand.MaxOffNadirDegrees)
+                    {
+                        throw new InvalidOperationException(
+                            $"No imaging opportunity found within the off-nadir limit of {captureCommand.MaxOffNadirDegrees} degrees. " +
+                            $"Best opportunity found was {imagingOpportunity.OffNadirDegrees:F2} degrees off-nadir at {imagingOpportunity.ImagingTime:yyyy-MM-dd HH:mm:ss} UTC. " +
+                            $"Consider increasing MaxOffNadirDegrees or choosing a different target location.");
+                    }
+
+                    // Set the calculated execution time
+                    captureCommand.ExecutionTime = imagingOpportunity.ImagingTime;
+                }
+            }
         }
 
         /// <summary>
