@@ -33,9 +33,5 @@ namespace SatOps.Modules.Satellite
     {
         Active = 0,
         Inactive = 1,
-        Deorbited = 2,
-        Unknown = 3,
-        Decayed = 4,
-        Launched = 5
     }
 }

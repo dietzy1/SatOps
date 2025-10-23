@@ -11,7 +11,7 @@ namespace SatOps.Modules.Satellite
         [Required]
         [Range(1, 999999999, ErrorMessage = "NoradId must be positive and 1 to 9 digits long")]
         public int NoradId { get; set; }
-        public SatelliteStatus Status { get; set; }
+        public string Status { get; set; } = string.Empty;
         public TleDto Tle { get; set; } = new();
         public DateTime CreatedAt { get; set; }
         public DateTime LastUpdate { get; set; }
@@ -23,6 +23,17 @@ namespace SatOps.Modules.Satellite
         public string Line1 { get; set; } = string.Empty;
         [Required]
         public string Line2 { get; set; } = string.Empty;
+    }
+
+    public static class SatelliteStatusExtensions
+    {
+        public static string ToScreamCase(this SatelliteStatus status) =>
+            status switch
+            {
+                SatelliteStatus.Active => "ACTIVE",
+                SatelliteStatus.Inactive => "INACTIVE",
+                _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+            };
     }
 }
 

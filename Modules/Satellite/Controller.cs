@@ -31,7 +31,7 @@ namespace SatOps.Modules.Satellite
                 Id = entity.Id,
                 Name = entity.Name,
                 NoradId = entity.NoradId,
-                Status = entity.Status,
+                Status = entity.Status.ToScreamCase(),
                 Tle = new TleDto
                 {
                     Line1 = entity.TleLine1,
