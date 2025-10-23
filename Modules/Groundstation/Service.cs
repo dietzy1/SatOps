@@ -1,18 +1,6 @@
-using SatOps.Modules.Groundstation.Health;
+using SatOps.Modules.Gateway;
 using SatOps.Utils;
 using System.Security.Cryptography;
-
-// Other stuff we must figure out how to support.
-// Groundstations will send data to us, imageformat, logs etc we must have some sort of reciever endpoints for that that isn't exposed to the public
-// We must also have some sender endpoints for us to send commands to the groundstations
-// - Sender service for sending commands to groundstations
-// - Reciever service for receiving data from groundstations
-
-// What other stuff is needed for groundstations?
-// - Telemetry data processing
-// - Command scheduling
-// - Health monitoring
-// - Configuration management
 
 namespace SatOps.Modules.Groundstation
 {
@@ -23,17 +11,34 @@ namespace SatOps.Modules.Groundstation
         Task<(GroundStation createdStation, string rawApiKey)> CreateAsync(GroundStation entity);
         Task<GroundStation?> PatchAsync(int id, GroundStationPatchDto patchDto);
         Task<bool> DeleteAsync(int id);
-        Task<bool> UpdateHealthStatusAsync(int id, bool isActive);
-        Task<(GroundStation? station, bool isHealthy)> GetRealTimeHealthStatusAsync(int id);
-        Task<List<GroundStation>> GetActiveStationsAsync();
+        Task<List<GroundStation>> GetConnectedStationsAsync();
     }
 
-    public class GroundStationService(IGroundStationRepository repository, IGroundStationHealthService healthService) : IGroundStationService
+    public class GroundStationService(IGroundStationRepository repository, IGroundStationGatewayService gatewayService) : IGroundStationService
     {
         private const double Epsilon = 1e-6;
-        public Task<List<GroundStation>> ListAsync() => repository.GetAllAsync();
+        public async Task<List<GroundStation>> ListAsync()
+        {
+            var stations = await repository.GetAllAsync();
+            foreach (var station in stations)
+            {
+                station.Connected = gatewayService.IsGroundStationConnected(station.Id);
+            }
+            return stations;
+        }
 
-        public Task<GroundStation?> GetAsync(int id) => repository.GetByIdAsync(id);
+        public async Task<GroundStation?> GetAsync(int id)
+        {
+            var connected = gatewayService.IsGroundStationConnected(id);
+
+            var gs = await repository.GetByIdAsync(id);
+            if (gs != null)
+            {
+                gs.Connected = connected;
+            }
+
+            return gs;
+        }
 
         public async Task<(GroundStation createdStation, string rawApiKey)> CreateAsync(GroundStation entity)
         {
@@ -84,12 +89,6 @@ namespace SatOps.Modules.Groundstation
                 }
             }
 
-            if (patchDto.HttpUrl != null && existing.HttpUrl != patchDto.HttpUrl)
-            {
-                existing.HttpUrl = patchDto.HttpUrl;
-                hasChanges = true;
-            }
-
             if (!hasChanges)
             {
                 return existing;
@@ -100,43 +99,11 @@ namespace SatOps.Modules.Groundstation
 
         public Task<bool> DeleteAsync(int id) => repository.DeleteAsync(id);
 
-        public async Task<List<GroundStation>> GetActiveStationsAsync()
+        public async Task<List<GroundStation>> GetConnectedStationsAsync()
         {
             var allStations = await repository.GetAllAsync();
-            return allStations.Where(s => s.IsActive).ToList();
-        }
-
-        public async Task<bool> UpdateHealthStatusAsync(int id, bool isActive)
-        {
-            var existing = await repository.GetByIdTrackedAsync(id);
-            if (existing == null) return false;
-
-            if (existing.IsActive == isActive)
-            {
-                return true;
-            }
-
-            existing.IsActive = isActive;
-
-            var updated = await repository.UpdateAsync(existing);
-            return updated != null;
-        }
-
-        public async Task<(GroundStation? station, bool isHealthy)> GetRealTimeHealthStatusAsync(int id)
-        {
-            var station = await repository.GetByIdAsync(id);
-            if (station == null) return (null, false);
-
-            // Make actual HTTP call to the ground station's health endpoint
-            var isHealthy = await healthService.CheckHealthAsync(station);
-
-            // Optionally update the database with the current health status
-            if (station.IsActive != isHealthy)
-            {
-                await healthService.UpdateStationHealthAsync(id, isHealthy);
-            }
-
-            return (station, isHealthy);
+            // Filter stations that are connected via WebSocket
+            return allStations.Where(s => gatewayService.IsGroundStationConnected(s.Id)).ToList();
         }
 
         private static bool IsDifferent(double a, double b) => Math.Abs(a - b) > Epsilon;

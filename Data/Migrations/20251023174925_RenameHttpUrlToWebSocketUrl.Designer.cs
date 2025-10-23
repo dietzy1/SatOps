@@ -4,18 +4,21 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SatOps.Data;
 
 #nullable disable
 
-namespace SatOps.data.migrations
+namespace SatOps.Data.Migrations
 {
     [DbContext(typeof(SatOpsDbContext))]
-    partial class SatOpsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251023174925_RenameHttpUrlToWebSocketUrl")]
+    partial class RenameHttpUrlToWebSocketUrl
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -126,6 +129,11 @@ namespace SatOps.data.migrations
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("WebSocketUrl")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("websocket_url");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ApplicationId")
@@ -138,10 +146,11 @@ namespace SatOps.data.migrations
                         {
                             Id = 1,
                             ApiKeyHash = "",
-                            ApplicationId = new Guid("4e020e62-1bd8-4c92-881e-5745826db59d"),
-                            CreatedAt = new DateTime(2025, 10, 23, 18, 22, 35, 216, DateTimeKind.Utc).AddTicks(2440),
+                            ApplicationId = new Guid("a34213de-796c-46ab-bada-55efb0627b2e"),
+                            CreatedAt = new DateTime(2025, 10, 23, 17, 49, 24, 776, DateTimeKind.Utc).AddTicks(250),
                             Name = "Aarhus",
-                            UpdatedAt = new DateTime(2025, 10, 23, 18, 22, 35, 216, DateTimeKind.Utc).AddTicks(2440)
+                            UpdatedAt = new DateTime(2025, 10, 23, 17, 49, 24, 776, DateTimeKind.Utc).AddTicks(250),
+                            WebSocketUrl = "ws://aarhus-groundstation.example.com"
                         });
                 });
 
@@ -371,8 +380,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 23, 18, 22, 35, 216, DateTimeKind.Utc).AddTicks(2560),
-                            LastUpdate = new DateTime(2025, 10, 23, 18, 22, 35, 216, DateTimeKind.Utc).AddTicks(2570),
+                            CreatedAt = new DateTime(2025, 10, 23, 17, 49, 24, 776, DateTimeKind.Utc).AddTicks(390),
+                            LastUpdate = new DateTime(2025, 10, 23, 17, 49, 24, 776, DateTimeKind.Utc).AddTicks(400),
                             Name = "International Space Station (ISS)",
                             NoradId = 25544,
                             Status = 0,
@@ -382,8 +391,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 23, 18, 22, 35, 216, DateTimeKind.Utc).AddTicks(2570),
-                            LastUpdate = new DateTime(2025, 10, 23, 18, 22, 35, 216, DateTimeKind.Utc).AddTicks(2570),
+                            CreatedAt = new DateTime(2025, 10, 23, 17, 49, 24, 776, DateTimeKind.Utc).AddTicks(400),
+                            LastUpdate = new DateTime(2025, 10, 23, 17, 49, 24, 776, DateTimeKind.Utc).AddTicks(400),
                             Name = "SENTINEL-2C",
                             NoradId = 60989,
                             Status = 0,
@@ -507,7 +516,7 @@ namespace SatOps.data.migrations
 
             modelBuilder.Entity("SatOps.Modules.Groundstation.GroundStation", b =>
                 {
-                    b.OwnsOne("SatOps.Modules.Groundstation.GroundStation.Location#SatOps.Modules.Groundstation.Location", "Location", b1 =>
+                    b.OwnsOne("SatOps.Modules.Groundstation.Location", "Location", b1 =>
                         {
                             b1.Property<int>("GroundStationId")
                                 .HasColumnType("integer");
@@ -528,7 +537,7 @@ namespace SatOps.data.migrations
 
                             b1.HasKey("GroundStationId");
 
-                            b1.ToTable("ground_stations", (string)null);
+                            b1.ToTable("ground_stations");
 
                             b1.WithOwner()
                                 .HasForeignKey("GroundStationId");

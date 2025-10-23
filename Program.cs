@@ -11,7 +11,6 @@ using SatOps.Modules.Groundstation;
 using SatOps.Modules.FlightPlan;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.User;
-using SatOps.Modules.Groundstation.Health;
 using SatOps.Modules.Operation;
 using SatOps.Modules.Gateway;
 using SatOps.Authorization;
@@ -192,12 +191,8 @@ try
     builder.Services.AddScoped<IAuthorizationHandler, RoleAuthorizationHandler>();
     builder.Services.AddScoped<IClaimsTransformation, UserPermissionsClaimsTransformation>();
 
-
-    // Health check services
-    builder.Services.AddHttpClient<IGroundStationHealthService, GroundStationHealthService>();
+    // Background services
     builder.Services.AddHostedService<GroundStationHealthCheckWorker>();
-
-    // Scheduler
     builder.Services.AddHostedService<SchedulerService>();
 
 

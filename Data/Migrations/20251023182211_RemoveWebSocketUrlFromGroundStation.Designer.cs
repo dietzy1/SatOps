@@ -4,18 +4,21 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SatOps.Data;
 
 #nullable disable
 
-namespace SatOps.data.migrations
+namespace SatOps.Data.Migrations
 {
     [DbContext(typeof(SatOpsDbContext))]
-    partial class SatOpsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251023182211_RemoveWebSocketUrlFromGroundStation")]
+    partial class RemoveWebSocketUrlFromGroundStation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -138,10 +141,10 @@ namespace SatOps.data.migrations
                         {
                             Id = 1,
                             ApiKeyHash = "",
-                            ApplicationId = new Guid("4e020e62-1bd8-4c92-881e-5745826db59d"),
-                            CreatedAt = new DateTime(2025, 10, 23, 18, 22, 35, 216, DateTimeKind.Utc).AddTicks(2440),
+                            ApplicationId = new Guid("34bfac3d-4a58-4574-b891-851074104f8e"),
+                            CreatedAt = new DateTime(2025, 10, 23, 18, 22, 10, 803, DateTimeKind.Utc).AddTicks(290),
                             Name = "Aarhus",
-                            UpdatedAt = new DateTime(2025, 10, 23, 18, 22, 35, 216, DateTimeKind.Utc).AddTicks(2440)
+                            UpdatedAt = new DateTime(2025, 10, 23, 18, 22, 10, 803, DateTimeKind.Utc).AddTicks(290)
                         });
                 });
 
@@ -371,8 +374,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 10, 23, 18, 22, 35, 216, DateTimeKind.Utc).AddTicks(2560),
-                            LastUpdate = new DateTime(2025, 10, 23, 18, 22, 35, 216, DateTimeKind.Utc).AddTicks(2570),
+                            CreatedAt = new DateTime(2025, 10, 23, 18, 22, 10, 803, DateTimeKind.Utc).AddTicks(430),
+                            LastUpdate = new DateTime(2025, 10, 23, 18, 22, 10, 803, DateTimeKind.Utc).AddTicks(430),
                             Name = "International Space Station (ISS)",
                             NoradId = 25544,
                             Status = 0,
@@ -382,8 +385,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 10, 23, 18, 22, 35, 216, DateTimeKind.Utc).AddTicks(2570),
-                            LastUpdate = new DateTime(2025, 10, 23, 18, 22, 35, 216, DateTimeKind.Utc).AddTicks(2570),
+                            CreatedAt = new DateTime(2025, 10, 23, 18, 22, 10, 803, DateTimeKind.Utc).AddTicks(430),
+                            LastUpdate = new DateTime(2025, 10, 23, 18, 22, 10, 803, DateTimeKind.Utc).AddTicks(430),
                             Name = "SENTINEL-2C",
                             NoradId = 60989,
                             Status = 0,
@@ -507,7 +510,7 @@ namespace SatOps.data.migrations
 
             modelBuilder.Entity("SatOps.Modules.Groundstation.GroundStation", b =>
                 {
-                    b.OwnsOne("SatOps.Modules.Groundstation.GroundStation.Location#SatOps.Modules.Groundstation.Location", "Location", b1 =>
+                    b.OwnsOne("SatOps.Modules.Groundstation.Location", "Location", b1 =>
                         {
                             b1.Property<int>("GroundStationId")
                                 .HasColumnType("integer");
@@ -528,7 +531,7 @@ namespace SatOps.data.migrations
 
                             b1.HasKey("GroundStationId");
 
-                            b1.ToTable("ground_stations", (string)null);
+                            b1.ToTable("ground_stations");
 
                             b1.WithOwner()
                                 .HasForeignKey("GroundStationId");

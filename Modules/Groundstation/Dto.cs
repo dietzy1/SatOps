@@ -25,11 +25,9 @@ namespace SatOps.Modules.Groundstation
         public string Name { get; set; } = string.Empty;
         [Required(ErrorMessage = "Location is required")]
         public LocationDto Location { get; set; } = new();
-        [Required(ErrorMessage = "HTTP URL is required")]
-        [Url(ErrorMessage = "Invalid URL format")]
-        public string HttpUrl { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
-        public bool IsActive { get; set; }
+
+        public bool Connected { get; set; }
     }
 
     public class GroundStationCreateDto
@@ -38,9 +36,6 @@ namespace SatOps.Modules.Groundstation
         public string Name { get; set; } = string.Empty;
         [Required]
         public LocationDto Location { get; set; } = new();
-        [Required]
-        [Url]
-        public string HttpUrl { get; set; } = string.Empty;
     }
 
     public class GroundStationWithApiKeyDto
@@ -61,22 +56,22 @@ namespace SatOps.Modules.Groundstation
         [Required(ErrorMessage = "Location is required")]
         public LocationDto Location { get; set; } = new();
 
-        [Required(ErrorMessage = "HTTP URL is required")]
-        [Url(ErrorMessage = "Invalid URL format")]
-        public string HttpUrl { get; set; } = string.Empty;
-
         [Required]
         public DateTime CreatedAt { get; set; }
-
-        [Required]
-        public bool IsActive { get; set; }
     }
 
     public class GroundStationPatchDto
     {
         public string? Name { get; set; }
         public LocationDto? Location { get; set; }
-        [Url]
-        public string? HttpUrl { get; set; }
+    }
+
+    public class GroundStationHealthDto
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public bool Connected { get; set; }
+        public DateTime LastUpdated { get; set; }
+        public DateTime CheckedAt { get; set; } = DateTime.UtcNow;
     }
 }

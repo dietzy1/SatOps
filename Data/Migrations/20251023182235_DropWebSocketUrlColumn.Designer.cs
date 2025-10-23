@@ -4,18 +4,21 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SatOps.Data;
 
 #nullable disable
 
-namespace SatOps.data.migrations
+namespace SatOps.Data.Migrations
 {
     [DbContext(typeof(SatOpsDbContext))]
-    partial class SatOpsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251023182235_DropWebSocketUrlColumn")]
+    partial class DropWebSocketUrlColumn
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -507,7 +510,7 @@ namespace SatOps.data.migrations
 
             modelBuilder.Entity("SatOps.Modules.Groundstation.GroundStation", b =>
                 {
-                    b.OwnsOne("SatOps.Modules.Groundstation.GroundStation.Location#SatOps.Modules.Groundstation.Location", "Location", b1 =>
+                    b.OwnsOne("SatOps.Modules.Groundstation.Location", "Location", b1 =>
                         {
                             b1.Property<int>("GroundStationId")
                                 .HasColumnType("integer");
@@ -528,7 +531,7 @@ namespace SatOps.data.migrations
 
                             b1.HasKey("GroundStationId");
 
-                            b1.ToTable("ground_stations", (string)null);
+                            b1.ToTable("ground_stations");
 
                             b1.WithOwner()
                                 .HasForeignKey("GroundStationId");

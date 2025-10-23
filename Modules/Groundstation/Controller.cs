@@ -1,10 +1,13 @@
 using Microsoft.AspNetCore.Mvc;
+using SatOps.Modules.Gateway;
 
 namespace SatOps.Modules.Groundstation
 {
     [ApiController]
     [Route("api/v1/ground-stations")]
-    public class GroundStationsManagementController(IGroundStationService service) : ControllerBase
+    public class GroundStationsManagementController(
+        IGroundStationService service,
+        IGroundStationGatewayService gatewayService) : ControllerBase
     {
         [HttpGet]
         public async Task<ActionResult<List<GroundStationDto>>> List()
@@ -21,6 +24,33 @@ namespace SatOps.Modules.Groundstation
             return Ok(MapToDto(item));
         }
 
+        /// <summary>
+        /// Get the health/connection status of a specific ground station
+        /// </summary>
+        /// <param name="id">The ground station ID</param>
+        /// <returns>Health status information</returns>
+        [HttpGet("{id:int}/health")]
+        public async Task<ActionResult<GroundStationHealthDto>> GetHealth(int id)
+        {
+            var station = await service.GetAsync(id);
+            if (station == null)
+            {
+                return NotFound($"Ground station with ID {id} not found");
+            }
+
+            var isConnected = gatewayService.IsGroundStationConnected(id);
+
+            var healthDto = new GroundStationHealthDto
+            {
+                Id = station.Id,
+                Name = station.Name,
+                Connected = isConnected,
+                LastUpdated = DateTime.UtcNow
+            };
+
+            return Ok(healthDto);
+        }
+
         [HttpPost]
         public async Task<ActionResult<GroundStationWithApiKeyDto>> Create([FromBody] GroundStationCreateDto input)
         {
@@ -32,8 +62,7 @@ namespace SatOps.Modules.Groundstation
                     Latitude = input.Location.Latitude!.Value,
                     Longitude = input.Location.Longitude!.Value,
                     Altitude = input.Location.Altitude.GetValueOrDefault()
-                },
-                HttpUrl = input.HttpUrl,
+                }
             };
 
             var (created, rawApiKey) = await service.CreateAsync(entity);
@@ -74,9 +103,8 @@ namespace SatOps.Modules.Groundstation
                     Longitude = entity.Location.Longitude,
                     Altitude = entity.Location.Altitude
                 },
-                HttpUrl = entity.HttpUrl,
                 CreatedAt = entity.CreatedAt,
-                IsActive = entity.IsActive
+                Connected = entity.Connected
             };
         }
 
@@ -94,9 +122,7 @@ namespace SatOps.Modules.Groundstation
                     Longitude = entity.Location.Longitude,
                     Altitude = entity.Location.Altitude
                 },
-                HttpUrl = entity.HttpUrl,
-                CreatedAt = entity.CreatedAt,
-                IsActive = entity.IsActive
+                CreatedAt = entity.CreatedAt
             };
         }
     }

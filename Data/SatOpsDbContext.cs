@@ -68,9 +68,7 @@ namespace SatOps.Data
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Id).UseIdentityByDefaultColumn();
                 entity.Property(e => e.Name).IsRequired();
-                entity.Property(e => e.HttpUrl).IsRequired();
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
-                entity.Property(e => e.IsActive).HasDefaultValue(false);
 
                 entity.HasIndex(e => e.ApplicationId).IsUnique();
 
@@ -241,8 +239,6 @@ namespace SatOps.Data
                 {
                     Id = 1,
                     Name = "Aarhus",
-                    HttpUrl = "http://aarhus-groundstation.example.com",
-                    IsActive = false,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow
                 }

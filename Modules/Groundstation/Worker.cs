@@ -1,4 +1,4 @@
-namespace SatOps.Modules.Groundstation.Health
+namespace SatOps.Modules.Groundstation
 {
     public class GroundStationHealthCheckWorker : BackgroundService
     {
@@ -22,7 +22,6 @@ namespace SatOps.Modules.Groundstation.Health
         {
             _logger.LogDebug("Ground Station Health Check Worker started with interval: {Interval}", _checkInterval);
 
-            // Wait a bit before starting the first check to allow the application to fully initialize
             await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken);
 
             while (!stoppingToken.IsCancellationRequested)
@@ -42,7 +41,6 @@ namespace SatOps.Modules.Groundstation.Health
                 }
                 catch (OperationCanceledException)
                 {
-                    // Expected when the service is stopping
                     break;
                 }
             }
@@ -53,18 +51,27 @@ namespace SatOps.Modules.Groundstation.Health
         private async Task PerformHealthChecksAsync()
         {
             using var scope = _serviceProvider.CreateScope();
-            var healthService = scope.ServiceProvider.GetRequiredService<IGroundStationHealthService>();
+            var gatewayService = scope.ServiceProvider.GetRequiredService<Gateway.IGroundStationGatewayService>();
+            var repository = scope.ServiceProvider.GetRequiredService<IGroundStationRepository>();
 
             _logger.LogDebug("Starting health check cycle");
 
-            var healthResults = await healthService.CheckAllStationsHealthAsync();
+            var stations = await repository.GetAllAsync();
+            var disconnectedStations = stations.Where(s => !gatewayService.IsGroundStationConnected(s.Id)).ToList();
 
-            foreach (var (stationId, isHealthy) in healthResults)
+            if (disconnectedStations.Count > 0)
             {
-                await healthService.UpdateStationHealthAsync(stationId, isHealthy);
+                foreach (var station in disconnectedStations)
+                {
+                    _logger.LogWarning("Ground station {StationId} ({Name}) is not connected via WebSocket",
+                        station.Id, station.Name);
+                }
             }
 
-            _logger.LogDebug("Completed health check cycle for {Count} stations", healthResults.Count);
+            _logger.LogDebug("Completed health check cycle for {TotalCount} stations ({ConnectedCount} connected, {DisconnectedCount} disconnected)",
+                stations.Count,
+                stations.Count - disconnectedStations.Count,
+                disconnectedStations.Count);
         }
 
         public override async Task StopAsync(CancellationToken stoppingToken)

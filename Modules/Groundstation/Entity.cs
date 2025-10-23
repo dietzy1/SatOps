@@ -17,9 +17,6 @@ namespace SatOps.Modules.Groundstation
         public Location Location { get; set; } = null!;
 
         [Required]
-        public string HttpUrl { get; set; } = string.Empty;
-
-        [Required]
         public Guid ApplicationId { get; set; } = Guid.NewGuid();
 
         [Required]
@@ -27,14 +24,16 @@ namespace SatOps.Modules.Groundstation
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-        public bool IsActive { get; set; } = false; // Maybe rename to IsHealthy or similar
+
+        // Runtime property - not stored in database
+        [NotMapped]
+        public bool Connected { get; set; }
 
         // Inverse Navigation Properties
         public virtual ICollection<FlightPlan.FlightPlan> FlightPlans { get; set; } = new List<FlightPlan.FlightPlan>();
         public virtual ICollection<Overpass.Entity> Overpasses { get; set; } = new List<Overpass.Entity>();
         public virtual ICollection<Operation.ImageData> Images { get; set; } = new List<Operation.ImageData>();
         public virtual ICollection<Operation.TelemetryData> Telemetry { get; set; } = new List<Operation.TelemetryData>();
-
     }
 
     public class Location
