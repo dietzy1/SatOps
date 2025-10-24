@@ -25,6 +25,12 @@ namespace SatOps.Modules.Satellite
         public string Line2 { get; set; } = string.Empty;
     }
 
+    public class TleRefreshResultDto
+    {
+        public int UpdatedCount { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+
     public static class SatelliteStatusExtensions
     {
         public static string ToScreamCase(this SatelliteStatus status) =>

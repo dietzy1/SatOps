@@ -5,6 +5,7 @@ namespace SatOps.Modules.Satellite
         Task<List<Satellite>> ListAsync();
         Task<Satellite?> GetAsync(int id);
         Task<List<Satellite>> GetActiveSatellitesAsync();
+        Task<bool?> RefreshTleDataAsync(int satelliteId);
     }
 
     public class SatelliteService(ISatelliteRepository repository, ICelestrackClient celestrackClient) : ISatelliteService
@@ -47,6 +48,38 @@ namespace SatOps.Modules.Satellite
         {
             var allSatellites = await repository.GetAllAsync();
             return allSatellites.Where(s => s.Status == SatelliteStatus.Active).ToList();
+        }
+
+        public async Task<bool?> RefreshTleDataAsync(int satelliteId)
+        {
+            var satellite = await repository.GetByIdAsync(satelliteId);
+            if (satellite == null)
+            {
+                return null;
+            }
+
+            var tleData = await celestrackClient.FetchTleAsync(satellite.NoradId);
+            if (tleData == null)
+            {
+                return false;
+            }
+
+            var lines = tleData.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            if (lines.Length < 3)
+            {
+                return false;
+            }
+
+            var tleLine1 = lines[1].Trim();
+            var tleLine2 = lines[2].Trim();
+
+            if (satellite.TleLine1 == tleLine1 && satellite.TleLine2 == tleLine2)
+            {
+                return false;
+            }
+
+            await repository.UpdateTleAsync(satellite.Id, tleLine1, tleLine2);
+            return true;
         }
     }
 }

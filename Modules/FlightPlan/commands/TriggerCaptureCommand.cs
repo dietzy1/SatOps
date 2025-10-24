@@ -35,23 +35,6 @@ namespace SatOps.Modules.FlightPlan.Commands
         [JsonPropertyName("cameraSettings")]
         public CameraSettings? CameraSettings { get; set; }
 
-        /// <summary>
-        /// Maximum off-nadir angle (in degrees) acceptable for the image capture.
-        /// Lower values result in better image quality but fewer opportunities.
-        /// Default is 10 degrees.
-        /// </summary>
-        [Range(0.1, 45.0, ErrorMessage = "MaxOffNadirDegrees must be between 0.1 and 45 degrees")]
-        [JsonPropertyName("maxOffNadirDegrees")]
-        public double MaxOffNadirDegrees { get; set; } = 10.0;
-
-        /// <summary>
-        /// Maximum time window (in hours) to search for an imaging opportunity.
-        /// Default is 48 hours.
-        /// </summary>
-        [Range(1, 168, ErrorMessage = "MaxSearchDurationHours must be between 1 and 168 hours (1 week)")]
-        [JsonPropertyName("maxSearchDurationHours")]
-        public int MaxSearchDurationHours { get; set; } = 48;
-
         public override IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
             // Call base validation (checks ExecutionTime requirements)

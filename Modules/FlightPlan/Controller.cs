@@ -94,7 +94,7 @@ namespace SatOps.Modules.FlightPlan
             return Ok(new { success = true, message });
         }
 
-        [HttpPost("{id}/associate-overpass")]
+        [HttpPost("{id}/overpasses")]
         [Authorize(Policy = "WriteFlightPlans")]
         public async Task<ActionResult> AssociateOverpass(
             int id,
@@ -129,7 +129,7 @@ namespace SatOps.Modules.FlightPlan
         }
 
 
-        [HttpGet("imaging-opportunity")]
+        [HttpGet("imaging-opportunities")]
         [Authorize(Policy = "ReadFlightPlans")]
         public async Task<ActionResult<ImagingTimingResponseDto>> GetImagingOpportunity([FromQuery] ImagingTimingRequestDto request)
         {

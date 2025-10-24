@@ -240,7 +240,9 @@ namespace SatOps.Modules.FlightPlan
                         SGPdotNET.Util.Angle.FromDegrees(captureCommand.CaptureLocation.Longitude),
                         0); // Ground level
 
-                    var maxSearchDuration = TimeSpan.FromHours(captureCommand.MaxSearchDurationHours);
+
+                    var maxSearchDuration = TimeSpan.FromHours(48);
+                    var minOffNadirDegrees = 10.0;
 
                     var imagingOpportunity = imagingCalculation.FindBestImagingOpportunity(
                         sgp4Satellite,
@@ -250,10 +252,10 @@ namespace SatOps.Modules.FlightPlan
                     );
 
                     // Check if the opportunity is within acceptable off-nadir angle
-                    if (imagingOpportunity.OffNadirDegrees > captureCommand.MaxOffNadirDegrees)
+                    if (imagingOpportunity.OffNadirDegrees > minOffNadirDegrees)
                     {
                         throw new InvalidOperationException(
-                            $"No imaging opportunity found within the off-nadir limit of {captureCommand.MaxOffNadirDegrees} degrees. " +
+                            $"No imaging opportunity found within the off-nadir limit of {minOffNadirDegrees} degrees. " +
                             $"Best opportunity found was {imagingOpportunity.OffNadirDegrees:F2} degrees off-nadir at {imagingOpportunity.ImagingTime:yyyy-MM-dd HH:mm:ss} UTC. " +
                             $"Consider increasing MaxOffNadirDegrees or choosing a different target location.");
                     }

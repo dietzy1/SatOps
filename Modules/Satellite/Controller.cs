@@ -24,6 +24,19 @@ namespace SatOps.Modules.Satellite
             return Ok(MapToDto(item));
         }
 
+        [HttpPost("{id:int}/tle")]
+        public async Task<ActionResult<bool>> RefreshTleData(int id)
+        {
+            var result = await service.RefreshTleDataAsync(id);
+
+            if (result == null)
+            {
+                return NotFound($"Satellite with ID {id} not found.");
+            }
+
+            return Ok(result.Value);
+        }
+
         private static SatelliteDto MapToDto(Satellite entity)
         {
             return new SatelliteDto
