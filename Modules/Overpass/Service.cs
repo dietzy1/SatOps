@@ -11,7 +11,7 @@ namespace SatOps.Modules.Overpass
         Task<List<OverpassWindowDto>> CalculateOverpassesAsync(OverpassWindowsCalculationRequestDto request);
         Task<Entity> StoreOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null);
         Task<Entity?> GetStoredOverpassAsync(int id);
-        Task<Entity?> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null);
+        Task<Entity> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null);
     }
 
     public class OverpassService(ISatelliteService satelliteService, IGroundStationService groundStationService, IOverpassRepository overpassRepository) : IOverpassService
@@ -139,6 +139,10 @@ namespace SatOps.Modules.Overpass
 
                 return mergedOverpasses;
             }
+            catch (ArgumentException)
+            {
+                throw; // Re-throw ArgumentException to be handled by the controller
+            }
             catch (InvalidOperationException)
             {
                 throw; // Re-throw InvalidOperationException to be handled by the controller
@@ -175,7 +179,7 @@ namespace SatOps.Modules.Overpass
             return await overpassRepository.GetByIdReadOnlyAsync(id);
         }
 
-        public async Task<Entity?> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null)
+        public async Task<Entity> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null)
         {
             // First try to find an existing overpass that matches
             var existingOverpass = await overpassRepository.FindExistingOverpassAsync(

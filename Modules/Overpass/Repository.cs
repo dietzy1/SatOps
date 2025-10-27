@@ -14,7 +14,7 @@ namespace SatOps.Modules.Overpass
         Task<List<Entity>> GetByTimeRangeAsync(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime);
         Task<Entity?> FindExistingOverpassAsync(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime, double maxElevation);
         Task<List<Entity>> FindStoredOverpassesInTimeRange(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime);
-        Task<SatOps.Modules.FlightPlan.FlightPlan?> GetAssociatedFlightPlanAsync(int overpassId);
+        Task<FlightPlan.FlightPlan?> GetAssociatedFlightPlanAsync(int overpassId);
     }
 
     public class OverpassRepository(SatOpsDbContext dbContext) : IOverpassRepository
