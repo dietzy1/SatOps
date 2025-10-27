@@ -1,3 +1,4 @@
+// I hate this Mads - NO UTIL FILES 😡
 namespace SatOps.Utils
 {
     public static class ApiKeyHasher

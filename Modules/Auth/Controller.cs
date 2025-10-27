@@ -6,7 +6,7 @@ using UserEntity = SatOps.Modules.User.User;
 namespace SatOps.Modules.Auth
 {
     [ApiController]
-    [Route("api/auth")]
+    [Route("api/v1/auth")]
     public class AuthController(IAuthService authService, IUserService userService) : ControllerBase
     {
         [HttpPost("station/token")]

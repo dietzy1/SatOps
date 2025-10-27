@@ -48,29 +48,34 @@ namespace SatOps.Modules.FlightPlan
         }
 
         [HttpPut("{id}")]
-        [Authorize(Policy = "WriteFlightPlans")]
-        public ActionResult<FlightPlanDto> Update(
+        /* [Authorize(Policy = "WriteFlightPlans")] */
+        public async Task<ActionResult<FlightPlanDto>> Update(
             int id,
             [FromBody] CreateFlightPlanDto input)
         {
-            /*     try
+            try
+            {
+                var newVersion = await service.CreateNewVersionAsync(id, input);
+                if (newVersion == null)
                 {
-                    var newVersion = await _service.CreateNewVersionAsync(id, input);
-                    if (newVersion == null)
+                    return BadRequest(new
                     {
-                        return BadRequest(new
-                        {
-                            detail = "Could not update the flight plan. " +
-                                    "It may not be in an updateable state."
-                        });
-                    }
-                    return Ok(Mappers.ToDto(newVersion));
+                        detail = "Could not update the flight plan. " +
+                                "It may not be in an updateable state."
+                    });
                 }
-                catch (ArgumentException ex)
-                {
-                    return BadRequest(new { detail = ex.Message });
-                } */
-            return StatusCode(503, new { detail = "This endpoint is temporarily disabled." });
+                return Ok(Mappers.ToDto(newVersion));
+            }
+            catch (ArgumentException ex)
+            {
+                logger.LogWarning(ex, "Invalid flight plan update: {Message}", ex.Message);
+                return BadRequest(new { detail = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                logger.LogWarning(ex, "Unauthorized flight plan update attempt: {Detail}", ex.Message);
+                return Forbid(ex.Message);
+            }
         }
 
         [HttpPatch("{id}")]

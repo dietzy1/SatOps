@@ -41,7 +41,7 @@ namespace SatOps.Modules.Gateway
             };
         }
 
-        [HttpGet("/api/gs/ws")]
+        [HttpGet("/api/v1/gs/ws")]
         public async Task HandleConnection()
         {
             if (!HttpContext.WebSockets.IsWebSocketRequest)
@@ -132,7 +132,7 @@ namespace SatOps.Modules.Gateway
             }
         }
 
-        [HttpGet("/api/gateway/status")]
+        [HttpGet("/api/v1/gateway/status")]
         [Authorize(Policy = "RequireAdmin")]
         public IActionResult GetStatus()
         {

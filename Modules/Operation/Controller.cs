@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 namespace SatOps.Modules.Operation
 {
     [ApiController]
-    [Route("api/internal/operations")]
+    [Route("api/v1/internal/operations")]
     [Authorize(Policy = "RequireGroundStation")]
     public class OperationsController(ITelemetryService telemetryService, IImageService imageService, ILogger<OperationsController> logger) : ControllerBase
     {

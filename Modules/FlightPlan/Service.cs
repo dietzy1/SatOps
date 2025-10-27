@@ -96,14 +96,27 @@ namespace SatOps.Modules.FlightPlan
                 return null;
             }
 
-            // Wrap commands in CommandSequence for validation
-            /*    var commandSequence = new CommandSequence { Commands = updateDto.Commands };
-               var (isValid, errors) = commandSequence.ValidateAll();
-               if (!isValid)
-               {
-                   throw new ArgumentException(
-                       $"Command validation failed: {string.Join("; ", errors)}");
-               } */
+            // Validate that the groundstation exists
+            var groundStation = await groundStationService.GetAsync(updateDto.GsId);
+            if (groundStation == null)
+            {
+                throw new ArgumentException($"Ground station with ID {updateDto.GsId} not found.", nameof(updateDto.GsId));
+            }
+
+            // Validate that the satellite exists
+            var satellite = await satelliteService.GetAsync(updateDto.SatId);
+            if (satellite == null)
+            {
+                throw new ArgumentException($"Satellite with ID {updateDto.SatId} not found.", nameof(updateDto.SatId));
+            }
+
+            // Validate commands using the new commands system
+            var (isValid, errors) = updateDto.Commands.ValidateAll();
+            if (!isValid)
+            {
+                throw new ArgumentException(
+                    $"Command validation failed: {string.Join("; ", errors)}");
+            }
 
             // Mark the old plan as superseded
             existing.Status = FlightPlanStatus.Superseded;
@@ -123,7 +136,7 @@ namespace SatOps.Modules.FlightPlan
                 UpdatedAt = DateTime.UtcNow
             };
 
-            //newVersion.SetCommandSequence(commandSequence);
+            newVersion.SetCommands(updateDto.Commands);
 
             return await repository.AddAsync(newVersion);
         }
