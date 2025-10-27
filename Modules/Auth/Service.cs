@@ -66,7 +66,11 @@ namespace SatOps.Modules.Auth
             {
                 new Claim(JwtRegisteredClaimNames.Sub, station.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim("type", "GroundStation")
+                new Claim("type", "GroundStation"),
+                // Ground stations only have access to these three operations
+                new Claim("scope", Authorization.Scopes.UploadTelemetry),
+                new Claim("scope", Authorization.Scopes.UploadImages),
+                new Claim("scope", Authorization.Scopes.EstablishWebSocket)
             };
 
             var token = new JwtSecurityToken(

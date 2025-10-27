@@ -82,6 +82,18 @@ namespace SatOps.Modules.Gateway
                     await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Invalid token", CancellationToken.None);
                     return;
                 }
+
+                // Verify the token has the required scope for WebSocket connections
+                var hasWebSocketScope = principal.Claims.Any(c =>
+                    c.Type == "scope" && c.Value == SatOps.Authorization.Scopes.EstablishWebSocket);
+
+                if (!hasWebSocketScope)
+                {
+                    _logger.LogWarning("WebSocket closed: token lacks required scope for WebSocket connection.");
+                    await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Insufficient permissions", CancellationToken.None);
+                    return;
+                }
+
                 var subClaim = principal.Claims.FirstOrDefault(c => c.Type == "sub");
 
                 if (subClaim == null || !int.TryParse(subClaim.Value, out groundStationId))
@@ -133,7 +145,7 @@ namespace SatOps.Modules.Gateway
         }
 
         [HttpGet("/api/v1/gateway/status")]
-        [Authorize(Policy = "RequireAdmin")]
+        [Authorize(Policy = SatOps.Authorization.Policies.RequireAdmin)]
         public IActionResult GetStatus()
         {
             var connections = _gatewayService.GetAllConnections();

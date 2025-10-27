@@ -78,18 +78,31 @@ namespace SatOps.Modules.User
         {
             return role switch
             {
-                UserRole.Viewer => ["read:ground-stations", "read:satellites", "read:flight-plans"],
+                // Viewer: Read-only access to ground stations, satellites, and flight plans
+                UserRole.Viewer =>
+                [
+                    Authorization.Scopes.ReadGroundStations,
+                    Authorization.Scopes.ReadSatellites,
+                    Authorization.Scopes.ReadFlightPlans
+                ],
+                // Operator: All viewer permissions + full write access to flight plans
                 UserRole.Operator =>
                 [
-                    "read:ground-stations", "read:satellites", "read:flight-plans",
-                    "write:flight-plans", "approve:flight-plans"
+                    Authorization.Scopes.ReadGroundStations,
+                    Authorization.Scopes.ReadSatellites,
+                    Authorization.Scopes.ReadFlightPlans,
+                    Authorization.Scopes.WriteFlightPlans
                 ],
+                // Admin: Full access to everything
                 UserRole.Admin =>
                 [
-                    "read:ground-stations", "read:satellites", "read:flight-plans",
-                    "write:ground-stations", "write:satellites", "write:flight-plans",
-                    "delete:ground-stations", "delete:satellites", "delete:flight-plans",
-                    "approve:flight-plans", "manage:users"
+                    Authorization.Scopes.ReadGroundStations,
+                    Authorization.Scopes.WriteGroundStations,
+                    Authorization.Scopes.ReadSatellites,
+                    Authorization.Scopes.WriteSatellites,
+                    Authorization.Scopes.ReadFlightPlans,
+                    Authorization.Scopes.WriteFlightPlans,
+                    Authorization.Scopes.ManageUsers
                 ],
                 _ => Array.Empty<string>()
             };

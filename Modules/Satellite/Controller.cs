@@ -1,12 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SatOps.Modules.Satellite
 {
     [ApiController]
     [Route("api/v1/satellites")]
+    [Authorize]
     public class SatellitesController(ISatelliteService service) : ControllerBase
     {
         [HttpGet]
+        [Authorize(Policy = SatOps.Authorization.Policies.ReadSatellites)]
         public async Task<ActionResult<List<SatelliteDto>>> List()
         {
             var items = await service.ListAsync();
@@ -14,6 +17,7 @@ namespace SatOps.Modules.Satellite
         }
 
         [HttpGet("{id:int}")]
+        [Authorize(Policy = SatOps.Authorization.Policies.ReadSatellites)]
         public async Task<ActionResult<SatelliteDto>> Get(int id)
         {
             var item = await service.GetAsync(id);
@@ -25,6 +29,7 @@ namespace SatOps.Modules.Satellite
         }
 
         [HttpPost("{id:int}/tle")]
+        [Authorize(Policy = SatOps.Authorization.Policies.WriteSatellites)]
         public async Task<ActionResult<bool>> RefreshTleData(int id)
         {
             var result = await service.RefreshTleDataAsync(id);
