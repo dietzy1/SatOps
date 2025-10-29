@@ -78,7 +78,7 @@ namespace SatOps.Modules.Overpass
                     var elevation = observation.Elevation.Degrees;
                     var azimuth = observation.Azimuth.Degrees;
 
-                    if (!inOverpass && elevation > request.MinimumElevation)
+                    if (!inOverpass && elevation >= request.MinimumElevation)
                     {
                         // Starting an overpass
                         inOverpass = true;
@@ -87,7 +87,7 @@ namespace SatOps.Modules.Overpass
                         maxElevationTime = currentTime;
                         startAzimuth = azimuth;
                     }
-                    else if (inOverpass && elevation > request.MinimumElevation)
+                    else if (inOverpass && elevation >= request.MinimumElevation)
                     {
                         // Continuing overpass, check if this is the maximum elevation
                         if (elevation > maxElevation)
@@ -135,7 +135,7 @@ namespace SatOps.Modules.Overpass
                 }
 
                 // Merge calculated overpasses with stored overpasses and enrich with flight plan data
-                var mergedOverpasses = await MergeAndEnrichOverpasses(overpassWindows, storedOverpasses, satellite.Name, groundStationEntity.Name);
+                var mergedOverpasses = await MergeAndEnrichOverpasses(overpassWindows, storedOverpasses);
 
                 return mergedOverpasses;
             }
@@ -201,92 +201,42 @@ namespace SatOps.Modules.Overpass
 
         private async Task<List<OverpassWindowDto>> MergeAndEnrichOverpasses(
             List<OverpassWindowDto> calculatedOverpasses,
-            List<Entity> storedOverpasses,
-            string satelliteName,
-            string groundStationName)
+            List<Entity> storedOverpasses)
         {
-            var result = new List<OverpassWindowDto>();
+            var result = calculatedOverpasses;
 
-            // Add calculated overpasses first
-            result.AddRange(calculatedOverpasses);
-
-            // For each stored overpass, check if we already have a similar calculated one
-            foreach (var storedOverpass in storedOverpasses)
+            // For each calculated overpass, check if we already have a stored one
+            foreach (var calculatedOverpass in result)
             {
                 var toleranceMinutes = 10; // Allow 10-minute tolerance for merging
 
-                // Check if this stored overpass is already represented in calculated overpasses
-                var existingCalculated = result.FirstOrDefault(co =>
-                    Math.Abs((co.StartTime - storedOverpass.StartTime).TotalMinutes) < toleranceMinutes &&
-                    Math.Abs((co.EndTime - storedOverpass.EndTime).TotalMinutes) < toleranceMinutes);
+                // Check if this calculated overpass is already in the database
+                var storedOverpass = storedOverpasses.FirstOrDefault(co =>
+                    co.SatelliteId == calculatedOverpass.SatelliteId &&
+                    co.GroundStationId == calculatedOverpass.GroundStationId &&
+                    Math.Abs((co.StartTime - calculatedOverpass.StartTime).TotalMinutes) < toleranceMinutes &&
+                    Math.Abs((co.EndTime - calculatedOverpass.EndTime).TotalMinutes) < toleranceMinutes);
 
-                if (existingCalculated != null)
+                if (storedOverpass != null)
                 {
-                    // Enrich the existing calculated overpass with stored data
-                    await EnrichOverpassWithStoredData(existingCalculated, storedOverpass);
-                }
-                else
-                {
-                    // Add stored overpass as new entry if it's not already calculated
-                    var storedAsDto = await ConvertStoredOverpassToDto(storedOverpass, satelliteName, groundStationName);
-                    result.Add(storedAsDto);
+                    var flightPlan = await overpassRepository.GetAssociatedFlightPlanAsync(storedOverpass.Id);
+                    if (flightPlan != null)
+                    {
+                        calculatedOverpass.AssociatedFlightPlan = new AssociatedFlightPlanDto
+                        {
+                            Id = flightPlan.Id,
+                            Name = flightPlan.Name,
+                            ScheduledAt = flightPlan.ScheduledAt,
+                            Status = flightPlan.Status.ToString(),
+                            ApproverId = flightPlan.ApprovedById?.ToString(),
+                            ApprovalDate = flightPlan.ApprovalDate
+                        };
+                    }
                 }
             }
 
             // Sort by start time
             return result.OrderBy(o => o.StartTime).ToList();
-        }
-
-        private async Task EnrichOverpassWithStoredData(OverpassWindowDto overpassDto, Entity storedOverpass)
-        {
-            // Add TLE data if available
-            if (!string.IsNullOrEmpty(storedOverpass.TleLine1) && !string.IsNullOrEmpty(storedOverpass.TleLine2))
-            {
-                overpassDto.TleData = new TleDataDto
-                {
-                    TleLine1 = storedOverpass.TleLine1,
-                    TleLine2 = storedOverpass.TleLine2,
-                    UpdateTime = storedOverpass.TleUpdateTime
-                };
-            }
-
-            // Add associated flight plan if available
-            var flightPlan = await overpassRepository.GetAssociatedFlightPlanAsync(storedOverpass.Id);
-            if (flightPlan != null)
-            {
-                overpassDto.AssociatedFlightPlan = new AssociatedFlightPlanDto
-                {
-                    Id = flightPlan.Id,
-                    Name = flightPlan.Name,
-                    ScheduledAt = flightPlan.ScheduledAt,
-                    Status = flightPlan.Status.ToString(),
-                    ApproverId = flightPlan.ApprovedById?.ToString(),
-                    ApprovalDate = flightPlan.ApprovalDate
-                };
-            }
-        }
-
-        private async Task<OverpassWindowDto> ConvertStoredOverpassToDto(Entity storedOverpass, string satelliteName, string groundStationName)
-        {
-            var dto = new OverpassWindowDto
-            {
-                SatelliteId = storedOverpass.SatelliteId,
-                SatelliteName = satelliteName,
-                GroundStationId = storedOverpass.GroundStationId,
-                GroundStationName = groundStationName,
-                StartTime = storedOverpass.StartTime,
-                EndTime = storedOverpass.EndTime,
-                MaxElevationTime = storedOverpass.MaxElevationTime,
-                MaxElevation = storedOverpass.MaxElevation,
-                DurationSeconds = storedOverpass.DurationSeconds,
-                StartAzimuth = storedOverpass.StartAzimuth,
-                EndAzimuth = storedOverpass.EndAzimuth
-            };
-
-            // Enrich with stored data
-            await EnrichOverpassWithStoredData(dto, storedOverpass);
-
-            return dto;
         }
     }
 }
