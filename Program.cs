@@ -27,7 +27,6 @@ DotEnv.Load();
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
     .CreateBootstrapLogger();
-
 try
 {
     Log.Information("Starting SatOps web host");
@@ -42,11 +41,9 @@ try
     builder.Services.AddControllers()
         .AddJsonOptions(options =>
         {
-            // Configure JSON serialization
             options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
             options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
             options.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseUpper));
-            // Note: CommandJsonConverter is registered via [JsonConverter] attribute on Command class
         });
 
     builder.Services.AddEndpointsApiExplorer();
@@ -104,46 +101,49 @@ try
     // Authorization with custom policies
     builder.Services.AddAuthorization(options =>
     {
-        // Policy for ground station authentication
-        options.AddPolicy("RequireGroundStation", policy =>
+        // Special policy for ground station authentication
+        options.AddPolicy(Policies.RequireGroundStation, policy =>
         {
             policy.RequireAuthenticatedUser()
                   .RequireClaim("type", "GroundStation");
         });
-        // Scope-based policies for user permissions
-        options.AddPolicy("ReadGroundStations", policy =>
-            policy.Requirements.Add(new ScopeRequirement("read:ground-stations")));
-        options.AddPolicy("WriteGroundStations", policy =>
-            policy.Requirements.Add(new ScopeRequirement("write:ground-stations")));
-        options.AddPolicy("DeleteGroundStations", policy =>
-            policy.Requirements.Add(new ScopeRequirement("delete:ground-stations")));
 
-        options.AddPolicy("ReadSatellites", policy =>
-            policy.Requirements.Add(new ScopeRequirement("read:satellites")));
-        options.AddPolicy("WriteSatellites", policy =>
-            policy.Requirements.Add(new ScopeRequirement("write:satellites")));
-        options.AddPolicy("DeleteSatellites", policy =>
-            policy.Requirements.Add(new ScopeRequirement("delete:satellites")));
+        // Admin policy - requires Admin role
+        options.AddPolicy(Policies.RequireAdmin, policy =>
+        {
+            policy.RequireAuthenticatedUser()
+                  .RequireRole("Admin");
+        });
 
-        options.AddPolicy("ReadFlightPlans", policy =>
-            policy.Requirements.Add(new ScopeRequirement("read:flight-plans")));
-        options.AddPolicy("WriteFlightPlans", policy =>
-            policy.Requirements.Add(new ScopeRequirement("write:flight-plans")));
-        options.AddPolicy("DeleteFlightPlans", policy =>
-            policy.Requirements.Add(new ScopeRequirement("delete:flight-plans")));
-        options.AddPolicy("ApproveFlightPlans", policy =>
-            policy.Requirements.Add(new ScopeRequirement("approve:flight-plans")));
+        // Ground Station scope-based policies
+        options.AddPolicy(Policies.ReadGroundStations, policy =>
+            policy.Requirements.Add(new ScopeRequirement(Scopes.ReadGroundStations)));
+        options.AddPolicy(Policies.WriteGroundStations, policy =>
+            policy.Requirements.Add(new ScopeRequirement(Scopes.WriteGroundStations)));
 
-        options.AddPolicy("ManageUsers", policy =>
-            policy.Requirements.Add(new ScopeRequirement("manage:users")));
+        // Satellite scope-based policies
+        options.AddPolicy(Policies.ReadSatellites, policy =>
+            policy.Requirements.Add(new ScopeRequirement(Scopes.ReadSatellites)));
+        options.AddPolicy(Policies.WriteSatellites, policy =>
+            policy.Requirements.Add(new ScopeRequirement(Scopes.WriteSatellites)));
 
-        // Role-based policies
-        options.AddPolicy("RequireViewer", policy =>
-            policy.Requirements.Add(new RoleRequirement("Viewer")));
-        options.AddPolicy("RequireOperator", policy =>
-            policy.Requirements.Add(new RoleRequirement("Operator")));
-        options.AddPolicy("RequireAdmin", policy =>
-            policy.Requirements.Add(new RoleRequirement("Admin")));
+        // Flight Plan scope-based policies
+        options.AddPolicy(Policies.ReadFlightPlans, policy =>
+            policy.Requirements.Add(new ScopeRequirement(Scopes.ReadFlightPlans)));
+        options.AddPolicy(Policies.WriteFlightPlans, policy =>
+            policy.Requirements.Add(new ScopeRequirement(Scopes.WriteFlightPlans)));
+
+        // User management scope-based policy
+        options.AddPolicy(Policies.ManageUsers, policy =>
+            policy.Requirements.Add(new ScopeRequirement(Scopes.ManageUsers)));
+
+        // Ground Station operation policies (limited to ground stations only)
+        options.AddPolicy(Policies.UploadTelemetry, policy =>
+            policy.Requirements.Add(new ScopeRequirement(Scopes.UploadTelemetry)));
+        options.AddPolicy(Policies.UploadImages, policy =>
+            policy.Requirements.Add(new ScopeRequirement(Scopes.UploadImages)));
+        options.AddPolicy(Policies.EstablishWebSocket, policy =>
+            policy.Requirements.Add(new ScopeRequirement(Scopes.EstablishWebSocket)));
     });
 
     // DI

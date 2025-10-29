@@ -5,11 +5,12 @@ namespace SatOps.Modules.Operation
 {
     [ApiController]
     [Route("api/v1/internal/operations")]
-    [Authorize(Policy = "RequireGroundStation")]
+    [Authorize(Policy = Authorization.Policies.RequireGroundStation)]
     public class OperationsController(ITelemetryService telemetryService, IImageService imageService, ILogger<OperationsController> logger) : ControllerBase
     {
         [HttpPost("telemetry")]
         [Consumes("multipart/form-data")]
+        [Authorize(Policy = Authorization.Policies.UploadTelemetry)]
         public async Task<IActionResult> ReceiveTelemetryData([FromForm] TelemetryDataReceiveDto dto)
         {
             try
@@ -40,6 +41,7 @@ namespace SatOps.Modules.Operation
 
         [HttpPost("images")]
         [Consumes("multipart/form-data")]
+        [Authorize(Policy = Authorization.Policies.UploadImages)]
         public async Task<IActionResult> ReceiveImageData([FromForm] ImageDataReceiveDto dto)
         {
             try

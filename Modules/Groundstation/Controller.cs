@@ -1,15 +1,18 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using SatOps.Modules.Gateway;
 
 namespace SatOps.Modules.Groundstation
 {
     [ApiController]
     [Route("api/v1/ground-stations")]
+    [Authorize]
     public class GroundStationsManagementController(
         IGroundStationService service,
         IGroundStationGatewayService gatewayService) : ControllerBase
     {
         [HttpGet]
+        [Authorize(Policy = SatOps.Authorization.Policies.ReadGroundStations)]
         public async Task<ActionResult<List<GroundStationDto>>> List()
         {
             var items = await service.ListAsync();
@@ -17,6 +20,7 @@ namespace SatOps.Modules.Groundstation
         }
 
         [HttpGet("{id:int}")]
+        [Authorize(Policy = SatOps.Authorization.Policies.ReadGroundStations)]
         public async Task<ActionResult<GroundStationDto>> Get(int id)
         {
             var item = await service.GetAsync(id);
@@ -30,6 +34,7 @@ namespace SatOps.Modules.Groundstation
         /// <param name="id">The ground station ID</param>
         /// <returns>Health status information</returns>
         [HttpGet("{id:int}/health")]
+        [Authorize(Policy = SatOps.Authorization.Policies.ReadGroundStations)]
         public async Task<ActionResult<GroundStationHealthDto>> GetHealth(int id)
         {
             var station = await service.GetAsync(id);
@@ -52,6 +57,7 @@ namespace SatOps.Modules.Groundstation
         }
 
         [HttpPost]
+        [Authorize(Policy = SatOps.Authorization.Policies.WriteGroundStations)]
         public async Task<ActionResult<GroundStationWithApiKeyDto>> Create([FromBody] GroundStationCreateDto input)
         {
             var entity = new GroundStation
@@ -73,6 +79,7 @@ namespace SatOps.Modules.Groundstation
         }
 
         [HttpPatch("{id:int}")]
+        [Authorize(Policy = SatOps.Authorization.Policies.WriteGroundStations)]
         public async Task<ActionResult<GroundStationDto>> Patch(int id, [FromBody] GroundStationPatchDto input)
         {
             var updatedEntity = await service.PatchAsync(id, input);
@@ -84,6 +91,7 @@ namespace SatOps.Modules.Groundstation
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Policy = SatOps.Authorization.Policies.WriteGroundStations)]
         public async Task<IActionResult> Delete(int id)
         {
             var ok = await service.DeleteAsync(id);

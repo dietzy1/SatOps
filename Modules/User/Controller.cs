@@ -10,7 +10,7 @@ namespace SatOps.Modules.User
     {
 
         [HttpGet]
-        [Authorize(Policy = "ManageUsers")]
+        [Authorize(Policy = Authorization.Policies.ManageUsers)]
         public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
         {
             var users = await userService.ListAsync();
@@ -29,7 +29,7 @@ namespace SatOps.Modules.User
         }
 
         [HttpGet("{id}")]
-        [Authorize(Policy = "ManageUsers")]
+        [Authorize(Policy = SatOps.Authorization.Policies.ManageUsers)]
         public async Task<ActionResult<UserDto>> GetUser(int id)
         {
             var user = await userService.GetAsync(id);
@@ -53,7 +53,7 @@ namespace SatOps.Modules.User
         }
 
         [HttpPut("{id}")]
-        [Authorize(Policy = "ManageUsers")]
+        [Authorize(Policy = Authorization.Policies.ManageUsers)]
         public async Task<IActionResult> UpdateUserInfo(int id, [FromBody] UpdateUserInfoDto request)
         {
             var existingUser = await userService.GetAsync(id);
@@ -71,7 +71,7 @@ namespace SatOps.Modules.User
         }
 
         [HttpPut("{id}/permissions")]
-        [Authorize(Policy = "ManageUsers")]
+        [Authorize(Policy = Authorization.Policies.ManageUsers)]
         public async Task<IActionResult> UpdateUserPermissions(int id, [FromBody] UpdateUserPermissionsRequestDto request)
         {
             var updatedUser = await userService.UpdatePermissionsAsync(id, request.Role, request.AdditionalRoles, request.AdditionalScopes);
@@ -85,7 +85,7 @@ namespace SatOps.Modules.User
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Policy = "ManageUsers")]
+        [Authorize(Policy = Authorization.Policies.ManageUsers)]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var success = await userService.DeleteAsync(id);

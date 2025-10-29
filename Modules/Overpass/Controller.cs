@@ -1,12 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace SatOps.Modules.Overpass
 {
     [ApiController]
     [Route("api/v1/overpasses")]
+    [Authorize]
     public class OverpassesController(IOverpassService overpassService) : ControllerBase
     {
         [HttpGet("satellite/{satelliteId:int}/groundstation/{groundStationId:int}")]
+        [Authorize(Policy = Authorization.Policies.ReadFlightPlans)]
         public async Task<ActionResult<List<OverpassWindowDto>>> GetOverpassWindows(
             int satelliteId,
             int groundStationId,
