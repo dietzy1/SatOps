@@ -1,48 +1,41 @@
 namespace SatOps.Authorization
 {
     /// <summary>
-    /// Defines all authorization scopes used in the SatOps system.
-    /// </summary>
-    public static class Scopes
-    {
-
-        public const string ReadGroundStations = "read:ground-stations";
-        public const string WriteGroundStations = "write:ground-stations";
-
-        public const string ReadSatellites = "read:satellites";
-        public const string WriteSatellites = "write:satellites";
-
-        public const string ReadFlightPlans = "read:flight-plans";
-        public const string WriteFlightPlans = "write:flight-plans";
-
-        public const string ManageUsers = "manage:users";
-
-        public const string UploadTelemetry = "upload:telemetry";
-        public const string UploadImages = "upload:images";
-        public const string EstablishWebSocket = "establish:websocket";
-    }
-
-    /// <summary>
     /// Defines policy names for authorization.
+    /// Role-based policies map to user roles: Viewer, Operator, Admin.
+    /// Ground station policies are for machine-to-machine authentication.
     /// </summary>
     public static class Policies
     {
-        public const string ReadGroundStations = "ReadGroundStations";
-        public const string WriteGroundStations = "WriteGroundStations";
+        // Role-based policies for human users
+        // These check if the user has the minimum required role
+        public const string RequireViewer = "RequireViewer";      // Viewer, Operator, or Admin
+        public const string RequireOperator = "RequireOperator";  // Operator or Admin
+        public const string RequireAdmin = "RequireAdmin";        // Admin only
 
-        public const string ReadSatellites = "ReadSatellites";
-        public const string WriteSatellites = "WriteSatellites";
-
-        public const string ReadFlightPlans = "ReadFlightPlans";
-        public const string WriteFlightPlans = "WriteFlightPlans";
-
-        public const string ManageUsers = "ManageUsers";
-
-        public const string UploadTelemetry = "UploadTelemetry";
-        public const string UploadImages = "UploadImages";
-        public const string EstablishWebSocket = "EstablishWebSocket";
-
+        // Special policy for ground station machine authentication
         public const string RequireGroundStation = "RequireGroundStation";
-        public const string RequireAdmin = "RequireAdmin";
+    }
+
+    /// <summary>
+    /// User roles in the system.
+    /// Matches the UserRole enum but as strings for authorization.
+    /// </summary>
+    public static class Roles
+    {
+        public const string Viewer = "Viewer";
+        public const string Operator = "Operator";
+        public const string Admin = "Admin";
+    }
+
+    /// <summary>
+    /// Scopes for ground station machine-to-machine authentication.
+    /// Ground stations use these scopes instead of roles.
+    /// </summary>
+    public static class GroundStationScopes
+    {
+        public const string UploadTelemetry = "gs:upload-telemetry";
+        public const string UploadImages = "gs:upload-images";
+        public const string EstablishWebSocket = "gs:establish-websocket";
     }
 }

@@ -1,39 +1,43 @@
 using Microsoft.AspNetCore.Authorization;
+using SatOps.Modules.User;
 
 namespace SatOps.Authorization
 {
-    public class ScopeRequirement(string requiredScope) : IAuthorizationRequirement
+    /// <summary>
+    /// Requirement for minimum role level authorization.
+    /// Implements hierarchical role checking: Admin > Operator > Viewer
+    /// </summary>
+    public class MinimumRoleRequirement(UserRole minimumRole) : IAuthorizationRequirement
     {
-        public string RequiredScope { get; } = requiredScope;
+        public UserRole MinimumRole { get; } = minimumRole;
     }
 
-    public class ScopeAuthorizationHandler : AuthorizationHandler<ScopeRequirement>
+    /// <summary>
+    /// Handler that checks if user has at least the minimum required role.
+    /// Supports hierarchical roles: Admin can access Operator and Viewer resources.
+    /// </summary>
+    public class MinimumRoleAuthorizationHandler : AuthorizationHandler<MinimumRoleRequirement>
     {
         protected override Task HandleRequirementAsync(
             AuthorizationHandlerContext context,
-            ScopeRequirement requirement)
+            MinimumRoleRequirement requirement)
         {
-            if (context.User.HasClaim(c => c.Type == "scope" && c.Value == requirement.RequiredScope))
+            // Get the user's role from claims
+            var roleClaim = context.User.FindFirst(System.Security.Claims.ClaimTypes.Role);
+            if (roleClaim == null)
             {
-                context.Succeed(requirement);
+                return Task.CompletedTask;
             }
 
-            return Task.CompletedTask;
-        }
-    }
+            // Parse the role
+            if (!Enum.TryParse<UserRole>(roleClaim.Value, out var userRole))
+            {
+                return Task.CompletedTask;
+            }
 
-    public class RoleRequirement(string requiredRole) : IAuthorizationRequirement
-    {
-        public string RequiredRole { get; } = requiredRole;
-    }
-
-    public class RoleAuthorizationHandler : AuthorizationHandler<RoleRequirement>
-    {
-        protected override Task HandleRequirementAsync(
-            AuthorizationHandlerContext context,
-            RoleRequirement requirement)
-        {
-            if (context.User.IsInRole(requirement.RequiredRole))
+            // Check if user's role meets the minimum requirement
+            // Higher enum values = higher permissions (Admin=2 > Operator=1 > Viewer=0)
+            if (userRole >= requirement.MinimumRole)
             {
                 context.Succeed(requirement);
             }

@@ -9,7 +9,7 @@ namespace SatOps.Modules.Overpass
     public class OverpassesController(IOverpassService overpassService) : ControllerBase
     {
         [HttpGet("satellite/{satelliteId:int}/groundstation/{groundStationId:int}")]
-        [Authorize(Policy = Authorization.Policies.ReadFlightPlans)]
+        [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<List<OverpassWindowDto>>> GetOverpassWindows(
             int satelliteId,
             int groundStationId,
@@ -24,7 +24,13 @@ namespace SatOps.Modules.Overpass
             // Validate time window
             if (endTime <= startTime)
             {
-                throw new Exception("End time must be after start time.");
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Time Window",
+                    Detail = $"End time ({endTime:O}) must be after start time ({startTime:O}).",
+                    Status = StatusCodes.Status400BadRequest,
+                    Instance = HttpContext.Request.Path,
+                });
             }
 
             try

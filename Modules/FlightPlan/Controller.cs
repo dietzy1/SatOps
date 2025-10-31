@@ -9,7 +9,7 @@ namespace SatOps.Modules.FlightPlan
     public class FlightPlansController(IFlightPlanService service, ILogger<FlightPlansController> logger) : ControllerBase
     {
         [HttpGet]
-        [Authorize(Policy = Authorization.Policies.ReadFlightPlans)]
+        [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<List<FlightPlanDto>>> List()
         {
             var items = await service.ListAsync();
@@ -17,7 +17,7 @@ namespace SatOps.Modules.FlightPlan
         }
 
         [HttpGet("{id}")]
-        [Authorize(Policy = Authorization.Policies.ReadFlightPlans)]
+        [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<FlightPlanDto>> Get(int id)
         {
             var item = await service.GetByIdAsync(id);
@@ -26,7 +26,7 @@ namespace SatOps.Modules.FlightPlan
         }
 
         [HttpPost]
-        [Authorize(Policy = Authorization.Policies.WriteFlightPlans)]
+        [Authorize(Policy = Authorization.Policies.RequireOperator)]
         public async Task<ActionResult<FlightPlanDto>> Create([FromBody] CreateFlightPlanDto input)
         {
             try
@@ -40,15 +40,10 @@ namespace SatOps.Modules.FlightPlan
                 logger.LogWarning(ex, "Invalid flight plan JSON: {Message}", ex.Message);
                 return BadRequest(new { detail = ex.Message });
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                logger.LogWarning(ex, "Unauthorized flight plan creation attempt: {Detail}", ex.Message);
-                return Forbid(ex.Message);
-            }
         }
 
         [HttpPut("{id}")]
-        [Authorize(Policy = Authorization.Policies.WriteFlightPlans)]
+        [Authorize(Policy = Authorization.Policies.RequireOperator)]
         public async Task<ActionResult<FlightPlanDto>> Update(
             int id,
             [FromBody] CreateFlightPlanDto input)
@@ -71,16 +66,11 @@ namespace SatOps.Modules.FlightPlan
                 logger.LogWarning(ex, "Invalid flight plan update: {Message}", ex.Message);
                 return BadRequest(new { detail = ex.Message });
             }
-            catch (UnauthorizedAccessException ex)
-            {
-                logger.LogWarning(ex, "Unauthorized flight plan update attempt: {Detail}", ex.Message);
-                return Forbid(ex.Message);
-            }
         }
 
         // TODO: Should we be able to approve flight plans which cannot compile? Potentially we need to fix this.
         [HttpPatch("{id}")]
-        [Authorize(Policy = Authorization.Policies.WriteFlightPlans)]
+        [Authorize(Policy = Authorization.Policies.RequireOperator)]
         public async Task<ActionResult> Approve(int id, [FromBody] ApproveFlightPlanDto input)
         {
             if (input.Status != "APPROVED" && input.Status != "REJECTED")
@@ -103,7 +93,7 @@ namespace SatOps.Modules.FlightPlan
         // We now have a bug where we are assigning flight plans to the incorrect overpass. Its asigning it to the one before the correct one.
         // We must investigate the root cause and fix it.
         [HttpPost("{id}/overpasses")]
-        [Authorize(Policy = Authorization.Policies.WriteFlightPlans)]
+        [Authorize(Policy = Authorization.Policies.RequireOperator)]
         public async Task<ActionResult> AssociateOverpass(
             int id,
             [FromBody] AssociateOverpassDto input)
@@ -118,7 +108,7 @@ namespace SatOps.Modules.FlightPlan
         }
 
         [HttpGet("{id}/csh")]
-        [Authorize(Policy = Authorization.Policies.ReadFlightPlans)]
+        [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<List<string>>> CompileFlightPlan(int id)
         {
             try
@@ -138,7 +128,7 @@ namespace SatOps.Modules.FlightPlan
 
 
         [HttpGet("imaging-opportunities")]
-        [Authorize(Policy = Authorization.Policies.ReadFlightPlans)]
+        [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<ImagingTimingResponseDto>> GetImagingOpportunity([FromQuery] ImagingTimingRequestDto request)
         {
             // Validate request parameters

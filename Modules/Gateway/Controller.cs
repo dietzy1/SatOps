@@ -85,7 +85,7 @@ namespace SatOps.Modules.Gateway
 
                 // Verify the token has the required scope for WebSocket connections
                 var hasWebSocketScope = principal.Claims.Any(c =>
-                    c.Type == "scope" && c.Value == SatOps.Authorization.Scopes.EstablishWebSocket);
+                    c.Type == "scope" && c.Value == SatOps.Authorization.GroundStationScopes.EstablishWebSocket);
 
                 if (!hasWebSocketScope)
                 {
@@ -145,7 +145,7 @@ namespace SatOps.Modules.Gateway
         }
 
         [HttpGet("/api/v1/gateway/status")]
-        [Authorize(Policy = SatOps.Authorization.Policies.RequireAdmin)]
+        [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public IActionResult GetStatus()
         {
             var connections = _gatewayService.GetAllConnections();

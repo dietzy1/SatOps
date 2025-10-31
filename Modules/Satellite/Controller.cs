@@ -9,7 +9,7 @@ namespace SatOps.Modules.Satellite
     public class SatellitesController(ISatelliteService service) : ControllerBase
     {
         [HttpGet]
-        [Authorize(Policy = SatOps.Authorization.Policies.ReadSatellites)]
+        [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<List<SatelliteDto>>> List()
         {
             var items = await service.ListAsync();
@@ -17,7 +17,7 @@ namespace SatOps.Modules.Satellite
         }
 
         [HttpGet("{id:int}")]
-        [Authorize(Policy = SatOps.Authorization.Policies.ReadSatellites)]
+        [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<SatelliteDto>> Get(int id)
         {
             var item = await service.GetAsync(id);
@@ -29,7 +29,7 @@ namespace SatOps.Modules.Satellite
         }
 
         [HttpPost("{id:int}/tle")]
-        [Authorize(Policy = SatOps.Authorization.Policies.WriteSatellites)]
+        [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<ActionResult<bool>> RefreshTleData(int id)
         {
             var result = await service.RefreshTleDataAsync(id);
