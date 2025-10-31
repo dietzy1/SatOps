@@ -39,8 +39,11 @@ namespace SatOps.Modules.FlightPlan
 
         public async Task<FlightPlan> CreateAsync(CreateFlightPlanDto createDto)
         {
-            var currentUserId = currentUserProvider.GetUserId()
-                                ?? throw new UnauthorizedAccessException("User not authenticated.");
+            var currentUserId = currentUserProvider.GetUserId();
+            if (currentUserId == null)
+            {
+                throw new InvalidOperationException("User ID claim not found. User should be authenticated by this point.");
+            }
 
             // Validate that the groundstation exists
             var groundStation = await groundStationService.GetAsync(createDto.GsId);
@@ -71,7 +74,7 @@ namespace SatOps.Modules.FlightPlan
                 GroundStationId = createDto.GsId,
                 SatelliteId = createDto.SatId,
                 Status = FlightPlanStatus.Draft,
-                CreatedById = currentUserId,
+                CreatedById = currentUserId.Value,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -143,7 +146,11 @@ namespace SatOps.Modules.FlightPlan
 
         public async Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status)
         {
-            var currentUserId = currentUserProvider.GetUserId() ?? throw new UnauthorizedAccessException("User not authenticated.");
+            var currentUserId = currentUserProvider.GetUserId();
+            if (currentUserId == null)
+            {
+                throw new InvalidOperationException("User ID claim not found. User should be authenticated by this point.");
+            }
 
             var plan = await repository.GetByIdAsync(id);
             if (plan == null)
