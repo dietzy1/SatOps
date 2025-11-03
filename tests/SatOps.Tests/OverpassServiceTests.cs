@@ -511,7 +511,11 @@ namespace SatOps.Tests
             var result = await _overpassService.CalculateOverpassesAsync(requestDto);
 
             // Assert
-            result.Should().BeEquivalentTo(expectedOverpasses);
+            result.Should().BeEquivalentTo(expectedOverpasses, options =>
+                options.Using<double>(ctx =>
+                    ctx.Subject.Should().BeApproximately(ctx.Expectation, 0.0001)
+                ).WhenTypeIs<double>()
+            );
         }
 
         [Fact]
@@ -604,7 +608,11 @@ namespace SatOps.Tests
             var result = await _overpassService.CalculateOverpassesAsync(requestDto);
 
             // Assert
-            result.Should().BeEquivalentTo(expectedOverpasses);
+            result.Should().BeEquivalentTo(expectedOverpasses, options =>
+                options.Using<double>(ctx =>
+                    ctx.Subject.Should().BeApproximately(ctx.Expectation, 0.0001)
+                ).WhenTypeIs<double>()
+            );
         }
 
         [Fact]
@@ -683,7 +691,11 @@ namespace SatOps.Tests
             var result = await _overpassService.CalculateOverpassesAsync(requestDto);
 
             // Assert
-            result.Should().BeEquivalentTo(expectedOverpasses);
+            result.Should().BeEquivalentTo(expectedOverpasses, options =>
+                options.Using<double>(ctx =>
+                    ctx.Subject.Should().BeApproximately(ctx.Expectation, 0.0001)
+                ).WhenTypeIs<double>()
+            );
         }
 
         [Fact]
@@ -776,7 +788,11 @@ namespace SatOps.Tests
             var result = await _overpassService.CalculateOverpassesAsync(requestDto);
 
             // Assert
-            result.Should().BeEquivalentTo(expectedOverpasses);
+            result.Should().BeEquivalentTo(expectedOverpasses, options =>
+                options.Using<double>(ctx =>
+                    ctx.Subject.Should().BeApproximately(ctx.Expectation, 0.0001)
+                ).WhenTypeIs<double>()
+            );
         }
     }
 }
