@@ -21,6 +21,8 @@ using Npgsql;
 using System.Text;
 using Serilog;
 using dotenv.net;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 
 DotEnv.Load();
 
@@ -48,6 +50,9 @@ try
 
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerConfiguration();
+
+    // Add HttpClientFactory for calling external APIs (Auth0 UserInfo)
+    builder.Services.AddHttpClient();
 
     builder.Services.AddCors(options =>
     {
@@ -77,73 +82,71 @@ try
         });
     });
 
+    // Prevent .NET from renaming JWT claims (e.g. "sub" → "nameidentifier")
+    JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
+
+    // Configure Auth0 JWT Bearer Authentication
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
         {
-            var jwtSettings = builder.Configuration.GetSection("Jwt");
-            var key = jwtSettings["Key"] ?? throw new InvalidOperationException("JWT Key not configured.");
+            var auth0Settings = builder.Configuration.GetSection("Auth0");
+            var domain = auth0Settings["Domain"] ?? throw new InvalidOperationException("Auth0 Domain not configured.");
+            var audience = auth0Settings["Audience"] ?? throw new InvalidOperationException("Auth0 Audience not configured.");
 
+            options.Authority = $"https://{domain}/";
+            options.Audience = audience;
             options.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+
+            // Save the token so we can use it to call Auth0 UserInfo endpoint
             options.SaveToken = true;
+
             options.TokenValidationParameters = new TokenValidationParameters
             {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
                 ValidateIssuer = true,
-                ValidIssuer = jwtSettings["Issuer"],
                 ValidateAudience = true,
-                ValidAudience = jwtSettings["Audience"],
                 ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
                 ClockSkew = TimeSpan.Zero
+            };
+
+            // Enable BootstrapContext to access the raw token in ClaimsTransformer
+            options.Events = new JwtBearerEvents
+            {
+                OnTokenValidated = context =>
+                {
+                    if (context.SecurityToken is System.IdentityModel.Tokens.Jwt.JwtSecurityToken jwtToken)
+                    {
+                        if (context.Principal?.Identity is ClaimsIdentity identity)
+                        {
+                            identity.BootstrapContext = jwtToken.RawData;
+                        }
+                    }
+                    return Task.CompletedTask;
+                }
             };
         });
 
-    // Authorization with custom policies
+    // Authorization with role-based policies
+    // Hierarchical roles: Admin (2) > Operator (1) > Viewer (0)
     builder.Services.AddAuthorization(options =>
     {
-        // Special policy for ground station authentication
+        // Special policy for ground station machine authentication
         options.AddPolicy(Policies.RequireGroundStation, policy =>
         {
             policy.RequireAuthenticatedUser()
                   .RequireClaim("type", "GroundStation");
         });
 
-        // Admin policy - requires Admin role
+        // Role-based policies for human users
+        // These use hierarchical role checking: higher roles include lower permissions
+        options.AddPolicy(Policies.RequireViewer, policy =>
+            policy.Requirements.Add(new MinimumRoleRequirement(SatOps.Modules.User.UserRole.Viewer)));
+
+        options.AddPolicy(Policies.RequireOperator, policy =>
+            policy.Requirements.Add(new MinimumRoleRequirement(SatOps.Modules.User.UserRole.Operator)));
+
         options.AddPolicy(Policies.RequireAdmin, policy =>
-        {
-            policy.RequireAuthenticatedUser()
-                  .RequireRole("Admin");
-        });
-
-        // Ground Station scope-based policies
-        options.AddPolicy(Policies.ReadGroundStations, policy =>
-            policy.Requirements.Add(new ScopeRequirement(Scopes.ReadGroundStations)));
-        options.AddPolicy(Policies.WriteGroundStations, policy =>
-            policy.Requirements.Add(new ScopeRequirement(Scopes.WriteGroundStations)));
-
-        // Satellite scope-based policies
-        options.AddPolicy(Policies.ReadSatellites, policy =>
-            policy.Requirements.Add(new ScopeRequirement(Scopes.ReadSatellites)));
-        options.AddPolicy(Policies.WriteSatellites, policy =>
-            policy.Requirements.Add(new ScopeRequirement(Scopes.WriteSatellites)));
-
-        // Flight Plan scope-based policies
-        options.AddPolicy(Policies.ReadFlightPlans, policy =>
-            policy.Requirements.Add(new ScopeRequirement(Scopes.ReadFlightPlans)));
-        options.AddPolicy(Policies.WriteFlightPlans, policy =>
-            policy.Requirements.Add(new ScopeRequirement(Scopes.WriteFlightPlans)));
-
-        // User management scope-based policy
-        options.AddPolicy(Policies.ManageUsers, policy =>
-            policy.Requirements.Add(new ScopeRequirement(Scopes.ManageUsers)));
-
-        // Ground Station operation policies (limited to ground stations only)
-        options.AddPolicy(Policies.UploadTelemetry, policy =>
-            policy.Requirements.Add(new ScopeRequirement(Scopes.UploadTelemetry)));
-        options.AddPolicy(Policies.UploadImages, policy =>
-            policy.Requirements.Add(new ScopeRequirement(Scopes.UploadImages)));
-        options.AddPolicy(Policies.EstablishWebSocket, policy =>
-            policy.Requirements.Add(new ScopeRequirement(Scopes.EstablishWebSocket)));
+            policy.Requirements.Add(new MinimumRoleRequirement(SatOps.Modules.User.UserRole.Admin)));
     });
 
     // DI
@@ -187,8 +190,7 @@ try
     builder.Services.AddScoped<IImageService, ImageService>();
 
     // Authorization handlers
-    builder.Services.AddScoped<IAuthorizationHandler, ScopeAuthorizationHandler>();
-    builder.Services.AddScoped<IAuthorizationHandler, RoleAuthorizationHandler>();
+    builder.Services.AddScoped<IAuthorizationHandler, MinimumRoleAuthorizationHandler>();
     builder.Services.AddScoped<IClaimsTransformation, UserPermissionsClaimsTransformation>();
 
     // Background services

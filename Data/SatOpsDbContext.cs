@@ -40,8 +40,6 @@ namespace SatOps.Data
                 entity.Property(e => e.Role).IsRequired();
                 entity.Property(e => e.CreatedAt).HasDefaultValueSql("timezone('utc', now())");
                 entity.Property(e => e.UpdatedAt).HasDefaultValueSql("timezone('utc', now())");
-                entity.Property(e => e.AdditionalScopes).HasColumnType("jsonb");
-                entity.Property(e => e.AdditionalRoles).HasColumnType("jsonb");
 
                 entity.HasIndex(e => e.Email).IsUnique();
                 entity.HasIndex(e => e.Role);
@@ -221,18 +219,8 @@ namespace SatOps.Data
             // Seeding Data
             // ====================================================================================
 
-            modelBuilder.Entity<UserEntity>().HasData(
-                new UserEntity
-                {
-                    Id = 1,
-                    Name = "Admin User",
-                    Email = "admin@example.com",
-                    Role = Modules.User.UserRole.Admin,
-                    PasswordHash = "$2a$11$N3CMfWFaZG7H.fuavEvLRuejsgLY25wYJXHMVFBxgxZvgiR4zha/.",
-                    CreatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc),
-                    UpdatedAt = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc)
-                }
-            );
+            // NOTE: Default admin user removed - users are now managed via Auth0
+            // Admins should be assigned the Admin role through the user management API after first login
 
             modelBuilder.Entity<GroundStationEntity>().HasData(
                 new GroundStationEntity

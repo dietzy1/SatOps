@@ -18,6 +18,12 @@ namespace SatOps.Modules.User
         [EmailAddress]
         public string Email { get; set; } = string.Empty;
 
+        /// <summary>
+        /// Auth0 user ID (sub claim) - unique identifier from Auth0
+        /// </summary>
+        [StringLength(255)]
+        public string? Auth0UserId { get; set; }
+
         [Required]
         public UserRole Role { get; set; } = UserRole.Viewer;
 
@@ -31,12 +37,7 @@ namespace SatOps.Modules.User
         [InverseProperty(nameof(FlightPlan.FlightPlan.ApprovedBy))]
         public virtual ICollection<FlightPlan.FlightPlan> ApprovedFlightPlans { get; set; } = new List<FlightPlan.FlightPlan>();
 
-        // Additional properties for RBAC tracking
-        public List<string> AdditionalScopes { get; set; } = [];
-        public List<string> AdditionalRoles { get; set; } = [];
 
-        [JsonIgnore]
-        public string? PasswordHash { get; set; }
     }
 
     public enum UserRole

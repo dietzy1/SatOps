@@ -13,13 +13,10 @@ namespace SatOps.Modules.Auth
     public interface IAuthService
     {
         Task<string?> GenerateGroundStationTokenAsync(TokenRequestDto request);
-        Task<string?> GenerateUserTokenAsync(UserLoginRequestDto request);
     }
 
     public class AuthService(
         IGroundStationRepository gsRepository,
-        IUserRepository userRepository,
-        IUserService userService,
         IConfiguration configuration,
         ILogger<AuthService> logger) : IAuthService
     {
@@ -41,21 +38,6 @@ namespace SatOps.Modules.Auth
 
             return GenerateJwtForGroundStation(station);
         }
-
-        public async Task<string?> GenerateUserTokenAsync(UserLoginRequestDto request)
-        {
-            var user = await userRepository.GetByEmailAsync(request.Email);
-
-            if (user == null || string.IsNullOrEmpty(user.PasswordHash) || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-            {
-                logger.LogWarning("User authentication failed for email: {Email}", request.Email);
-                return null;
-            }
-
-            var permissions = await userService.GetUserPermissionsAsync(request.Email);
-            return GenerateJwtForUser(user, permissions);
-        }
-
         private string GenerateJwtForGroundStation(GroundStation station)
         {
             var jwtSettings = configuration.GetSection("Jwt");
@@ -68,9 +50,9 @@ namespace SatOps.Modules.Auth
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim("type", "GroundStation"),
                 // Ground stations only have access to these three operations
-                new Claim("scope", Authorization.Scopes.UploadTelemetry),
-                new Claim("scope", Authorization.Scopes.UploadImages),
-                new Claim("scope", Authorization.Scopes.EstablishWebSocket)
+                new Claim("scope", Authorization.GroundStationScopes.UploadTelemetry),
+                new Claim("scope", Authorization.GroundStationScopes.UploadImages),
+                new Claim("scope", Authorization.GroundStationScopes.EstablishWebSocket)
             };
 
             var token = new JwtSecurityToken(
@@ -83,32 +65,6 @@ namespace SatOps.Modules.Auth
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        private string GenerateJwtForUser(UserEntity user, UserPermissions permissions)
-        {
-            var jwtSettings = configuration.GetSection("Jwt");
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
-            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
-            var claims = new List<Claim>
-            {
-                new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new(JwtRegisteredClaimNames.Email, user.Email),
-                new(JwtRegisteredClaimNames.Name, user.Name),
-                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new("type", "User")
-            };
-
-            permissions.AllRoles.ForEach(role => claims.Add(new Claim(ClaimTypes.Role, role)));
-            permissions.AllScopes.ForEach(scope => claims.Add(new Claim("scope", scope)));
-
-            var token = new JwtSecurityToken(
-                issuer: jwtSettings["Issuer"],
-                audience: jwtSettings["Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddHours(Convert.ToDouble(jwtSettings["ExpirationHours"])),
-                signingCredentials: credentials);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
     }
 }

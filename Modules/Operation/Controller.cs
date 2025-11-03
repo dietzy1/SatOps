@@ -10,7 +10,6 @@ namespace SatOps.Modules.Operation
     {
         [HttpPost("telemetry")]
         [Consumes("multipart/form-data")]
-        [Authorize(Policy = Authorization.Policies.UploadTelemetry)]
         public async Task<IActionResult> ReceiveTelemetryData([FromForm] TelemetryDataReceiveDto dto)
         {
             try
@@ -41,7 +40,6 @@ namespace SatOps.Modules.Operation
 
         [HttpPost("images")]
         [Consumes("multipart/form-data")]
-        [Authorize(Policy = Authorization.Policies.UploadImages)]
         public async Task<IActionResult> ReceiveImageData([FromForm] ImageDataReceiveDto dto)
         {
             try
