@@ -22,6 +22,7 @@ using System.Text;
 using Serilog;
 using dotenv.net;
 using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 
 DotEnv.Load();
 
@@ -80,6 +81,9 @@ try
             npgsqlOptions.MigrationsAssembly("SatOps");
         });
     });
+
+    // Prevent .NET from renaming JWT claims (e.g. "sub" → "nameidentifier")
+    JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
 
     // Configure Auth0 JWT Bearer Authentication
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
