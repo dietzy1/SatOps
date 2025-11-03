@@ -1,16 +1,18 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SatOps.Modules.User;
 
 namespace SatOps.Modules.User
 {
     [ApiController]
     [Route("api/v1/users")]
     [Authorize]
-    public class UserController(IUserService userService) : ControllerBase
+    public class UserController(IUserService userService, ICurrentUserProvider currentUserProvider) : ControllerBase
     {
 
+
         [HttpGet]
-        [Authorize(Policy = Authorization.Policies.ManageUsers)]
+        [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
         {
             var users = await userService.ListAsync();
@@ -20,16 +22,45 @@ namespace SatOps.Modules.User
                 Name = u.Name,
                 Email = u.Email,
                 Role = u.Role,
-                AdditionalRoles = u.AdditionalRoles,
-                AdditionalScopes = u.AdditionalScopes,
                 CreatedAt = u.CreatedAt,
                 UpdatedAt = u.UpdatedAt
             });
             return Ok(userDtos);
         }
 
+        /// <summary>
+        /// Get the current authenticated user's profile
+        /// </summary>
+        [HttpGet("me")]
+        public async Task<ActionResult<UserDto>> GetCurrentUser()
+        {
+            var userId = currentUserProvider.GetUserId();
+            if (userId == null)
+            {
+                return Unauthorized(new { message = "User information not found in token." });
+            }
+
+            var user = await userService.GetAsync(userId.Value);
+            if (user == null)
+            {
+                return NotFound(new { message = "User not found in database." });
+            }
+
+            var userDto = new UserDto
+            {
+                Id = user.Id,
+                Name = user.Name,
+                Email = user.Email,
+                Role = user.Role,
+                CreatedAt = user.CreatedAt,
+                UpdatedAt = user.UpdatedAt
+            };
+
+            return Ok(userDto);
+        }
+
         [HttpGet("{id}")]
-        [Authorize(Policy = SatOps.Authorization.Policies.ManageUsers)]
+        [Authorize(Policy = SatOps.Authorization.Policies.RequireAdmin)]
         public async Task<ActionResult<UserDto>> GetUser(int id)
         {
             var user = await userService.GetAsync(id);
@@ -44,37 +75,17 @@ namespace SatOps.Modules.User
                 Name = user.Name,
                 Email = user.Email,
                 Role = user.Role,
-                AdditionalRoles = user.AdditionalRoles,
-                AdditionalScopes = user.AdditionalScopes,
                 CreatedAt = user.CreatedAt,
                 UpdatedAt = user.UpdatedAt
             };
             return Ok(userDto);
         }
 
-        [HttpPut("{id}")]
-        [Authorize(Policy = Authorization.Policies.ManageUsers)]
-        public async Task<IActionResult> UpdateUserInfo(int id, [FromBody] UpdateUserInfoDto request)
+        [HttpPut("{id}/role")]
+        [Authorize(Policy = Authorization.Policies.RequireAdmin)]
+        public async Task<IActionResult> UpdateUserRole(int id, [FromBody] UpdateUserRoleRequestDto request)
         {
-            var existingUser = await userService.GetAsync(id);
-            if (existingUser == null)
-            {
-                return NotFound(new { message = "User not found." });
-            }
-
-            existingUser.Name = request.Name;
-            existingUser.Email = request.Email;
-
-            await userService.UpdateAsync(id, existingUser);
-
-            return NoContent();
-        }
-
-        [HttpPut("{id}/permissions")]
-        [Authorize(Policy = Authorization.Policies.ManageUsers)]
-        public async Task<IActionResult> UpdateUserPermissions(int id, [FromBody] UpdateUserPermissionsRequestDto request)
-        {
-            var updatedUser = await userService.UpdatePermissionsAsync(id, request.Role, request.AdditionalRoles, request.AdditionalScopes);
+            var updatedUser = await userService.UpdateRoleAsync(id, request.Role);
 
             if (updatedUser == null)
             {
@@ -85,7 +96,7 @@ namespace SatOps.Modules.User
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Policy = Authorization.Policies.ManageUsers)]
+        [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var success = await userService.DeleteAsync(id);

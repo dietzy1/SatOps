@@ -4,12 +4,11 @@ namespace SatOps.Modules.User
     {
         Task<List<User>> ListAsync();
         Task<User?> GetAsync(int id);
-        Task<User?> GetByEmailAsync(string email);
-        Task<User> CreateAsync(User entity);
+        Task<User?> GetByAuth0UserIdAsync(string auth0UserId);
+        Task<User> GetOrCreateUserFromAuth0Async(string auth0UserId, string email, string name);
         Task<User?> UpdateAsync(int id, User entity);
-        Task<User?> UpdatePermissionsAsync(int userId, UserRole role, List<string> additionalRoles, List<string> additionalScopes);
+        Task<User?> UpdateRoleAsync(int userId, UserRole role);
         Task<bool> DeleteAsync(int id);
-        Task<UserPermissions> GetUserPermissionsAsync(string email);
     }
 
     public class UserService(IUserRepository repository) : IUserService
@@ -18,9 +17,30 @@ namespace SatOps.Modules.User
 
         public Task<User?> GetAsync(int id) => repository.GetByIdAsync(id);
 
-        public Task<User?> GetByEmailAsync(string email) => repository.GetByEmailAsync(email);
+        public Task<User?> GetByAuth0UserIdAsync(string auth0UserId) => repository.GetByAuth0UserIdAsync(auth0UserId);
 
-        public Task<User> CreateAsync(User entity) => repository.AddAsync(entity);
+        /// <summary>
+        /// Gets a user by Auth0 ID, or creates a new user with Viewer role if they don't exist
+        /// </summary>
+        public async Task<User> GetOrCreateUserFromAuth0Async(string auth0UserId, string email, string name)
+        {
+            // Try to find user by Auth0 ID first
+            var user = await repository.GetByAuth0UserIdAsync(auth0UserId);
+            if (user != null)
+            {
+                return user;
+            }
+
+            var newUser = new User
+            {
+                Auth0UserId = auth0UserId,
+                Email = email,
+                Name = name,
+                Role = UserRole.Viewer
+            };
+
+            return await repository.AddAsync(newUser);
+        }
 
         public async Task<User?> UpdateAsync(int id, User entity)
         {
@@ -28,7 +48,7 @@ namespace SatOps.Modules.User
             return await repository.UpdateAsync(entity);
         }
 
-        public async Task<User?> UpdatePermissionsAsync(int userId, UserRole role, List<string> additionalRoles, List<string> additionalScopes)
+        public async Task<User?> UpdateRoleAsync(int userId, UserRole role)
         {
             var user = await repository.GetByIdAsync(userId);
             if (user == null)
@@ -37,84 +57,10 @@ namespace SatOps.Modules.User
             }
 
             user.Role = role;
-            user.AdditionalRoles = additionalRoles;
-            user.AdditionalScopes = additionalScopes;
 
             return await repository.UpdateAsync(user);
         }
 
         public Task<bool> DeleteAsync(int id) => repository.DeleteAsync(id);
-
-        public async Task<UserPermissions> GetUserPermissionsAsync(string email)
-        {
-            var user = await repository.GetByEmailAsync(email);
-            if (user == null)
-            {
-                return new UserPermissions
-                {
-                    BaseRole = UserRole.Viewer,
-                    AllRoles = ["Viewer"],
-                    AllScopes = []
-                };
-            }
-
-            var allRoles = new List<string> { user.Role.ToString() };
-            allRoles.AddRange(user.AdditionalRoles);
-
-            var allScopes = GetDefaultScopesForRole(user.Role).ToList();
-            allScopes.AddRange(user.AdditionalScopes);
-
-            return new UserPermissions
-            {
-                UserId = user.Id,
-                Email = user.Email,
-                BaseRole = user.Role,
-                AllRoles = allRoles.Distinct().ToList(),
-                AllScopes = allScopes.Distinct().ToList()
-            };
-        }
-
-        private IEnumerable<string> GetDefaultScopesForRole(UserRole role)
-        {
-            return role switch
-            {
-                // Viewer: Read-only access to ground stations, satellites, and flight plans
-                UserRole.Viewer =>
-                [
-                    Authorization.Scopes.ReadGroundStations,
-                    Authorization.Scopes.ReadSatellites,
-                    Authorization.Scopes.ReadFlightPlans
-                ],
-                // Operator: All viewer permissions + full write access to flight plans
-                UserRole.Operator =>
-                [
-                    Authorization.Scopes.ReadGroundStations,
-                    Authorization.Scopes.ReadSatellites,
-                    Authorization.Scopes.ReadFlightPlans,
-                    Authorization.Scopes.WriteFlightPlans
-                ],
-                // Admin: Full access to everything
-                UserRole.Admin =>
-                [
-                    Authorization.Scopes.ReadGroundStations,
-                    Authorization.Scopes.WriteGroundStations,
-                    Authorization.Scopes.ReadSatellites,
-                    Authorization.Scopes.WriteSatellites,
-                    Authorization.Scopes.ReadFlightPlans,
-                    Authorization.Scopes.WriteFlightPlans,
-                    Authorization.Scopes.ManageUsers
-                ],
-                _ => Array.Empty<string>()
-            };
-        }
-    }
-
-    public class UserPermissions
-    {
-        public int UserId { get; set; }
-        public string Email { get; set; } = string.Empty;
-        public UserRole BaseRole { get; set; }
-        public List<string> AllRoles { get; set; } = [];
-        public List<string> AllScopes { get; set; } = [];
     }
 }

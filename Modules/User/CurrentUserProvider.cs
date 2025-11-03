@@ -17,7 +17,8 @@ public class CurrentUserProvider(IHttpContextAccessor httpContextAccessor) : ICu
             return null;
         }
 
-        var userIdClaim = user.FindFirst(ClaimTypes.NameIdentifier) ?? user.FindFirst("sub");
+        // Get the internal database user ID that was added by ClaimsTransformer
+        var userIdClaim = user.FindFirst("user_id");
 
         if (userIdClaim != null && int.TryParse(userIdClaim.Value, out var userId))
         {
