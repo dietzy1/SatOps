@@ -133,22 +133,6 @@ namespace SatOps.Modules.GroundStationLink
             }
         }
 
-        [HttpGet("/api/v1/ground-station-link/status")]
-        [Authorize(Policy = Authorization.Policies.RequireAdmin)]
-        public IActionResult GetStatus()
-        {
-            var connections = _webSocketService.GetAllConnections();
-            var statuses = connections.Select(c => new ConnectionStatusDto
-            {
-                GroundStationId = c.GroundStationId,
-                Name = c.Name,
-                ConnectedAt = c.ConnectedAt,
-                UptimeMinutes = (DateTime.UtcNow - c.ConnectedAt).TotalMinutes,
-                LastCommandId = c.LastCommandId
-            });
-            return Ok(statuses);
-        }
-
         [HttpPost("/api/v1/internal/ground-station-link/telemetry")]
         [Consumes("multipart/form-data")]
         [Authorize(Policy = Authorization.Policies.RequireGroundStation)]
