@@ -162,6 +162,7 @@ try
     builder.Services.AddScoped<SatOps.Modules.Overpass.IOverpassService, SatOps.Modules.Overpass.OverpassService>();
     builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
     builder.Services.AddHttpContextAccessor();
+    builder.Services.AddScoped<IAuth0Client, Auth0Client>();
 
     builder.Services.AddSingleton<IWebSocketService, WebSocketService>();
 
