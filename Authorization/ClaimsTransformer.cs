@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authentication;
 using SatOps.Modules.User;
 using System.Security.Claims;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 
 namespace SatOps.Authorization
 {
@@ -14,8 +12,7 @@ namespace SatOps.Authorization
     public class UserPermissionsClaimsTransformation : IClaimsTransformation
     {
         private readonly IUserService _userService;
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IConfiguration _configuration;
+        private readonly IAuth0Client _auth0Client;
         private readonly ILogger<UserPermissionsClaimsTransformation> _logger;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
@@ -24,14 +21,12 @@ namespace SatOps.Authorization
 
         public UserPermissionsClaimsTransformation(
             IUserService userService,
-            IHttpClientFactory httpClientFactory,
-            IConfiguration configuration,
+            IAuth0Client auth0Client,
             ILogger<UserPermissionsClaimsTransformation> logger,
             IHttpContextAccessor httpContextAccessor)
         {
             _userService = userService;
-            _httpClientFactory = httpClientFactory;
-            _configuration = configuration;
+            _auth0Client = auth0Client;
             _logger = logger;
             _httpContextAccessor = httpContextAccessor;
         }
@@ -69,7 +64,11 @@ namespace SatOps.Authorization
                             // User doesn't exist - fetch profile from Auth0 UserInfo endpoint
                             _logger.LogInformation("New user {Auth0UserId} detected, fetching profile from Auth0", auth0UserId);
 
-                            var userInfo = await GetAuth0UserInfoAsync();
+                            var accessToken = _httpContextAccessor.HttpContext?.Request.Headers.Authorization
+                                .ToString()
+                                .Replace("Bearer ", "");
+
+                            var userInfo = await _auth0Client.GetUserInfoAsync(accessToken ?? string.Empty);
 
                             var email = userInfo.Email ?? $"{auth0UserId}@unknown.com";
                             var name = userInfo.Name ?? userInfo.Nickname ?? "Unknown User";
@@ -117,101 +116,5 @@ namespace SatOps.Authorization
                 return principal;
             }
         }
-
-        /// <summary>
-        /// Fetches user profile information from Auth0 UserInfo endpoint
-        /// </summary>
-        private async Task<Auth0UserInfo> GetAuth0UserInfoAsync()
-        {
-            try
-            {
-                // Get the access token from the Authorization header via HttpContext
-                var accessToken = _httpContextAccessor.HttpContext?.Request.Headers.Authorization
-                    .ToString()
-                    .Replace("Bearer ", "");
-
-                if (string.IsNullOrEmpty(accessToken))
-                {
-                    _logger.LogWarning("No access token found in Authorization header");
-                    return new Auth0UserInfo();
-                }
-
-                var client = _httpClientFactory.CreateClient();
-                var auth0Domain = _configuration["Auth0:Domain"];
-
-                if (string.IsNullOrEmpty(auth0Domain))
-                {
-                    _logger.LogError("Auth0:Domain not configured");
-                    return new Auth0UserInfo();
-                }
-
-                _logger.LogInformation("Calling Auth0 UserInfo endpoint: https://{Domain}/userinfo", auth0Domain);
-
-                var request = new HttpRequestMessage(HttpMethod.Get, $"https://{auth0Domain}/userinfo");
-                request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
-
-                var response = await client.SendAsync(request);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogWarning("Failed to fetch Auth0 user info: {StatusCode}, Response: {Response}",
-                        response.StatusCode, errorContent);
-                    return new Auth0UserInfo();
-                }
-
-                var json = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("Auth0 UserInfo response: {Json}", json);
-
-                var userInfo = JsonSerializer.Deserialize<Auth0UserInfo>(json, new JsonSerializerOptions
-                {
-                    PropertyNameCaseInsensitive = true
-                });
-
-                if (userInfo != null)
-                {
-                    _logger.LogInformation("Parsed UserInfo - Email: {Email}, Name: {Name}, Nickname: {Nickname}, Sub: {Sub}",
-                        userInfo.Email, userInfo.Name, userInfo.Nickname, userInfo.Sub);
-                }
-                else
-                {
-                    _logger.LogWarning("Failed to deserialize Auth0 UserInfo response");
-                }
-
-                return userInfo ?? new Auth0UserInfo();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error fetching Auth0 user info");
-                return new Auth0UserInfo();
-            }
-        }
-    }
-
-    /// <summary>
-    /// Auth0 UserInfo response model
-    /// </summary>
-    public class Auth0UserInfo
-    {
-        [JsonPropertyName("sub")]
-        public string? Sub { get; set; }
-
-        [JsonPropertyName("email")]
-        public string? Email { get; set; }
-
-        [JsonPropertyName("email_verified")]
-        public bool EmailVerified { get; set; }
-
-        [JsonPropertyName("name")]
-        public string? Name { get; set; }
-
-        [JsonPropertyName("nickname")]
-        public string? Nickname { get; set; }
-
-        [JsonPropertyName("picture")]
-        public string? Picture { get; set; }
-
-        [JsonPropertyName("updated_at")]
-        public string? UpdatedAt { get; set; }
     }
 }
