@@ -1,11 +1,9 @@
 using Microsoft.IdentityModel.Tokens;
 using SatOps.Modules.Groundstation;
-using SatOps.Utils;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using UserEntity = SatOps.Modules.User.User;
-using SatOps.Modules.User;
+
 
 
 namespace SatOps.Modules.Auth
@@ -30,7 +28,9 @@ namespace SatOps.Modules.Auth
                 return null;
             }
 
-            if (!ApiKeyHasher.Verify(request.ApiKey, station.ApiKeyHash))
+            var apiKey = ApiKey.FromHash(station.ApiKeyHash);
+
+            if (!apiKey.Verify(request.ApiKey))
             {
                 logger.LogWarning("Authentication failed: Invalid API Key for ApplicationId {AppId}.", request.ApplicationId);
                 return null;

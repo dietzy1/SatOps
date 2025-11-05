@@ -1,6 +1,4 @@
 using SatOps.Modules.Gateway;
-using SatOps.Utils;
-using System.Security.Cryptography;
 
 namespace SatOps.Modules.Groundstation
 {
@@ -42,13 +40,11 @@ namespace SatOps.Modules.Groundstation
 
         public async Task<(GroundStation createdStation, string rawApiKey)> CreateAsync(GroundStation entity)
         {
-            // Generate a URL-safe API key
-            var bytes = RandomNumberGenerator.GetBytes(32);
-            var rawApiKey = Convert.ToBase64String(bytes)
-                                .Replace('+', '-')
-                                .Replace('/', '_');
+            var rawApiKey = ApiKey.GenerateRawKey();
 
-            entity.ApiKeyHash = ApiKeyHasher.Hash(rawApiKey);
+            var hashedKey = ApiKey.Create(rawApiKey);
+
+            entity.ApiKeyHash = hashedKey.Hash;
             entity.ApplicationId = Guid.NewGuid();
 
             var createdEntity = await repository.AddAsync(entity);

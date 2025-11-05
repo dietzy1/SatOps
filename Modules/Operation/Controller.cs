@@ -40,6 +40,7 @@ namespace SatOps.Modules.Operation
 
         [HttpPost("images")]
         [Consumes("multipart/form-data")]
+        [RequestSizeLimit(105 * 1024 * 1024)] // 105 MB limit
         public async Task<IActionResult> ReceiveImageData([FromForm] ImageDataReceiveDto dto)
         {
             try
