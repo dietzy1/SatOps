@@ -28,11 +28,6 @@ namespace SatOps.Modules.Groundstation
             return Ok(MapToDto(item));
         }
 
-        /// <summary>
-        /// Get the health/connection status of a specific ground station
-        /// </summary>
-        /// <param name="id">The ground station ID</param>
-        /// <returns>Health status information</returns>
         [HttpGet("{id:int}/health")]
         [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<ActionResult<GroundStationHealthDto>> GetHealth(int id)
@@ -52,7 +47,6 @@ namespace SatOps.Modules.Groundstation
                 Connected = isConnected,
                 LastUpdated = DateTime.UtcNow
             };
-
             return Ok(healthDto);
         }
 
@@ -70,12 +64,19 @@ namespace SatOps.Modules.Groundstation
                     Altitude = input.Location.Altitude.GetValueOrDefault()
                 }
             };
-
             var (created, rawApiKey) = await service.CreateAsync(entity);
-
             var responseDto = MapToWithApiKeyDto(created, rawApiKey);
-
             return CreatedAtAction(nameof(Get), new { id = created.Id }, responseDto);
+        }
+
+        // --- Endpoint Moved from AuthController ---
+        [HttpPost("token")]
+        [AllowAnonymous]
+        public async Task<ActionResult<TokenResponseDto>> GetStationToken([FromBody] TokenRequestDto request)
+        {
+            var token = await service.GenerateGroundStationTokenAsync(request);
+            if (token == null) return Unauthorized("Invalid credentials.");
+            return Ok(new TokenResponseDto { AccessToken = token });
         }
 
         [HttpPatch("{id:int}")]
@@ -83,10 +84,7 @@ namespace SatOps.Modules.Groundstation
         public async Task<ActionResult<GroundStationDto>> Patch(int id, [FromBody] GroundStationPatchDto input)
         {
             var updatedEntity = await service.PatchAsync(id, input);
-            if (updatedEntity == null)
-            {
-                return NotFound();
-            }
+            if (updatedEntity == null) return NotFound();
             return Ok(MapToDto(updatedEntity));
         }
 

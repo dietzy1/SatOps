@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.Authentication;
-using SatOps.Modules.Auth;
 using SatOps.Configuration;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.FlightPlan;
@@ -162,7 +161,6 @@ try
     builder.Services.AddScoped<IUserService, UserService>();
     builder.Services.AddScoped<SatOps.Modules.Overpass.IOverpassRepository, SatOps.Modules.Overpass.OverpassRepository>();
     builder.Services.AddScoped<SatOps.Modules.Overpass.IOverpassService, SatOps.Modules.Overpass.OverpassService>();
-    builder.Services.AddScoped<IAuthService, AuthService>();
     builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
     builder.Services.AddHttpContextAccessor();
 

@@ -2,6 +2,19 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SatOps.Modules.Groundstation
 {
+    public class TokenRequestDto
+    {
+        [Required]
+        public Guid ApplicationId { get; set; }
+
+        [Required]
+        public string ApiKey { get; set; } = string.Empty;
+    }
+
+    public class TokenResponseDto
+    {
+        public string AccessToken { get; set; } = string.Empty;
+    }
     public class LocationDto
     {
         [Required(ErrorMessage = "Latitude is required")]
