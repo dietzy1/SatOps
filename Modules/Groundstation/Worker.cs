@@ -51,7 +51,7 @@ namespace SatOps.Modules.Groundstation
         private async Task PerformHealthChecksAsync()
         {
             using var scope = _serviceProvider.CreateScope();
-            var gatewayService = scope.ServiceProvider.GetRequiredService<Gateway.IGroundStationGatewayService>();
+            var gatewayService = scope.ServiceProvider.GetRequiredService<GroundStationLink.IWebSocketService>();
             var repository = scope.ServiceProvider.GetRequiredService<IGroundStationRepository>();
 
             _logger.LogDebug("Starting health check cycle");

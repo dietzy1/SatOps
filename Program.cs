@@ -10,8 +10,6 @@ using SatOps.Modules.Groundstation;
 using SatOps.Modules.FlightPlan;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.User;
-using SatOps.Modules.Operation;
-using SatOps.Modules.Gateway;
 using SatOps.Authorization;
 using System.Text.Json;
 using SatOps.Data;
@@ -22,6 +20,7 @@ using Serilog;
 using dotenv.net;
 using System.Security.Claims;
 using System.IdentityModel.Tokens.Jwt;
+using SatOps.Modules.GroundStationLink;
 
 DotEnv.Load();
 
@@ -164,7 +163,7 @@ try
     builder.Services.AddScoped<ICurrentUserProvider, CurrentUserProvider>();
     builder.Services.AddHttpContextAccessor();
 
-    builder.Services.AddSingleton<IGroundStationGatewayService, GroundStationGatewayService>();
+    builder.Services.AddSingleton<IWebSocketService, WebSocketService>();
 
     // MinIO Configuration
     builder.Services.AddSingleton(sp =>
@@ -183,7 +182,7 @@ try
     });
 
     // Operation Services
-    builder.Services.AddScoped<IMinioService, MinioService>();
+    builder.Services.AddScoped<IObjectStorageService, ObjectStorageService>();
     builder.Services.AddScoped<ITelemetryService, TelemetryService>();
     builder.Services.AddScoped<IImageService, ImageService>();
 

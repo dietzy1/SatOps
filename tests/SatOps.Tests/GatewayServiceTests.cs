@@ -1,7 +1,7 @@
 using Xunit;
 using Moq;
 using Microsoft.Extensions.Logging;
-using SatOps.Modules.Gateway;
+using SatOps.Modules.GroundStationLink;
 using System.Net.WebSockets;
 using FluentAssertions;
 using System.Text;
@@ -12,12 +12,12 @@ namespace SatOps.Tests
 {
     public class GatewayServiceTests
     {
-        private readonly GroundStationGatewayService _sut;
+        private readonly WebSocketService _sut;
 
         public GatewayServiceTests()
         {
-            var mockLogger = new Mock<ILogger<GroundStationGatewayService>>();
-            _sut = new GroundStationGatewayService(mockLogger.Object);
+            var mockLogger = new Mock<ILogger<WebSocketService>>();
+            _sut = new WebSocketService(mockLogger.Object);
         }
 
         /// <summary>

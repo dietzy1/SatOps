@@ -3,7 +3,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 
-namespace SatOps.Modules.Gateway
+namespace SatOps.Modules.GroundStationLink
 {
     public class GroundStationConnection
     {
@@ -12,11 +12,10 @@ namespace SatOps.Modules.Gateway
         public required string Name { get; set; }
         public DateTime ConnectedAt { get; } = DateTime.UtcNow;
         public Guid? LastCommandId { get; set; }
-
         public SemaphoreSlim SendLock { get; } = new(1, 1);
     }
 
-    public interface IGroundStationGatewayService
+    public interface IWebSocketService
     {
         Task RegisterConnection(int groundStationId, string groundStationName, WebSocket socket);
         Task UnregisterConnection(int groundStationId);
@@ -25,7 +24,7 @@ namespace SatOps.Modules.Gateway
         IEnumerable<GroundStationConnection> GetAllConnections();
     }
 
-    public class GroundStationGatewayService(ILogger<GroundStationGatewayService> logger) : IGroundStationGatewayService
+    public class WebSocketService(ILogger<WebSocketService> logger) : IWebSocketService
     {
         private readonly ConcurrentDictionary<int, GroundStationConnection> _connections = new();
 
@@ -37,7 +36,6 @@ namespace SatOps.Modules.Gateway
                 GroundStationId = groundStationId,
                 Name = groundStationName
             };
-
             logger.LogInformation("Registering connection for GS {GroundStationId} ({Name})", connection.GroundStationId, connection.Name);
             _connections[groundStationId] = connection;
             return Task.CompletedTask;
@@ -69,7 +67,6 @@ namespace SatOps.Modules.Gateway
                 logger.LogWarning("Attempted to send command to disconnected GS ID: {GroundStationId}", groundStationId);
                 throw new InvalidOperationException($"Ground station {groundStationId} is not connected.");
             }
-
             await connection.SendLock.WaitAsync();
             try
             {
@@ -84,17 +81,12 @@ namespace SatOps.Modules.Gateway
                         Time = executionTime.ToString("o")
                     }
                 };
-
                 connection.LastCommandId = message.RequestId;
-
                 var messageJson = JsonSerializer.Serialize(message);
                 var messageBytes = Encoding.UTF8.GetBytes(messageJson);
-
                 var scriptJson = JsonSerializer.Serialize(cshScript);
                 var scriptBytes = Encoding.UTF8.GetBytes(scriptJson);
-
                 logger.LogInformation("Sending scheduled command {RequestId} to GS {GroundStationId} ({Name})", message.RequestId, groundStationId, connection.Name);
-
                 await connection.Socket.SendAsync(new ArraySegment<byte>(messageBytes), WebSocketMessageType.Text, true, CancellationToken.None);
                 await connection.Socket.SendAsync(new ArraySegment<byte>(scriptBytes), WebSocketMessageType.Text, true, CancellationToken.None);
             }

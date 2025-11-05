@@ -1,4 +1,4 @@
-using SatOps.Modules.Gateway;
+using SatOps.Modules.GroundStationLink;
 using SatOps.Modules.Satellite;
 
 namespace SatOps.Modules.FlightPlan
@@ -27,7 +27,7 @@ namespace SatOps.Modules.FlightPlan
                 {
                     var flightPlanService = scope.ServiceProvider.GetRequiredService<IFlightPlanService>();
                     var satelliteService = scope.ServiceProvider.GetRequiredService<ISatelliteService>();
-                    var gatewayService = scope.ServiceProvider.GetRequiredService<IGroundStationGatewayService>();
+                    var gatewayService = scope.ServiceProvider.GetRequiredService<IWebSocketService>();
 
                     // Look ahead 5 minutes to find flight plans to transmit.
                     var plansToSend = await flightPlanService.GetPlansReadyForTransmissionAsync(TimeSpan.FromMinutes(5));

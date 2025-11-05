@@ -6,7 +6,6 @@ using SatOps.Modules.User;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Overpass;
-using System.Text.Json;
 
 namespace SatOps.Tests
 {

@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 using SatOps.Modules.FlightPlan;
-using SatOps.Modules.Gateway;
+using SatOps.Modules.GroundStationLink;
 using SatOps.Modules.Satellite;
 using System.Reflection;
 
@@ -30,14 +30,14 @@ namespace SatOps.Tests
     {
         private readonly Mock<IFlightPlanService> _mockFlightPlanService;
         private readonly Mock<ISatelliteService> _mockSatelliteService;
-        private readonly Mock<IGroundStationGatewayService> _mockGatewayService;
+        private readonly Mock<IWebSocketService> _mockGatewayService;
         private readonly IServiceProvider _serviceProvider;
 
         public SchedulerServiceTests()
         {
             _mockFlightPlanService = new Mock<IFlightPlanService>();
             _mockSatelliteService = new Mock<ISatelliteService>();
-            _mockGatewayService = new Mock<IGroundStationGatewayService>();
+            _mockGatewayService = new Mock<IWebSocketService>();
 
             // Create a mock IServiceProvider that returns our mocked services
             var serviceCollection = new ServiceCollection();

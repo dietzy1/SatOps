@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
 using FluentAssertions;
-using SatOps.Modules.Operation;
+using SatOps.Modules.GroundStationLink;
 using SatOps.Data;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
@@ -15,7 +15,7 @@ namespace SatOps.Tests
 {
     public class OperationServiceTests
     {
-        private readonly Mock<IMinioService> _mockMinioService;
+        private readonly Mock<IObjectStorageService> _mockObjectStorageService;
         private readonly SatOpsDbContext _dbContext;
 
         private readonly TelemetryService _telemetryService;
@@ -30,13 +30,13 @@ namespace SatOps.Tests
                 .Options;
             _dbContext = new SatOpsDbContext(options);
 
-            _mockMinioService = new Mock<IMinioService>();
+            _mockObjectStorageService = new Mock<IObjectStorageService>();
 
             var mockTelemetryLogger = new Mock<ILogger<TelemetryService>>();
-            _telemetryService = new TelemetryService(_dbContext, _mockMinioService.Object, mockTelemetryLogger.Object);
+            _telemetryService = new TelemetryService(_dbContext, _mockObjectStorageService.Object, mockTelemetryLogger.Object);
 
             var mockImageLogger = new Mock<ILogger<ImageService>>();
-            _imageService = new ImageService(_dbContext, _mockMinioService.Object, mockImageLogger.Object);
+            _imageService = new ImageService(_dbContext, _mockObjectStorageService.Object, mockImageLogger.Object);
 
             SeedDatabase();
         }
@@ -80,7 +80,7 @@ namespace SatOps.Tests
             };
 
             var expectedS3Path = "telemetry/path/file.bin";
-            _mockMinioService
+            _mockObjectStorageService
                 .Setup(m => m.UploadFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), DataType.Telemetry))
                 .ReturnsAsync(expectedS3Path);
 
@@ -89,7 +89,7 @@ namespace SatOps.Tests
 
             // Assert
             // Verify Minio upload was called correctly
-            _mockMinioService.Verify(m => m.UploadFileAsync(
+            _mockObjectStorageService.Verify(m => m.UploadFileAsync(
                 It.IsAny<Stream>(),
                 It.Is<string>(s => s.StartsWith($"telemetry_{dto.SatelliteId}") && s.EndsWith(mockFile.FileName)),
                 mockFile.ContentType,
@@ -148,7 +148,7 @@ namespace SatOps.Tests
             };
 
             var expectedS3Path = "images/path/file.jpg";
-            _mockMinioService
+            _mockObjectStorageService
                 .Setup(m => m.UploadFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), DataType.Image))
                 .ReturnsAsync(expectedS3Path);
 
@@ -157,7 +157,7 @@ namespace SatOps.Tests
 
             // Assert
             // Verify Minio upload was called correctly
-            _mockMinioService.Verify(m => m.UploadFileAsync(
+            _mockObjectStorageService.Verify(m => m.UploadFileAsync(
                 It.IsAny<Stream>(),
                 It.Is<string>(s => s.StartsWith($"image_{dto.SatelliteId}") && s.EndsWith(mockFile.FileName)),
                 mockFile.ContentType,

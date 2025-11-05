@@ -1,7 +1,7 @@
 using Minio;
 using Minio.DataModel.Args;
 
-namespace SatOps.Modules.Operation
+namespace SatOps.Modules.GroundStationLink
 {
     public enum DataType
     {
@@ -10,14 +10,14 @@ namespace SatOps.Modules.Operation
         Image
     }
 
-    public interface IMinioService
+    public interface IObjectStorageService
     {
         Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, DataType dataType);
         Task<Stream> GetFileAsync(string objectPath);
         Task DeleteFileAsync(string objectPath);
     }
 
-    public class MinioService(IMinioClient minioClient, IConfiguration configuration, ILogger<MinioService> logger) : IMinioService
+    public class ObjectStorageService(IMinioClient minioClient, IConfiguration configuration, ILogger<ObjectStorageService> logger) : IObjectStorageService
     {
         private readonly string _bucketName = configuration.GetValue<string>("MinIO:BucketName") ?? "satops-data";
 
@@ -25,10 +25,7 @@ namespace SatOps.Modules.Operation
         {
             try
             {
-                // Ensure bucket exists
                 await EnsureBucketExistsAsync();
-
-                // Generate unique object path based on data type
                 var prefix = dataType switch
                 {
                     DataType.Telemetry => "telemetry",
@@ -36,21 +33,15 @@ namespace SatOps.Modules.Operation
                     DataType.Image => "images",
                     _ => "data"
                 };
-
                 var objectPath = $"{prefix}/{DateTime.UtcNow:yyyy/MM/dd}/{Guid.NewGuid()}-{fileName}";
-
-                // Upload file
                 var putObjectArgs = new PutObjectArgs()
                     .WithBucket(_bucketName)
                     .WithObject(objectPath)
                     .WithStreamData(fileStream)
                     .WithObjectSize(fileStream.Length)
                     .WithContentType(contentType);
-
                 await minioClient.PutObjectAsync(putObjectArgs);
-
-                logger.LogInformation("Successfully uploaded {DataType} file {FileName} to {ObjectPath}",
-                    dataType, fileName, objectPath);
+                logger.LogInformation("Successfully uploaded {DataType} file {FileName} to {ObjectPath}", dataType, fileName, objectPath);
                 return objectPath;
             }
             catch (Exception ex)
@@ -65,14 +56,11 @@ namespace SatOps.Modules.Operation
             try
             {
                 var memoryStream = new MemoryStream();
-
                 var getObjectArgs = new GetObjectArgs()
                     .WithBucket(_bucketName)
                     .WithObject(objectPath)
                     .WithCallbackStream(stream => stream.CopyTo(memoryStream));
-
                 await minioClient.GetObjectAsync(getObjectArgs);
-
                 memoryStream.Position = 0;
                 return memoryStream;
             }
@@ -90,9 +78,7 @@ namespace SatOps.Modules.Operation
                 var removeObjectArgs = new RemoveObjectArgs()
                     .WithBucket(_bucketName)
                     .WithObject(objectPath);
-
                 await minioClient.RemoveObjectAsync(removeObjectArgs);
-
                 logger.LogInformation("Successfully deleted file {ObjectPath} from MinIO", objectPath);
             }
             catch (Exception ex)
@@ -106,7 +92,6 @@ namespace SatOps.Modules.Operation
         {
             var bucketExistsArgs = new BucketExistsArgs().WithBucket(_bucketName);
             bool found = await minioClient.BucketExistsAsync(bucketExistsArgs);
-
             if (!found)
             {
                 var makeBucketArgs = new MakeBucketArgs().WithBucket(_bucketName);

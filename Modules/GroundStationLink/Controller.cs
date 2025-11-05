@@ -8,23 +8,30 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 
-namespace SatOps.Modules.Gateway
+namespace SatOps.Modules.GroundStationLink
 {
-    public class GatewayController : ControllerBase
+    [ApiController]
+    public class GroundStationLinkController : ControllerBase
     {
-        private readonly IGroundStationGatewayService _gatewayService;
+        private readonly IWebSocketService _webSocketService;
         private readonly IGroundStationRepository _gsRepository;
-        private readonly ILogger<GatewayController> _logger;
+        private readonly ITelemetryService _telemetryService;
+        private readonly IImageService _imageService;
+        private readonly ILogger<GroundStationLinkController> _logger;
         private readonly TokenValidationParameters _tokenValidationParameters;
 
-        public GatewayController(
-            IGroundStationGatewayService gatewayService,
+        public GroundStationLinkController(
+            IWebSocketService webSocketService,
             IGroundStationRepository gsRepository,
+            ITelemetryService telemetryService,
+            IImageService imageService,
             IConfiguration configuration,
-            ILogger<GatewayController> logger)
+            ILogger<GroundStationLinkController> logger)
         {
-            _gatewayService = gatewayService;
+            _webSocketService = webSocketService;
             _gsRepository = gsRepository;
+            _telemetryService = telemetryService;
+            _imageService = imageService;
             _logger = logger;
 
             var jwtSettings = configuration.GetSection("Jwt");
@@ -41,7 +48,7 @@ namespace SatOps.Modules.Gateway
             };
         }
 
-        [HttpGet("/api/v1/gs/ws")]
+        [HttpGet("/api/v1/ground-station-link/connect")]
         public async Task HandleConnection()
         {
             if (!HttpContext.WebSockets.IsWebSocketRequest)
@@ -56,7 +63,6 @@ namespace SatOps.Modules.Gateway
             try
             {
                 var buffer = new byte[1024 * 4];
-
                 var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                 if (receiveResult.MessageType == WebSocketMessageType.Close) return;
 
@@ -65,7 +71,6 @@ namespace SatOps.Modules.Gateway
 
                 if (helloMessage?.Type != "hello" || string.IsNullOrEmpty(helloMessage.Token))
                 {
-                    _logger.LogWarning("WebSocket connection closed due to invalid 'hello' message.");
                     await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Invalid hello message", CancellationToken.None);
                     return;
                 }
@@ -83,22 +88,16 @@ namespace SatOps.Modules.Gateway
                     return;
                 }
 
-                // Verify the token has the required scope for WebSocket connections
-                var hasWebSocketScope = principal.Claims.Any(c =>
-                    c.Type == "scope" && c.Value == SatOps.Authorization.GroundStationScopes.EstablishWebSocket);
-
+                var hasWebSocketScope = principal.Claims.Any(c => c.Type == "scope" && c.Value == Authorization.GroundStationScopes.EstablishWebSocket);
                 if (!hasWebSocketScope)
                 {
-                    _logger.LogWarning("WebSocket closed: token lacks required scope for WebSocket connection.");
                     await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Insufficient permissions", CancellationToken.None);
                     return;
                 }
 
                 var subClaim = principal.Claims.FirstOrDefault(c => c.Type == "sub");
-
                 if (subClaim == null || !int.TryParse(subClaim.Value, out groundStationId))
                 {
-                    _logger.LogWarning("WebSocket closed: valid token is missing 'sub' claim for GS ID.");
                     await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Invalid token claims", CancellationToken.None);
                     return;
                 }
@@ -106,13 +105,11 @@ namespace SatOps.Modules.Gateway
                 var station = await _gsRepository.GetByIdAsync(groundStationId);
                 if (station == null)
                 {
-                    _logger.LogWarning("GS with ID {GroundStationId} from token not found in database.", groundStationId);
                     await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Ground station not registered", CancellationToken.None);
                     return;
                 }
 
-                await _gatewayService.RegisterConnection(station.Id, station.Name, webSocket);
-
+                await _webSocketService.RegisterConnection(station.Id, station.Name, webSocket);
                 var confirmation = new { message = "OK", id = subClaim.Value };
                 var confirmationJson = JsonSerializer.Serialize(confirmation);
                 await webSocket.SendAsync(Encoding.UTF8.GetBytes(confirmationJson), WebSocketMessageType.Text, true, CancellationToken.None);
@@ -120,36 +117,27 @@ namespace SatOps.Modules.Gateway
                 while (webSocket.State == WebSocketState.Open)
                 {
                     receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-                    if (receiveResult.MessageType == WebSocketMessageType.Close)
-                    {
-                        _logger.LogInformation("WebSocket for GS {GroundStationId} closed by client.", groundStationId);
-                        break;
-                    }
+                    if (receiveResult.MessageType == WebSocketMessageType.Close) break;
                 }
             }
             catch (WebSocketException wse)
             {
-                _logger.LogWarning(wse, "WebSocket exception for GS {GroundStationId}. Connection will be closed.", groundStationId);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error in WebSocket pipeline for GS {GroundStationId}.", groundStationId);
+                _logger.LogWarning(wse, "WebSocket exception for GS {GroundStationId}.", groundStationId);
             }
             finally
             {
                 if (groundStationId != -1)
                 {
-                    await _gatewayService.UnregisterConnection(groundStationId);
+                    await _webSocketService.UnregisterConnection(groundStationId);
                 }
             }
         }
 
-        [HttpGet("/api/v1/gateway/status")]
+        [HttpGet("/api/v1/ground-station-link/status")]
         [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public IActionResult GetStatus()
         {
-            var connections = _gatewayService.GetAllConnections();
-
+            var connections = _webSocketService.GetAllConnections();
             var statuses = connections.Select(c => new ConnectionStatusDto
             {
                 GroundStationId = c.GroundStationId,
@@ -158,8 +146,52 @@ namespace SatOps.Modules.Gateway
                 UptimeMinutes = (DateTime.UtcNow - c.ConnectedAt).TotalMinutes,
                 LastCommandId = c.LastCommandId
             });
-
             return Ok(statuses);
+        }
+
+        [HttpPost("/api/v1/internal/ground-station-link/telemetry")]
+        [Consumes("multipart/form-data")]
+        [Authorize(Policy = Authorization.Policies.RequireGroundStation)]
+        public async Task<IActionResult> ReceiveTelemetryData([FromForm] TelemetryDataReceiveDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid) return BadRequest(ModelState);
+                await _telemetryService.ReceiveTelemetryDataAsync(dto);
+                return Ok("Telemetry data received successfully");
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to receive telemetry data from ground station {GroundStationId}", dto.GroundStationId);
+                return StatusCode(500, "An error occurred while processing the telemetry data");
+            }
+        }
+
+        [HttpPost("/api/v1/internal/ground-station-link/images")]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(105 * 1024 * 1024)]
+        [Authorize(Policy = Authorization.Policies.RequireGroundStation)]
+        public async Task<IActionResult> ReceiveImageData([FromForm] ImageDataReceiveDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid) return BadRequest(ModelState);
+                await _imageService.ReceiveImageDataAsync(dto);
+                return Ok("Image data received successfully");
+            }
+            catch (ArgumentException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to receive image data from ground station {GroundStationId}", dto.GroundStationId);
+                return StatusCode(500, "An error occurred while processing the image data");
+            }
         }
     }
 }

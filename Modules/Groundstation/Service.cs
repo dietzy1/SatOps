@@ -1,5 +1,5 @@
 using Microsoft.IdentityModel.Tokens;
-using SatOps.Modules.Gateway;
+using SatOps.Modules.GroundStationLink;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -19,7 +19,7 @@ namespace SatOps.Modules.Groundstation
 
     public class GroundStationService(
         IGroundStationRepository repository,
-        IGroundStationGatewayService gatewayService,
+        IWebSocketService gatewayService,
         IConfiguration configuration,
         ILogger<GroundStationService> logger
     ) : IGroundStationService

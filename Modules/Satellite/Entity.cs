@@ -25,8 +25,8 @@ namespace SatOps.Modules.Satellite
         // Inverse Navigation Properties
         public virtual ICollection<FlightPlan.FlightPlan> FlightPlans { get; set; } = new List<FlightPlan.FlightPlan>();
         public virtual ICollection<Overpass.Entity> Overpasses { get; set; } = new List<Overpass.Entity>();
-        public virtual ICollection<Operation.ImageData> Images { get; set; } = new List<Operation.ImageData>();
-        public virtual ICollection<Operation.TelemetryData> Telemetry { get; set; } = new List<Operation.TelemetryData>();
+        public virtual ICollection<GroundStationLink.ImageData> Images { get; set; } = new List<GroundStationLink.ImageData>();
+        public virtual ICollection<GroundStationLink.TelemetryData> Telemetry { get; set; } = new List<GroundStationLink.TelemetryData>();
     }
 
     public enum SatelliteStatus

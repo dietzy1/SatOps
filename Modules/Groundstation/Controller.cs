@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
-using SatOps.Modules.Gateway;
+using SatOps.Modules.GroundStationLink;
 
 namespace SatOps.Modules.Groundstation
 {
@@ -9,7 +9,7 @@ namespace SatOps.Modules.Groundstation
     [Authorize]
     public class GroundStationsManagementController(
         IGroundStationService service,
-        IGroundStationGatewayService gatewayService) : ControllerBase
+        IWebSocketService gatewayService) : ControllerBase
     {
         [HttpGet]
         [Authorize(Policy = Authorization.Policies.RequireViewer)]
@@ -69,7 +69,6 @@ namespace SatOps.Modules.Groundstation
             return CreatedAtAction(nameof(Get), new { id = created.Id }, responseDto);
         }
 
-        // --- Endpoint Moved from AuthController ---
         [HttpPost("token")]
         [AllowAnonymous]
         public async Task<ActionResult<TokenResponseDto>> GetStationToken([FromBody] TokenRequestDto request)

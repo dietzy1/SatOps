@@ -4,8 +4,8 @@ using GroundStationEntity = SatOps.Modules.Groundstation.GroundStation;
 using FlightPlanEntity = SatOps.Modules.FlightPlan.FlightPlan;
 using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 using UserEntity = SatOps.Modules.User.User;
-using TelemetryDataEntity = SatOps.Modules.Operation.TelemetryData;
-using ImageDataEntity = SatOps.Modules.Operation.ImageData;
+using TelemetryDataEntity = SatOps.Modules.GroundStationLink.TelemetryData;
+using ImageDataEntity = SatOps.Modules.GroundStationLink.ImageData;
 using OverpassEntity = SatOps.Modules.Overpass.Entity;
 
 namespace SatOps.Data
