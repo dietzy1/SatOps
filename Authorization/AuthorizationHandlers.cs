@@ -30,7 +30,7 @@ namespace SatOps.Authorization
             }
 
             // Parse the role
-            if (!Enum.TryParse<UserRole>(roleClaim.Value, out var userRole))
+            if (!Enum.TryParse<UserRole>(roleClaim.Value, ignoreCase: true, out var userRole))
             {
                 return Task.CompletedTask;
             }
