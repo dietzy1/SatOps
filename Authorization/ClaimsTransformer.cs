@@ -12,7 +12,6 @@ namespace SatOps.Authorization
     public class UserPermissionsClaimsTransformation : IClaimsTransformation
     {
         private readonly IUserService _userService;
-        private readonly IAuth0Client _auth0Client;
         private readonly ILogger<UserPermissionsClaimsTransformation> _logger;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
@@ -21,12 +20,10 @@ namespace SatOps.Authorization
 
         public UserPermissionsClaimsTransformation(
             IUserService userService,
-            IAuth0Client auth0Client,
             ILogger<UserPermissionsClaimsTransformation> logger,
             IHttpContextAccessor httpContextAccessor)
         {
             _userService = userService;
-            _auth0Client = auth0Client;
             _logger = logger;
             _httpContextAccessor = httpContextAccessor;
         }
@@ -61,26 +58,17 @@ namespace SatOps.Authorization
 
                         if (existingUser == null)
                         {
-                            // User doesn't exist - fetch profile from Auth0 UserInfo endpoint
-                            _logger.LogInformation("New user {Auth0UserId} detected, fetching profile from Auth0", auth0UserId);
+                            // User doesn't exist - service will fetch profile from Auth0 and create user
+                            _logger.LogInformation("New user {Auth0UserId} detected, creating user", auth0UserId);
 
                             var accessToken = _httpContextAccessor.HttpContext?.Request.Headers.Authorization
                                 .ToString()
-                                .Replace("Bearer ", "");
-
-                            var userInfo = await _auth0Client.GetUserInfoAsync(accessToken ?? string.Empty);
-
-                            var email = userInfo.Email ?? $"{auth0UserId}@unknown.com";
-                            var name = userInfo.Name ?? userInfo.Nickname ?? "Unknown User";
+                                .Replace("Bearer ", "") ?? string.Empty;
 
                             existingUser = await _userService.GetOrCreateUserFromAuth0Async(
                                 auth0UserId,
-                                email,
-                                name
+                                accessToken
                             );
-
-                            _logger.LogInformation("Created new user {UserId} for Auth0 user {Auth0UserId}",
-                                existingUser.Id, auth0UserId);
                         }
                     }
                     finally

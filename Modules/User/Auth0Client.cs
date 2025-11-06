@@ -16,6 +16,33 @@ namespace SatOps.Authorization
     }
 
     /// <summary>
+    /// Auth0 UserInfo response model
+    /// </summary>
+    public class Auth0UserInfo
+    {
+        [JsonPropertyName("sub")]
+        public string? Sub { get; set; }
+
+        [JsonPropertyName("email")]
+        public string? Email { get; set; }
+
+        [JsonPropertyName("email_verified")]
+        public bool EmailVerified { get; set; }
+
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
+
+        [JsonPropertyName("nickname")]
+        public string? Nickname { get; set; }
+
+        [JsonPropertyName("picture")]
+        public string? Picture { get; set; }
+
+        [JsonPropertyName("updated_at")]
+        public string? UpdatedAt { get; set; }
+    }
+
+    /// <summary>
     /// Implementation of Auth0 API client
     /// </summary>
     public class Auth0Client : IAuth0Client
@@ -100,30 +127,5 @@ namespace SatOps.Authorization
         }
     }
 
-    /// <summary>
-    /// Auth0 UserInfo response model
-    /// </summary>
-    public class Auth0UserInfo
-    {
-        [JsonPropertyName("sub")]
-        public string? Sub { get; set; }
 
-        [JsonPropertyName("email")]
-        public string? Email { get; set; }
-
-        [JsonPropertyName("email_verified")]
-        public bool EmailVerified { get; set; }
-
-        [JsonPropertyName("name")]
-        public string? Name { get; set; }
-
-        [JsonPropertyName("nickname")]
-        public string? Nickname { get; set; }
-
-        [JsonPropertyName("picture")]
-        public string? Picture { get; set; }
-
-        [JsonPropertyName("updated_at")]
-        public string? UpdatedAt { get; set; }
-    }
 }
