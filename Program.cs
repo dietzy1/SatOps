@@ -47,7 +47,7 @@ try
         });
 
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerConfiguration();
+    builder.Services.AddSwaggerConfiguration(builder.Configuration);
 
     // Add HttpClientFactory for calling external APIs (Auth0 UserInfo)
     builder.Services.AddHttpClient();
@@ -234,7 +234,7 @@ try
         });
     });
 
-    app.UseSwaggerConfiguration();
+    app.UseSwaggerConfiguration(builder.Configuration);
 
     app.UseHttpsRedirection();
     app.UseCors();

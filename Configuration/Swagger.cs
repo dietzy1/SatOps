@@ -8,7 +8,7 @@ namespace SatOps.Configuration
 {
     public static class SwaggerConfiguration
     {
-        public static IServiceCollection AddSwaggerConfiguration(this IServiceCollection services)
+        public static IServiceCollection AddSwaggerConfiguration(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddSwaggerGen(options =>
             {
@@ -52,7 +52,29 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
                     ".Trim()
                 });
 
-                // Security scheme configuration
+                var domain = configuration["Auth0:Domain"];
+
+                // OAuth2 security scheme configuration for Auth0
+                options.AddSecurityDefinition("oauth2", new OpenApiSecurityScheme
+                {
+                    Type = SecuritySchemeType.OAuth2,
+                    Flows = new OpenApiOAuthFlows
+                    {
+                        AuthorizationCode = new OpenApiOAuthFlow
+                        {
+                            AuthorizationUrl = new Uri($"https://{domain}/authorize"),
+                            TokenUrl = new Uri($"https://{domain}/oauth/token"),
+                            Scopes = new Dictionary<string, string>
+                            {
+                                { "openid", "OpenID" },
+                                { "profile", "Profile" },
+                                { "email", "Email" }
+                            }
+                        }
+                    }
+                });
+
+                // Keep Bearer token for backward compatibility or direct token usage
                 options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Name = "Authorization",
@@ -71,10 +93,10 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
                             Reference = new OpenApiReference
                             {
                                 Type = ReferenceType.SecurityScheme,
-                                Id = "Bearer"
+                                Id = "oauth2"
                             }
                         },
-                        new string[] {}
+                        new[] { "openid", "profile", "email" }
                     }
                 });
 
@@ -110,7 +132,7 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
         }
 
         // Extension method for Swagger UI configuration
-        public static WebApplication UseSwaggerConfiguration(this WebApplication app)
+        public static WebApplication UseSwaggerConfiguration(this WebApplication app, IConfiguration configuration)
         {
             if (app.Environment.IsDevelopment())
             {
@@ -124,6 +146,15 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
                     c.DefaultModelsExpandDepth(-1); // Hide schemas section by default
                     c.DisplayRequestDuration();
                     c.EnableTryItOutByDefault();
+
+                    // Auth0 OAuth configuration for Swagger UI
+                    c.OAuthClientId(configuration["Auth0:ClientId"]);
+                    c.OAuthClientSecret(configuration["Auth0:ClientSecret"]);
+                    c.OAuthScopes("openid", "profile", "email");
+                    c.OAuthAdditionalQueryStringParams(new Dictionary<string, string>
+                    {
+                        { "audience", configuration["Auth0:Audience"] ?? "" }
+                    });
                 });
             }
 
