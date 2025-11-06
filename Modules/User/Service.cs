@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Caching.Memory;
 using SatOps.Authorization;
 
 namespace SatOps.Modules.User
@@ -18,15 +19,18 @@ namespace SatOps.Modules.User
         private readonly IUserRepository _repository;
         private readonly IAuth0Client _auth0Client;
         private readonly ILogger<UserService> _logger;
+        private readonly IMemoryCache _cache;
 
         public UserService(
             IUserRepository repository,
             IAuth0Client auth0Client,
-            ILogger<UserService> logger)
+            ILogger<UserService> logger,
+            IMemoryCache cache)
         {
             _repository = repository;
             _auth0Client = auth0Client;
             _logger = logger;
+            _cache = cache;
         }
 
         public Task<List<User>> ListAsync() => _repository.GetAllAsync();
@@ -87,7 +91,16 @@ namespace SatOps.Modules.User
 
             user.Role = role;
 
-            return await _repository.UpdateAsync(user);
+            var updatedUser = await _repository.UpdateAsync(user);
+
+            if (updatedUser != null && !string.IsNullOrEmpty(updatedUser.Auth0UserId))
+            {
+                var cacheKey = $"user_permissions_{updatedUser.Auth0UserId}";
+                _cache.Remove(cacheKey);
+                _logger.LogInformation("Cache invalidated for user {UserId} (Auth0 ID: {Auth0UserId}) due to role change.", userId, updatedUser.Auth0UserId);
+            }
+
+            return updatedUser;
         }
 
         public Task<bool> DeleteAsync(int id) => _repository.DeleteAsync(id);

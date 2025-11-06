@@ -62,6 +62,8 @@ try
         });
     });
 
+    builder.Services.AddMemoryCache();
+
     // Database
     var dataSourceBuilder = new NpgsqlDataSourceBuilder(
         builder.Configuration.GetConnectionString("DefaultConnection")!

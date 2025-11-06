@@ -1,31 +1,29 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.Extensions.Caching.Memory;
 using SatOps.Modules.User;
 using System.Security.Claims;
 
 namespace SatOps.Authorization
 {
-    /// <summary>
-    /// Transforms Auth0 JWT claims by loading user permissions from the database.
-    /// Auto-creates users with Viewer role if they don't exist.
-    /// Fetches user profile from Auth0 UserInfo endpoint for new users.
-    /// </summary>
     public class UserPermissionsClaimsTransformation : IClaimsTransformation
     {
         private readonly IUserService _userService;
         private readonly ILogger<UserPermissionsClaimsTransformation> _logger;
         private readonly IHttpContextAccessor _httpContextAccessor;
-
-        // Prevent race conditions when creating users concurrently
+        private readonly IMemoryCache _cache;
         private static readonly SemaphoreSlim _userCreationLock = new SemaphoreSlim(1, 1);
+        private record CachedUserData(int UserId, UserRole Role);
 
         public UserPermissionsClaimsTransformation(
             IUserService userService,
             ILogger<UserPermissionsClaimsTransformation> logger,
-            IHttpContextAccessor httpContextAccessor)
+            IHttpContextAccessor httpContextAccessor,
+            IMemoryCache cache)
         {
             _userService = userService;
             _logger = logger;
             _httpContextAccessor = httpContextAccessor;
+            _cache = cache;
         }
 
         public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
@@ -43,28 +41,32 @@ namespace SatOps.Authorization
                 return principal;
             }
 
+            var cacheKey = $"user_permissions_{auth0UserId}";
+
+            if (_cache.TryGetValue<CachedUserData>(cacheKey, out var cachedUser))
+            {
+                _logger.LogDebug("Cache hit for user {Auth0UserId}", auth0UserId);
+                return AddClaimsFromUserData(principal, cachedUser!);
+            }
+
+            _logger.LogDebug("Cache miss for user {Auth0UserId}, fetching from DB.", auth0UserId);
+
             try
             {
                 var existingUser = await _userService.GetByAuth0UserIdAsync(auth0UserId);
 
                 if (existingUser == null)
                 {
-                    // Use semaphore to prevent race conditions when multiple requests come in simultaneously
                     await _userCreationLock.WaitAsync();
                     try
                     {
-                        // Double-check after acquiring lock
                         existingUser = await _userService.GetByAuth0UserIdAsync(auth0UserId);
-
                         if (existingUser == null)
                         {
-                            // User doesn't exist - service will fetch profile from Auth0 and create user
                             _logger.LogInformation("New user {Auth0UserId} detected, creating user", auth0UserId);
-
                             var accessToken = _httpContextAccessor.HttpContext?.Request.Headers.Authorization
                                 .ToString()
                                 .Replace("Bearer ", "") ?? string.Empty;
-
                             existingUser = await _userService.GetOrCreateUserFromAuth0Async(
                                 auth0UserId,
                                 accessToken
@@ -77,32 +79,39 @@ namespace SatOps.Authorization
                     }
                 }
 
-                // Clone principal and add claims
-                var clone = principal.Clone();
-                var newIdentity = (ClaimsIdentity)clone.Identity!;
+                var userDataToCache = new CachedUserData(existingUser.Id, existingUser.Role);
+                var cacheOptions = new MemoryCacheEntryOptions()
+                    .SetAbsoluteExpiration(TimeSpan.FromMinutes(5));
 
-                // Add role from database to claims
-                var roleValue = existingUser.Role.ToString();
-                if (!principal.HasClaim(ClaimTypes.Role, roleValue))
-                {
-                    newIdentity.AddClaim(new Claim(ClaimTypes.Role, roleValue));
-                }
+                _cache.Set(cacheKey, userDataToCache, cacheOptions);
 
-                // Add internal user ID for easy access
-                if (!principal.HasClaim("user_id", existingUser.Id.ToString()))
-                {
-                    newIdentity.AddClaim(new Claim("user_id", existingUser.Id.ToString()));
-                }
-
-                _logger.LogDebug("Added role {Role} for user {Auth0UserId}", roleValue, auth0UserId);
-
-                return clone;
+                return AddClaimsFromUserData(principal, userDataToCache);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error transforming claims for user {Auth0UserId}", auth0UserId);
                 return principal;
             }
+        }
+
+        private ClaimsPrincipal AddClaimsFromUserData(ClaimsPrincipal principal, CachedUserData userData)
+        {
+            var clone = principal.Clone();
+            var newIdentity = (ClaimsIdentity)clone.Identity!;
+
+            var roleValue = userData.Role.ToString();
+            if (!principal.HasClaim(ClaimTypes.Role, roleValue))
+            {
+                newIdentity.AddClaim(new Claim(ClaimTypes.Role, roleValue));
+            }
+
+            var userIdValue = userData.UserId.ToString();
+            if (!principal.HasClaim("user_id", userIdValue))
+            {
+                newIdentity.AddClaim(new Claim("user_id", userIdValue));
+            }
+
+            return clone;
         }
     }
 }
