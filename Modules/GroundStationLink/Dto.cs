@@ -55,19 +55,6 @@ namespace SatOps.Modules.GroundStationLink
         public Guid? LastCommandId { get; set; }
     }
 
-
-    public class TelemetryDataReceiveDto
-    {
-        [Required]
-        public int GroundStationId { get; set; }
-        [Required]
-        public int SatelliteId { get; set; }
-        [Required]
-        public int FlightPlanId { get; set; }
-        [Required]
-        public DateTime Timestamp { get; set; }
-    }
-
     public class ImageDataReceiveDto
     {
         [Required]

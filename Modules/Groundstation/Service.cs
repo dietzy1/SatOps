@@ -127,7 +127,6 @@ namespace SatOps.Modules.Groundstation
                 new Claim(JwtRegisteredClaimNames.Sub, station.Id.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim("type", "GroundStation"),
-                new Claim("scope", Authorization.GroundStationScopes.UploadTelemetry),
                 new Claim("scope", Authorization.GroundStationScopes.UploadImages),
                 new Claim("scope", Authorization.GroundStationScopes.EstablishWebSocket)
             };

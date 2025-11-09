@@ -17,9 +17,6 @@ namespace SatOps.Tests
     {
         private readonly Mock<IObjectStorageService> _mockObjectStorageService;
         private readonly SatOpsDbContext _dbContext;
-
-        private readonly TelemetryService _telemetryService;
-
         private readonly ImageService _imageService;
 
         public OperationServiceTests()
@@ -31,9 +28,6 @@ namespace SatOps.Tests
             _dbContext = new SatOpsDbContext(options);
 
             _mockObjectStorageService = new Mock<IObjectStorageService>();
-
-            var mockTelemetryLogger = new Mock<ILogger<TelemetryService>>();
-            _telemetryService = new TelemetryService(_dbContext, _mockObjectStorageService.Object, mockTelemetryLogger.Object);
 
             var mockImageLogger = new Mock<ILogger<ImageService>>();
             _imageService = new ImageService(_dbContext, _mockObjectStorageService.Object, mockImageLogger.Object);
@@ -62,72 +56,6 @@ namespace SatOps.Tests
             mockFile.Setup(f => f.OpenReadStream()).Returns(stream);
             return mockFile.Object;
         }
-
-        #region TelemetryService Tests
-
-        [Fact]
-        public async Task ReceiveTelemetryDataAsync_WithValidReferences_UploadsToMinioAndSavesToDb()
-        {
-            // Arrange
-            var mockFile = CreateMockFormFile("telemetry data", "telemetry.bin", "application/octet-stream");
-            var dto = new TelemetryDataReceiveDto
-            {
-                SatelliteId = 1,
-                GroundStationId = 1,
-                FlightPlanId = 1,
-                Timestamp = DateTime.UtcNow,
-                Data = mockFile
-            };
-
-            var expectedS3Path = "telemetry/path/file.bin";
-            _mockObjectStorageService
-                .Setup(m => m.UploadFileAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>(), DataType.Telemetry))
-                .ReturnsAsync(expectedS3Path);
-
-            // Act
-            await _telemetryService.ReceiveTelemetryDataAsync(dto);
-
-            // Assert
-            // Verify Minio upload was called correctly
-            _mockObjectStorageService.Verify(m => m.UploadFileAsync(
-                It.IsAny<Stream>(),
-                It.Is<string>(s => s.StartsWith($"telemetry_{dto.SatelliteId}") && s.EndsWith(mockFile.FileName)),
-                mockFile.ContentType,
-                DataType.Telemetry), Times.Once);
-
-            // Verify metadata was saved to the database
-            var savedData = await _dbContext.TelemetryData.FirstOrDefaultAsync();
-            savedData.Should().NotBeNull();
-            savedData!.SatelliteId.Should().Be(dto.SatelliteId);
-            savedData.GroundStationId.Should().Be(dto.GroundStationId);
-            savedData.FlightPlanId.Should().Be(dto.FlightPlanId);
-            savedData.S3ObjectPath.Should().Be(expectedS3Path);
-            savedData.FileSize.Should().Be(mockFile.Length);
-        }
-
-        [Fact]
-        public async Task ReceiveTelemetryDataAsync_WithInvalidSatelliteId_ThrowsArgumentException()
-        {
-            // Arrange
-            var mockFile = CreateMockFormFile("data", "file.bin", "app/bin");
-            var dto = new TelemetryDataReceiveDto
-            {
-                SatelliteId = 99, // Non-existent ID
-                GroundStationId = 1,
-                FlightPlanId = 1,
-                Data = mockFile
-            };
-
-            // Act
-            Func<Task> act = () => _telemetryService.ReceiveTelemetryDataAsync(dto);
-
-            // Assert
-            await act.Should().ThrowAsync<ArgumentException>()
-                .WithMessage($"Satellite with ID {dto.SatelliteId} does not exist");
-        }
-
-
-        #endregion
 
         #region ImageService Tests
 

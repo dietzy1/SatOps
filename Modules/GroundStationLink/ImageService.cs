@@ -3,35 +3,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace SatOps.Modules.GroundStationLink
 {
-    public interface ITelemetryService
-    {
-        Task ReceiveTelemetryDataAsync(TelemetryDataReceiveDto dto);
-    }
-
-    public class TelemetryService(SatOpsDbContext context, ILogger<TelemetryService> logger) : ITelemetryService
-    {
-        public async Task ReceiveTelemetryDataAsync(TelemetryDataReceiveDto dto)
-        {
-            try
-            {
-                logger.LogInformation("Receiving telemetry data from satellite {SatelliteId} via ground station {GroundStationId}", dto.SatelliteId, dto.GroundStationId);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to process telemetry data from satellite {SatelliteId}", dto.SatelliteId);
-                throw;
-            }
-        }
-
-        private async Task ValidateReferencesAsync(int satelliteId, int groundStationId, int flightPlanId)
-        {
-            if (!await context.Satellites.AnyAsync(s => s.Id == satelliteId)) throw new ArgumentException($"Satellite with ID {satelliteId} does not exist");
-            if (!await context.GroundStations.AnyAsync(gs => gs.Id == groundStationId)) throw new ArgumentException($"Ground station with ID {groundStationId} does not exist");
-            if (!await context.FlightPlans.AnyAsync(s => s.Id == flightPlanId)) throw new ArgumentException($"Flight plan with ID {flightPlanId} does not exist");
-        }
-    }
-
-    // Image Service
     public interface IImageService
     {
         Task ReceiveImageDataAsync(ImageDataReceiveDto dto);

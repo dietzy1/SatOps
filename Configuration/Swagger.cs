@@ -40,12 +40,11 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
                     Description = @"
 **Internal Operations API** for satellite communications and data processing:
 - 📤 Command transmission to satellites
-- 📥 Telemetry data reception from satellites
 - 🖼️ Image data reception and processing
 - 🔄 Real-time operational status updates
 ## Features
 - Command lifecycle management (Pending → Sent → Acknowledged)
-- Large file handling for telemetry and images
+- Large file handling for images
 - MinIO object storage integration
 - Ground station communication endpoints
 **Note**: These endpoints are intended for internal ground station operations and satellite communications.

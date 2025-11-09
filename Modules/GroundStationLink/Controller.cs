@@ -16,7 +16,6 @@ namespace SatOps.Modules.GroundStationLink
         private readonly IWebSocketService _webSocketService;
         private readonly IGroundStationRepository _gsRepository;
         private readonly IGroundStationService _gsService;
-        private readonly ITelemetryService _telemetryService;
         private readonly IImageService _imageService;
         private readonly ILogger<GroundStationLinkController> _logger;
         private readonly TokenValidationParameters _tokenValidationParameters;
@@ -25,7 +24,6 @@ namespace SatOps.Modules.GroundStationLink
             IWebSocketService webSocketService,
             IGroundStationRepository gsRepository,
             IGroundStationService gsService,
-            ITelemetryService telemetryService,
             IImageService imageService,
             IConfiguration configuration,
             ILogger<GroundStationLinkController> logger)
@@ -33,7 +31,6 @@ namespace SatOps.Modules.GroundStationLink
             _webSocketService = webSocketService;
             _gsRepository = gsRepository;
             _gsService = gsService;
-            _telemetryService = telemetryService;
             _imageService = imageService;
             _logger = logger;
 
@@ -142,28 +139,6 @@ namespace SatOps.Modules.GroundStationLink
                 {
                     await _webSocketService.UnregisterConnection(groundStationId);
                 }
-            }
-        }
-
-        [HttpPost("/api/v1/ground-station-link/telemetry")]
-        [Consumes("multipart/form-data")]
-        [Authorize(Policy = Authorization.Policies.RequireGroundStation)]
-        public async Task<IActionResult> ReceiveTelemetryData([FromForm] TelemetryDataReceiveDto dto)
-        {
-            try
-            {
-                if (!ModelState.IsValid) return BadRequest(ModelState);
-                await _telemetryService.ReceiveTelemetryDataAsync(dto);
-                return Ok("Telemetry data received successfully");
-            }
-            catch (ArgumentException ex)
-            {
-                return BadRequest(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to receive telemetry data from ground station {GroundStationId}", dto.GroundStationId);
-                return StatusCode(500, "An error occurred while processing the telemetry data");
             }
         }
 

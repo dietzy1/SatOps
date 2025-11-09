@@ -34,7 +34,6 @@ namespace SatOps.Authorization
     /// </summary>
     public static class GroundStationScopes
     {
-        public const string UploadTelemetry = "gs:upload-telemetry";
         public const string UploadImages = "gs:upload-images";
         public const string EstablishWebSocket = "gs:establish-websocket";
     }

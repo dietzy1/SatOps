@@ -95,13 +95,6 @@ func main() {
 					log.Printf("📜 Received script: %s\n", string(scriptMessage))
 				}
 
-				log.Println("\n🔄 Sending telemetry data...")
-				if err := sendTelemetry(token, scheduleMsg.Data.GroundStationID, scheduleMsg.Data.SatelliteID, scheduleMsg.Data.FlightPlanID); err != nil {
-					log.Printf("⚠ Failed to send telemetry: %v\n", err)
-				} else {
-					log.Println("✓ Telemetry data sent successfully")
-				}
-
 				log.Println("\n🖼️  Sending image data...")
 				if err := sendImage(token, scheduleMsg.Data.GroundStationID, scheduleMsg.Data.SatelliteID, scheduleMsg.Data.FlightPlanID); err != nil {
 					log.Printf("⚠ Failed to send image: %v\n", err)
@@ -111,7 +104,7 @@ func main() {
 			}
 		}
 	}()
-	
+
 	log.Println("Press Ctrl+C to exit")
 
 	select {
@@ -193,48 +186,6 @@ func connectWebSocket(token string) (*websocket.Conn, error) {
 	log.Printf("Server confirmation: %s\n", string(confirmMsg))
 
 	return conn, nil
-}
-
-func sendTelemetry(token string, groundStationID, satelliteID, flightPlanID int) error {
-	telemetryData := []byte(`{"temperature": 23.5, "voltage": 12.3, "status": "nominal"}`)
-
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
-
-	writer.WriteField("GroundStationId", fmt.Sprintf("%d", groundStationID))
-	writer.WriteField("SatelliteId", fmt.Sprintf("%d", satelliteID))
-	writer.WriteField("FlightPlanId", fmt.Sprintf("%d", flightPlanID))
-	writer.WriteField("Timestamp", time.Now().UTC().Format(time.RFC3339))
-
-	part, err := writer.CreateFormFile("Data", "telemetry.json")
-	if err != nil {
-		return err
-	}
-	part.Write(telemetryData)
-
-	writer.Close()
-
-	req, err := http.NewRequest("POST", baseURL+"/api/v1/ground-station-link/telemetry", &buf)
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Content-Type", writer.FormDataContentType())
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("telemetry upload failed with status %d: %s", resp.StatusCode, string(body))
-	}
-
-	return nil
 }
 
 func sendImage(token string, groundStationID, satelliteID, flightPlanID int) error {

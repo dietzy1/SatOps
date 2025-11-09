@@ -209,7 +209,6 @@ try
 
     // Operation Services
     builder.Services.AddScoped<IObjectStorageService, ObjectStorageService>();
-    builder.Services.AddScoped<ITelemetryService, TelemetryService>();
     builder.Services.AddScoped<IImageService, ImageService>();
 
     // Authorization handlers

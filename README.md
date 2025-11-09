@@ -8,7 +8,7 @@ A backend API for satellite operations, designed to manage ground stations, trac
 - **Satellite Tracking:** Manages a catalog of satellites and automatically updates TLE data from Celestrack.
 - **Overpass Calculation:** Predicts satellite visibility windows for any ground station.
 - **Flight Plan Scheduling:** Create, update (with versioning), and manage the approval lifecycle of flight plans.
-- **Object Storage:** Integrates with MinIO for scalable storage of large binary data like satellite imagery and telemetry files.
+- **Object Storage:** Integrates with MinIO for scalable storage of large binary data like satellite imagery.
 - **Containerized:** Ready to run with Docker and Docker Compose.
 
 ## Technology Stack
@@ -65,7 +65,6 @@ Intended for human operators and external management tools. Authentication is ha
 A machine-to-machine API for ground stations. It is protected and requires a ground-station-specific JWT.
 
 - `POST /api/auth/token` - Acquire a JWT using the ground station's Application ID & API Key.
-- `POST /api/internal/operations/telemetry` - Upload telemetry data files from a ground station.
 - `POST /api/internal/operations/images` - Upload captured image files from a ground station.
 
 ## Logging & Monitoring
