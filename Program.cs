@@ -85,8 +85,9 @@ try
     // Prevent .NET from renaming JWT claims (e.g. "sub" → "nameidentifier")
     JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
 
-    // Configure Auth0 JWT Bearer Authentication
+    // Configure Authentication with multiple JWT schemes
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        // Auth0 JWT Bearer Authentication for human users
         .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
         {
             var auth0Settings = builder.Configuration.GetSection("Auth0");
@@ -124,6 +125,26 @@ try
                     return Task.CompletedTask;
                 }
             };
+        })
+        // Ground Station JWT Bearer Authentication
+        .AddJwtBearer("GroundStation", options =>
+        {
+            var jwtSettings = builder.Configuration.GetSection("Jwt");
+            var key = jwtSettings["Key"] ?? throw new InvalidOperationException("JWT Key not configured.");
+            var issuer = jwtSettings["Issuer"] ?? throw new InvalidOperationException("JWT Issuer not configured.");
+            var audience = jwtSettings["Audience"] ?? throw new InvalidOperationException("JWT Audience not configured.");
+
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)),
+                ValidateIssuer = true,
+                ValidIssuer = issuer,
+                ValidateAudience = true,
+                ValidAudience = audience,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.FromMinutes(5)
+            };
         });
 
     // Authorization with role-based policies
@@ -131,10 +152,12 @@ try
     builder.Services.AddAuthorization(options =>
     {
         // Special policy for ground station machine authentication
+        // Uses the "GroundStation" authentication scheme
         options.AddPolicy(Policies.RequireGroundStation, policy =>
         {
-            policy.RequireAuthenticatedUser()
-                  .RequireClaim("type", "GroundStation");
+            policy.AuthenticationSchemes.Add("GroundStation");
+            policy.RequireAuthenticatedUser();
+            policy.RequireClaim("type", "GroundStation");
         });
 
         // Role-based policies for human users

@@ -8,31 +8,13 @@ namespace SatOps.Modules.GroundStationLink
         Task ReceiveTelemetryDataAsync(TelemetryDataReceiveDto dto);
     }
 
-    public class TelemetryService(SatOpsDbContext context, IObjectStorageService objectStorageService, ILogger<TelemetryService> logger) : ITelemetryService
+    public class TelemetryService(SatOpsDbContext context, ILogger<TelemetryService> logger) : ITelemetryService
     {
         public async Task ReceiveTelemetryDataAsync(TelemetryDataReceiveDto dto)
         {
             try
             {
-                await ValidateReferencesAsync(dto.SatelliteId, dto.GroundStationId, dto.FlightPlanId);
-                var fileName = $"telemetry_{dto.SatelliteId}_{dto.Timestamp:yyyyMMdd_HHmmss}_{Path.GetFileName(dto.Data.FileName)}";
-                await using var fileStream = dto.Data.OpenReadStream();
-                var s3ObjectPath = await objectStorageService.UploadFileAsync(fileStream, fileName, dto.Data.ContentType ?? "application/octet-stream", DataType.Telemetry);
-                var telemetryData = new TelemetryData
-                {
-                    GroundStationId = dto.GroundStationId,
-                    SatelliteId = dto.SatelliteId,
-                    FlightPlanId = dto.FlightPlanId,
-                    Timestamp = dto.Timestamp,
-                    S3ObjectPath = s3ObjectPath,
-                    FileName = fileName,
-                    FileSize = dto.Data.Length,
-                    ContentType = dto.Data.ContentType ?? "application/octet-stream",
-                    ReceivedAt = DateTime.UtcNow
-                };
-                context.TelemetryData.Add(telemetryData);
-                await context.SaveChangesAsync();
-                logger.LogInformation("Stored telemetry data {TelemetryId} from satellite {SatelliteId}", telemetryData.Id, dto.SatelliteId);
+                logger.LogInformation("Receiving telemetry data from satellite {SatelliteId} via ground station {GroundStationId}", dto.SatelliteId, dto.GroundStationId);
             }
             catch (Exception ex)
             {
@@ -77,7 +59,6 @@ namespace SatOps.Modules.GroundStationLink
                     ReceivedAt = DateTime.UtcNow,
                     Latitude = dto.Latitude,
                     Longitude = dto.Longitude,
-                    Metadata = dto.Metadata
                 };
                 context.ImageData.Add(imageData);
                 await context.SaveChangesAsync();

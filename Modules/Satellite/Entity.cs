@@ -26,7 +26,6 @@ namespace SatOps.Modules.Satellite
         public virtual ICollection<FlightPlan.FlightPlan> FlightPlans { get; set; } = new List<FlightPlan.FlightPlan>();
         public virtual ICollection<Overpass.Entity> Overpasses { get; set; } = new List<Overpass.Entity>();
         public virtual ICollection<GroundStationLink.ImageData> Images { get; set; } = new List<GroundStationLink.ImageData>();
-        public virtual ICollection<GroundStationLink.TelemetryData> Telemetry { get; set; } = new List<GroundStationLink.TelemetryData>();
     }
 
     public enum SatelliteStatus

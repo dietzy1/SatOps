@@ -55,7 +55,9 @@ namespace SatOps.Modules.FlightPlan
 
                                 await gatewayService.SendScheduledCommand(
                                     plan.GroundStationId,
+                                    plan.SatelliteId,
                                     satellite.Name,
+                                    plan.Id,
                                     plan.ScheduledAt.GetValueOrDefault(),
                                     cshScript
                                 );

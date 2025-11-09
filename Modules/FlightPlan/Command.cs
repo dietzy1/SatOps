@@ -242,7 +242,7 @@ namespace SatOps.Modules.FlightPlan
 
 
                     var maxSearchDuration = TimeSpan.FromHours(48);
-                    var minOffNadirDegrees = 10.0;
+                    var minOffNadirDegrees = 80.0;
 
                     var imagingOpportunity = imagingCalculation.FindBestImagingOpportunity(
                         sgp4Satellite,

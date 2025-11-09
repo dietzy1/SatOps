@@ -81,12 +81,14 @@ namespace SatOps.Tests
             var groundStationId = 3;
             await _sut.RegisterConnection(groundStationId, "Test-GS-3", mockSocket.Object);
 
+            var satelliteId = 1;
             var satelliteName = "DISCO-1";
+            var flightPlanId = 10;
             var executionTime = DateTime.UtcNow.AddHours(1);
             var cshScript = new List<string> { "ident", "ping 1" };
 
             // Act
-            await _sut.SendScheduledCommand(groundStationId, satelliteName, executionTime, cshScript);
+            await _sut.SendScheduledCommand(groundStationId, satelliteId, satelliteName, flightPlanId, executionTime, cshScript);
 
             // Assert
             // Verify that SendAsync was called exactly twice.
@@ -129,7 +131,7 @@ namespace SatOps.Tests
             var nonExistentId = 99;
 
             // Act
-            Func<Task> act = () => _sut.SendScheduledCommand(nonExistentId, "any", DateTime.UtcNow, []);
+            Func<Task> act = () => _sut.SendScheduledCommand(nonExistentId, 1, "any", 1, DateTime.UtcNow, []);
 
             // Assert
             await act.Should().ThrowAsync<InvalidOperationException>()
@@ -153,8 +155,8 @@ namespace SatOps.Tests
             await _sut.RegisterConnection(groundStationId, "Test-GS-4", mockSocket.Object);
 
             // Act: Start two commands to the SAME ground station at the same time.
-            var task1 = _sut.SendScheduledCommand(groundStationId, "SAT-A", DateTime.UtcNow, ["cmd1"]);
-            var task2 = _sut.SendScheduledCommand(groundStationId, "SAT-B", DateTime.UtcNow, ["cmd2"]);
+            var task1 = _sut.SendScheduledCommand(groundStationId, 1, "SAT-A", 1, DateTime.UtcNow, ["cmd1"]);
+            var task2 = _sut.SendScheduledCommand(groundStationId, 2, "SAT-B", 2, DateTime.UtcNow, ["cmd2"]);
 
             // Wait for both tasks to complete
             await Task.WhenAll(task1, task2);

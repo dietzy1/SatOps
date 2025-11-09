@@ -4,7 +4,6 @@ using GroundStationEntity = SatOps.Modules.Groundstation.GroundStation;
 using FlightPlanEntity = SatOps.Modules.FlightPlan.FlightPlan;
 using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 using UserEntity = SatOps.Modules.User.User;
-using TelemetryDataEntity = SatOps.Modules.GroundStationLink.TelemetryData;
 using ImageDataEntity = SatOps.Modules.GroundStationLink.ImageData;
 using OverpassEntity = SatOps.Modules.Overpass.Entity;
 
@@ -16,7 +15,6 @@ namespace SatOps.Data
         public DbSet<FlightPlanEntity> FlightPlans => Set<FlightPlanEntity>();
         public DbSet<SatelliteEntity> Satellites => Set<SatelliteEntity>();
         public DbSet<UserEntity> Users => Set<UserEntity>();
-        public DbSet<TelemetryDataEntity> TelemetryData => Set<TelemetryDataEntity>();
         public DbSet<ImageDataEntity> ImageData => Set<ImageDataEntity>();
         public DbSet<OverpassEntity> Overpasses => Set<OverpassEntity>();
 
@@ -151,36 +149,6 @@ namespace SatOps.Data
 
                 // --- Indexes ---
                 entity.HasIndex(e => new { e.SatelliteId, e.GroundStationId, e.StartTime });
-            });
-
-            modelBuilder.Entity<TelemetryDataEntity>(entity =>
-            {
-                entity.ToTable("telemetry_data");
-                entity.HasKey(e => e.Id);
-                entity.Property(e => e.Id).UseIdentityByDefaultColumn();
-                entity.Property(e => e.S3ObjectPath).IsRequired().HasMaxLength(500);
-                entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
-                entity.Property(e => e.ContentType).IsRequired().HasMaxLength(100);
-                entity.Property(e => e.ReceivedAt).HasDefaultValueSql("timezone('utc', now())");
-
-                // --- Relationships ---
-                entity.HasOne(td => td.FlightPlan)
-                    .WithMany()
-                    .HasForeignKey(td => td.FlightPlanId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(td => td.Satellite)
-                    .WithMany(s => s.Telemetry)
-                    .HasForeignKey(td => td.SatelliteId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(td => td.GroundStation)
-                    .WithMany(gs => gs.Telemetry)
-                    .HasForeignKey(td => td.GroundStationId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                // --- Indexes ---
-                entity.HasIndex(e => new { e.SatelliteId, e.GroundStationId, e.Timestamp });
             });
 
             modelBuilder.Entity<ImageDataEntity>(entity =>

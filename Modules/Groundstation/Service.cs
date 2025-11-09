@@ -116,6 +116,12 @@ namespace SatOps.Modules.Groundstation
             var jwtSettings = configuration.GetSection("Jwt");
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]!));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+            var now = DateTime.UtcNow;
+
+            // Get expiration hours with fallback to 24 hours if not configured
+            var expirationHours = Convert.ToDouble(jwtSettings["ExpirationHours"] ?? "24");
+            if (expirationHours <= 0) expirationHours = 24;
+
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, station.Id.ToString()),
@@ -129,7 +135,8 @@ namespace SatOps.Modules.Groundstation
                 issuer: jwtSettings["Issuer"],
                 audience: jwtSettings["Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddHours(Convert.ToDouble(jwtSettings["ExpirationHours"])),
+                notBefore: now,
+                expires: now.AddHours(expirationHours),
                 signingCredentials: credentials);
             return new JwtSecurityTokenHandler().WriteToken(token);
         }

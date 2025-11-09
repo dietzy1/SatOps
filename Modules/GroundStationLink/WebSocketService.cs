@@ -20,7 +20,7 @@ namespace SatOps.Modules.GroundStationLink
         Task RegisterConnection(int groundStationId, string groundStationName, WebSocket socket);
         Task UnregisterConnection(int groundStationId);
         bool IsGroundStationConnected(int groundStationId);
-        Task SendScheduledCommand(int groundStationId, string satelliteName, DateTime executionTime, List<string> cshScript);
+        Task SendScheduledCommand(int groundStationId, int satelliteId, string satelliteName, int flightPlanId, DateTime executionTime, List<string> cshScript);
         IEnumerable<GroundStationConnection> GetAllConnections();
     }
 
@@ -60,7 +60,7 @@ namespace SatOps.Modules.GroundStationLink
             return _connections.Values.ToList();
         }
 
-        public async Task SendScheduledCommand(int groundStationId, string satelliteName, DateTime executionTime, List<string> cshScript)
+        public async Task SendScheduledCommand(int groundStationId, int satelliteId, string satelliteName, int flightPlanId, DateTime executionTime, List<string> cshScript)
         {
             if (!_connections.TryGetValue(groundStationId, out var connection) || connection.Socket.State != WebSocketState.Open)
             {
@@ -78,7 +78,10 @@ namespace SatOps.Modules.GroundStationLink
                     Data = new ScheduleTransmissionData
                     {
                         Satellite = satelliteName,
-                        Time = executionTime.ToString("o")
+                        Time = executionTime.ToString("o"),
+                        FlightPlanId = flightPlanId,
+                        SatelliteId = satelliteId,
+                        GroundStationId = groundStationId
                     }
                 };
                 connection.LastCommandId = message.RequestId;

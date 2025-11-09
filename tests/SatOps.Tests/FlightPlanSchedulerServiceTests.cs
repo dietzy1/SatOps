@@ -81,7 +81,7 @@ namespace SatOps.Tests
 
             // Assert
             // Verify the command was sent via the gateway
-            _mockGatewayService.Verify(g => g.SendScheduledCommand(gsId, satellite.Name, scheduledTime, script), Times.Once);
+            _mockGatewayService.Verify(g => g.SendScheduledCommand(gsId, satId, satellite.Name, planId, scheduledTime, script), Times.Once);
 
             // Verify the plan's status was updated to Transmitted
             _mockFlightPlanService.Verify(s => s.UpdateFlightPlanStatusAsync(planId, FlightPlanStatus.Transmitted, null), Times.Once);
@@ -114,7 +114,7 @@ namespace SatOps.Tests
 
             // Assert
             // Verify NO command was sent
-            _mockGatewayService.Verify(g => g.SendScheduledCommand(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<List<string>>()), Times.Never);
+            _mockGatewayService.Verify(g => g.SendScheduledCommand(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<List<string>>()), Times.Never);
 
             // Verify the plan was marked as Failed with a reason
             _mockFlightPlanService.Verify(s => s.UpdateFlightPlanStatusAsync(
@@ -144,7 +144,7 @@ namespace SatOps.Tests
             catch (OperationCanceledException) { /* Expected */ }
 
             // Assert
-            _mockGatewayService.Verify(g => g.SendScheduledCommand(It.IsAny<int>(), It.IsAny<string>(), It.IsAny<DateTime>(), It.IsAny<List<string>>()), Times.Never);
+            _mockGatewayService.Verify(g => g.SendScheduledCommand(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<List<string>>()), Times.Never);
             _mockFlightPlanService.Verify(s => s.UpdateFlightPlanStatusAsync(It.IsAny<int>(), It.IsAny<FlightPlanStatus>(), It.IsAny<string>()), Times.Never);
         }
     }

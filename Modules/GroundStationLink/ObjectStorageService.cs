@@ -5,8 +5,6 @@ namespace SatOps.Modules.GroundStationLink
 {
     public enum DataType
     {
-        Telemetry,
-        Command,
         Image
     }
 
@@ -28,8 +26,6 @@ namespace SatOps.Modules.GroundStationLink
                 await EnsureBucketExistsAsync();
                 var prefix = dataType switch
                 {
-                    DataType.Telemetry => "telemetry",
-                    DataType.Command => "commands",
                     DataType.Image => "images",
                     _ => "data"
                 };

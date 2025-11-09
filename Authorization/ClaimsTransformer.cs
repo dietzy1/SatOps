@@ -33,6 +33,15 @@ namespace SatOps.Authorization
                 return principal;
             }
 
+            // Skip claims transformation for ground station tokens
+            // Ground stations authenticate via their own JWT scheme and don't need user records
+            var typeClaim = identity.FindFirst("type");
+            if (typeClaim?.Value == "GroundStation")
+            {
+                _logger.LogDebug("Skipping user claims transformation for ground station token");
+                return principal;
+            }
+
             var auth0UserId = identity.FindFirst("sub")?.Value;
 
             if (string.IsNullOrEmpty(auth0UserId))

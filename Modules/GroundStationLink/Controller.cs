@@ -15,6 +15,7 @@ namespace SatOps.Modules.GroundStationLink
     {
         private readonly IWebSocketService _webSocketService;
         private readonly IGroundStationRepository _gsRepository;
+        private readonly IGroundStationService _gsService;
         private readonly ITelemetryService _telemetryService;
         private readonly IImageService _imageService;
         private readonly ILogger<GroundStationLinkController> _logger;
@@ -23,6 +24,7 @@ namespace SatOps.Modules.GroundStationLink
         public GroundStationLinkController(
             IWebSocketService webSocketService,
             IGroundStationRepository gsRepository,
+            IGroundStationService gsService,
             ITelemetryService telemetryService,
             IImageService imageService,
             IConfiguration configuration,
@@ -30,6 +32,7 @@ namespace SatOps.Modules.GroundStationLink
         {
             _webSocketService = webSocketService;
             _gsRepository = gsRepository;
+            _gsService = gsService;
             _telemetryService = telemetryService;
             _imageService = imageService;
             _logger = logger;
@@ -44,8 +47,17 @@ namespace SatOps.Modules.GroundStationLink
                 ValidateAudience = true,
                 ValidAudience = jwtSettings["Audience"],
                 ValidateLifetime = true,
-                ClockSkew = TimeSpan.Zero
+                ClockSkew = TimeSpan.FromMinutes(5) // Allow 5 minutes clock skew for token validation
             };
+        }
+
+        [HttpPost("/api/v1/ground-station-link/token")]
+        [AllowAnonymous]
+        public async Task<ActionResult<TokenResponseDto>> GetStationToken([FromBody] TokenRequestDto request)
+        {
+            var token = await _gsService.GenerateGroundStationTokenAsync(request);
+            if (token == null) return Unauthorized("Invalid credentials.");
+            return Ok(new TokenResponseDto { AccessToken = token });
         }
 
         [HttpGet("/api/v1/ground-station-link/connect")]
@@ -133,7 +145,7 @@ namespace SatOps.Modules.GroundStationLink
             }
         }
 
-        [HttpPost("/api/v1/internal/ground-station-link/telemetry")]
+        [HttpPost("/api/v1/ground-station-link/telemetry")]
         [Consumes("multipart/form-data")]
         [Authorize(Policy = Authorization.Policies.RequireGroundStation)]
         public async Task<IActionResult> ReceiveTelemetryData([FromForm] TelemetryDataReceiveDto dto)
@@ -155,7 +167,7 @@ namespace SatOps.Modules.GroundStationLink
             }
         }
 
-        [HttpPost("/api/v1/internal/ground-station-link/images")]
+        [HttpPost("/api/v1/ground-station-link/images")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(105 * 1024 * 1024)]
         [Authorize(Policy = Authorization.Policies.RequireGroundStation)]

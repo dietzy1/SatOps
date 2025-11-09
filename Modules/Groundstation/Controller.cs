@@ -69,15 +69,6 @@ namespace SatOps.Modules.Groundstation
             return CreatedAtAction(nameof(Get), new { id = created.Id }, responseDto);
         }
 
-        [HttpPost("token")]
-        [AllowAnonymous]
-        public async Task<ActionResult<TokenResponseDto>> GetStationToken([FromBody] TokenRequestDto request)
-        {
-            var token = await service.GenerateGroundStationTokenAsync(request);
-            if (token == null) return Unauthorized("Invalid credentials.");
-            return Ok(new TokenResponseDto { AccessToken = token });
-        }
-
         [HttpPatch("{id:int}")]
         [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<ActionResult<GroundStationDto>> Patch(int id, [FromBody] GroundStationPatchDto input)

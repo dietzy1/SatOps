@@ -127,7 +127,7 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
         // Helper method to determine if a controller is internal
         private static bool IsInternalController(string? controllerName)
         {
-            var internalControllers = new[] { "Operations", "Auth", "Gateway" };
+            var internalControllers = new[] { "GroundStationLink" };
             return controllerName != null && internalControllers.Contains(controllerName);
         }
 

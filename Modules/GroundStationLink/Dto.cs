@@ -35,6 +35,15 @@ namespace SatOps.Modules.GroundStationLink
 
         [JsonPropertyName("time")]
         public string Time { get; set; } = string.Empty;
+
+        [JsonPropertyName("flight_plan_id")]
+        public int FlightPlanId { get; set; }
+
+        [JsonPropertyName("satellite_id")]
+        public int SatelliteId { get; set; }
+
+        [JsonPropertyName("ground_station_id")]
+        public int GroundStationId { get; set; }
     }
 
     public class ConnectionStatusDto
@@ -57,8 +66,6 @@ namespace SatOps.Modules.GroundStationLink
         public int FlightPlanId { get; set; }
         [Required]
         public DateTime Timestamp { get; set; }
-        [Required]
-        public IFormFile Data { get; set; } = null!;
     }
 
     public class ImageDataReceiveDto
@@ -74,6 +81,5 @@ namespace SatOps.Modules.GroundStationLink
         public IFormFile ImageFile { get; set; } = null!;
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
-        public string? Metadata { get; set; }
     }
 }
