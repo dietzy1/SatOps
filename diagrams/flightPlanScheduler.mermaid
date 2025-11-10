@@ -1,0 +1,42 @@
+sequenceDiagram
+    participant Scheduler as SchedulerService
+    participant FPS as FlightPlanService
+    participant DB as Database
+    participant WSService as WebSocketService
+    participant GS as Ground Station
+
+    Note over Scheduler: Runs every 30 seconds
+
+    Scheduler->>FPS: Query plans ready for transmission<br/>(5 minute lookahead)
+    FPS->>DB: Get plans where Status = AssignedToOverpass<br/>AND ScheduledAt <= now + 5min
+    DB-->>FPS: List of FlightPlans
+    FPS-->>Scheduler: FlightPlans
+
+    loop For each Flight Plan
+        Scheduler->>WSService: Check if Ground Station connected
+        WSService-->>Scheduler: Connection status
+
+        alt Ground Station Connected
+            Scheduler->>FPS: Compile flight plan to CSH script<br/>(validate, calculate timing, compile)
+            FPS-->>Scheduler: CSH script
+            
+            Scheduler->>WSService: Send scheduled command<br/>(metadata + CSH script)
+            WSService->>GS: Transmit via WebSocket
+            GS-->>WSService: ACK
+            
+            Scheduler->>FPS: Update status to Transmitted
+            FPS->>DB: UPDATE status
+            Note over Scheduler: ✓ Success
+
+        else Ground Station Disconnected
+            alt Plan imminent (< 1 minute)
+                Scheduler->>FPS: Update status to Failed<br/>(reason: GS not connected)
+                FPS->>DB: UPDATE status + reason
+                Note over Scheduler: ✗ Failed
+            else Plan not imminent
+                Note over Scheduler: Skip, retry next cycle
+            end
+        end
+    end
+    
+    Note over Scheduler: Wait 30 seconds, repeat...

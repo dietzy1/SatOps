@@ -1,0 +1,19 @@
+stateDiagram-v2
+    [*] --> Draft: Create Flight Plan
+    
+    Draft --> Approved: Approve
+    Draft --> Rejected: Reject
+    Draft --> Superseded: Update (creates new version)
+    
+    Approved --> AssignedToOverpass: Assign to Overpass
+    Approved --> Superseded: Update (creates new version)
+    
+    AssignedToOverpass --> Transmitted: Scheduler transmits to GS
+    AssignedToOverpass --> Failed: Transmission fails or GS offline
+    AssignedToOverpass --> Superseded: Update (creates new version)
+    
+    Transmitted --> [*]
+    Rejected --> [*]
+    Superseded --> [*]
+    Failed --> [*]
+    
