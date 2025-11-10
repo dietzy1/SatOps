@@ -1,0 +1,52 @@
+classDiagram
+    class Command {
+        <<abstract>>
+        +string CommandType*
+        +DateTime? ExecutionTime
+        +bool RequiresExecutionTimeCalculation
+        +Validate() IEnumerable~ValidationResult~
+        +CompileToCsh()* Task~List~string~~
+    }
+
+    class TriggerCaptureCommand {
+        +CommandType = "TRIGGER_CAPTURE"
+        +RequiresExecutionTimeCalculation = true
+        +CaptureLocation? CaptureLocation
+        +CameraSettings? CameraSettings
+        +CompileToCsh() Task~List~string~~
+    }
+
+    class TriggerPipelineCommand {
+        +CommandType = "TRIGGER_PIPELINE"
+        +int? Mode
+        +CompileToCsh() Task~List~string~~
+    }
+
+    class CaptureLocation {
+        +double Latitude
+        +double Longitude
+    }
+
+    class CameraSettings {
+        +string CameraId
+        +CameraType Type
+        +int ExposureMicroseconds
+        +double Iso
+        +int NumImages
+        +int IntervalMicroseconds
+        +int ObservationId
+        +int PipelineId
+    }
+
+    class CameraType {
+        <<enumeration>>
+        VMB
+        IR
+        Test
+    }
+
+    Command <|-- TriggerCaptureCommand : inherits
+    Command <|-- TriggerPipelineCommand : inherits
+    TriggerCaptureCommand --> CaptureLocation : uses
+    TriggerCaptureCommand --> CameraSettings : uses
+    CameraSettings --> CameraType : uses
