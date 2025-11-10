@@ -1,0 +1,53 @@
+sequenceDiagram
+    participant GS as Ground Station
+    participant Controller as LinkController
+    participant GSService as GroundStationService
+    participant Repo as GSRepository
+    participant DB as Database
+    participant WSService as WebSocketService
+
+    Note over GS,WSService: Token Request Flow
+
+    GS->>Controller: POST /api/v1/ground-station-link/token<br/>{applicationId, apiKey}
+    Controller->>GSService: GenerateGroundStationTokenAsync(request)
+    GSService->>Repo: GetByApplicationIdAsync(applicationId)
+    Repo->>DB: SELECT * FROM ground_stations<br/>WHERE application_id = {id}
+    DB-->>Repo: GroundStation entity
+    Repo-->>GSService: GroundStation
+    
+    GSService->>GSService: Verify API key hash
+    
+    alt API key invalid
+        GSService-->>Controller: null
+        Controller-->>GS: 401 Unauthorized
+    else API key valid
+        GSService->>GSService: Generate JWT with scopes:<br/>- upload_images<br/>- establish_websocket
+        GSService-->>Controller: JWT token
+        Controller-->>GS: 200 OK + {accessToken}
+    end
+
+    Note over GS,WSService: WebSocket Connection Flow
+
+    GS->>Controller: GET /api/v1/ground-station-link/connect<br/>(WebSocket upgrade)
+    Controller->>Controller: Accept WebSocket connection
+    
+    GS->>Controller: Send hello message<br/>{type: "hello", token: JWT}
+    Controller->>Controller: Validate JWT token<br/>Check scopes & extract GS ID
+    
+    alt Token invalid or missing scope
+        Controller->>GS: Close WebSocket<br/>(PolicyViolation)
+    else Token valid
+        Controller->>Repo: GetByIdAsync(groundStationId)
+        Repo->>DB: SELECT * FROM ground_stations
+        DB-->>Repo: GroundStation
+        
+        alt Ground station not found
+            Controller->>GS: Close WebSocket<br/>(PolicyViolation)
+        else Ground station exists
+            Controller->>WSService: RegisterConnection(id, name, socket)
+            WSService-->>Controller: Connection registered
+            Controller->>GS: Send {message: "OK", id: {id}}
+            
+            Note over GS,WSService: Connection established<br/>Ready to receive commands
+        end
+    end

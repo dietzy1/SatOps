@@ -1,0 +1,36 @@
+sequenceDiagram
+    participant Service as SatelliteService
+    participant Repo as SatelliteRepository
+    participant DB as Database
+    participant Celestrak as CelestrackClient
+    participant API as Celestrak API
+
+    Note over Service: Triggered on GetAsync(id)
+
+    Service->>Repo: GetByIdAsync(id)
+    Repo->>DB: SELECT * FROM satellites WHERE id = {id}
+    DB-->>Repo: Satellite entity
+    Repo-->>Service: Satellite
+
+    Service->>Service: Check if LastUpdate > 6 hours old
+
+    alt TLE data is fresh
+        Note over Service: Return cached data
+    else TLE data is stale
+        Service->>Celestrak: FetchTleAsync(satellite.NoradId)
+        Celestrak->>API: GET celestrak.org/NORAD/elements/gp.php?<br/>CATNR={noradId}&FORMAT=TLE
+        
+        alt Fetch successful
+            API-->>Celestrak: TLE data (3 lines)
+            Celestrak-->>Service: TLE string
+            
+            Service->>Service: Parse and extract<br/>tleLine1 and tleLine2
+            Service->>Repo: UpdateTleAsync(id, tleLine1, tleLine2)
+            Repo->>DB: UPDATE satellites SET<br/>tline1, tline2, last_update
+            DB-->>Repo: Success
+            
+            Note over Service: ✓ TLE updated
+        else Fetch failed
+            Note over Service: Return stale data
+        end
+    end
