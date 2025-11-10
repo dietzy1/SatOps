@@ -13,6 +13,7 @@ namespace SatOps.Modules.GroundStationLink
         Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, DataType dataType);
         Task<Stream> GetFileAsync(string objectPath);
         Task DeleteFileAsync(string objectPath);
+        Task<string> GeneratePresignedUrlAsync(string objectPath, int expiryHours = 1);
     }
 
     public class ObjectStorageService(IMinioClient minioClient, IConfiguration configuration, ILogger<ObjectStorageService> logger) : IObjectStorageService
@@ -80,6 +81,26 @@ namespace SatOps.Modules.GroundStationLink
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to delete file {ObjectPath} from MinIO", objectPath);
+                throw;
+            }
+        }
+
+        public async Task<string> GeneratePresignedUrlAsync(string objectPath, int expiryHours = 1)
+        {
+            try
+            {
+                var presignedGetObjectArgs = new PresignedGetObjectArgs()
+                    .WithBucket(_bucketName)
+                    .WithObject(objectPath)
+                    .WithExpiry(expiryHours * 3600); // Convert hours to seconds
+
+                var url = await minioClient.PresignedGetObjectAsync(presignedGetObjectArgs);
+                logger.LogInformation("Generated pre-signed URL for {ObjectPath} valid for {ExpiryHours} hour(s)", objectPath, expiryHours);
+                return url;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to generate pre-signed URL for {ObjectPath}", objectPath);
                 throw;
             }
         }

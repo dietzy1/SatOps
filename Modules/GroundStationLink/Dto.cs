@@ -69,4 +69,40 @@ namespace SatOps.Modules.GroundStationLink
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
     }
+
+    /// <summary>
+    /// Response DTO for image retrieval endpoint
+    /// </summary>
+    public class ImageResponseDto
+    {
+        [JsonPropertyName("imageId")]
+        public int ImageId { get; set; }
+
+        [JsonPropertyName("flightPlanId")]
+        public int? FlightPlanId { get; set; }
+
+        [JsonPropertyName("fileName")]
+        public string FileName { get; set; } = string.Empty;
+
+        [JsonPropertyName("captureTime")]
+        public DateTime CaptureTime { get; set; }
+
+        [JsonPropertyName("url")]
+        public string Url { get; set; } = string.Empty;
+
+        [JsonPropertyName("expiresAt")]
+        public DateTime ExpiresAt { get; set; }
+
+        [JsonPropertyName("contentType")]
+        public string ContentType { get; set; } = string.Empty;
+
+        [JsonPropertyName("fileSize")]
+        public long FileSize { get; set; }
+
+        [JsonPropertyName("latitude")]
+        public double? Latitude { get; set; }
+
+        [JsonPropertyName("longitude")]
+        public double? Longitude { get; set; }
+    }
 }

@@ -1,12 +1,16 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using SatOps.Modules.GroundStationLink;
 
 namespace SatOps.Modules.FlightPlan
 {
     [ApiController]
     [Route("api/v1/flight-plans")]
     [Authorize]
-    public class FlightPlansController(IFlightPlanService service, ILogger<FlightPlansController> logger) : ControllerBase
+    public class FlightPlansController(
+        IFlightPlanService service,
+        IImageService imageService,
+        ILogger<FlightPlansController> logger) : ControllerBase
     {
         [HttpGet]
         [Authorize(Policy = Authorization.Policies.RequireViewer)]
@@ -92,6 +96,8 @@ namespace SatOps.Modules.FlightPlan
 
         // We now have a bug where we are assigning flight plans to the incorrect overpass. Its asigning it to the one before the correct one.
         // We must investigate the root cause and fix it.
+
+        // Should this endpoint be moved to /overpasses controller?
         [HttpPost("{id}/overpasses")]
         [Authorize(Policy = Authorization.Policies.RequireOperator)]
         public async Task<ActionResult> AssociateOverpass(
@@ -126,6 +132,36 @@ namespace SatOps.Modules.FlightPlan
             }
         }
 
+        /// <summary>
+        /// Retrieves all images associated with a specific flight plan
+        /// </summary>
+        /// <param name="flightId">The ID of the flight plan</param>
+        /// <returns>List of images with pre-signed URLs for download</returns>
+        [HttpGet("{id}/images")]
+        [Authorize(Policy = Authorization.Policies.RequireViewer)]
+        public async Task<ActionResult<List<ImageResponseDto>>> GetImages(int id)
+        {
+            try
+            {
+                // Validate that the flight plan exists
+                var flightPlan = await service.GetByIdAsync(id);
+                if (flightPlan == null)
+                {
+                    logger.LogWarning("Flight plan {FlightId} not found", id);
+                    return NotFound(new { detail = $"Flight plan with ID {id} not found" });
+                }
+
+                // Retrieve all images for this flight plan
+                var images = await imageService.GetImagesByFlightPlanIdAsync(id);
+                logger.LogInformation("Successfully retrieved {Count} images for flight plan {FlightId}", images.Count, id);
+                return Ok(images);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error retrieving images for flight plan {FlightId}", id);
+                return StatusCode(500, new { detail = "An error occurred while retrieving the images" });
+            }
+        }
 
         [HttpGet("imaging-opportunities")]
         [Authorize(Policy = Authorization.Policies.RequireViewer)]

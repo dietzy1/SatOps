@@ -176,9 +176,15 @@ namespace SatOps.Data
                     .HasForeignKey(id => id.GroundStationId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+                entity.HasOne(id => id.FlightPlan)
+                    .WithMany()
+                    .HasForeignKey(id => id.FlightPlanId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
                 // --- Indexes ---
                 entity.HasIndex(e => new { e.Latitude, e.Longitude });
                 entity.HasIndex(e => e.CaptureTime);
+                entity.HasIndex(e => e.FlightPlanId);
             });
 
             #endregion
