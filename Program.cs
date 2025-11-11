@@ -115,12 +115,9 @@ try
             {
                 OnTokenValidated = context =>
                 {
-                    if (context.SecurityToken is System.IdentityModel.Tokens.Jwt.JwtSecurityToken jwtToken)
+                    if (context is { SecurityToken: JwtSecurityToken jwtToken, Principal.Identity: ClaimsIdentity identity })
                     {
-                        if (context.Principal?.Identity is ClaimsIdentity identity)
-                        {
-                            identity.BootstrapContext = jwtToken.RawData;
-                        }
+                        identity.BootstrapContext = jwtToken.RawData;
                     }
                     return Task.CompletedTask;
                 }
@@ -163,13 +160,13 @@ try
         // Role-based policies for human users
         // These use hierarchical role checking: higher roles include lower permissions
         options.AddPolicy(Policies.RequireViewer, policy =>
-            policy.Requirements.Add(new MinimumRoleRequirement(SatOps.Modules.User.UserRole.Viewer)));
+            policy.Requirements.Add(new MinimumRoleRequirement(UserRole.Viewer)));
 
         options.AddPolicy(Policies.RequireOperator, policy =>
-            policy.Requirements.Add(new MinimumRoleRequirement(SatOps.Modules.User.UserRole.Operator)));
+            policy.Requirements.Add(new MinimumRoleRequirement(UserRole.Operator)));
 
         options.AddPolicy(Policies.RequireAdmin, policy =>
-            policy.Requirements.Add(new MinimumRoleRequirement(SatOps.Modules.User.UserRole.Admin)));
+            policy.Requirements.Add(new MinimumRoleRequirement(UserRole.Admin)));
     });
 
     // DI
@@ -269,11 +266,9 @@ try
     // Apply pending migrations on startup
     if (!AppDomain.CurrentDomain.FriendlyName.Equals("ef", StringComparison.OrdinalIgnoreCase))
     {
-        using (var scope = app.Services.CreateScope())
-        {
-            var db = scope.ServiceProvider.GetRequiredService<SatOpsDbContext>();
-            db.Database.Migrate();
-        }
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<SatOpsDbContext>();
+        db.Database.Migrate();
     }
 
     app.UseWebSockets();

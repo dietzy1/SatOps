@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using SatOps.Modules.User;
 
 namespace SatOps.Modules.User
 {
@@ -60,7 +59,7 @@ namespace SatOps.Modules.User
         }
 
         [HttpGet("{id}")]
-        [Authorize(Policy = SatOps.Authorization.Policies.RequireAdmin)]
+        [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<ActionResult<UserDto>> GetUser(int id)
         {
             var user = await userService.GetAsync(id);

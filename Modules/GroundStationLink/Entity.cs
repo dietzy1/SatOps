@@ -3,6 +3,7 @@ using SatOps.Modules.Groundstation;
 
 namespace SatOps.Modules.GroundStationLink
 {
+    [Table("image_data")]
     public class ImageData
     {
         public int Id { get; set; }

@@ -14,6 +14,7 @@ namespace SatOps.Tests
         private readonly Mock<ISatelliteService> _mockSatelliteService;
         private readonly Mock<IGroundStationService> _mockGroundStationService;
         private readonly Mock<IOverpassRepository> _mockOverpassRepository;
+        private const double Tolerance = 0.0001;
 
         public OverpassServiceTests()
         {
@@ -97,7 +98,7 @@ namespace SatOps.Tests
             };
 
             // Act
-            var result = await _overpassService.StoreOverpassAsync(
+            await _overpassService.StoreOverpassAsync(
                 overpassWindowDto,
                 tleLine1,
                 tleLine2,
@@ -111,10 +112,10 @@ namespace SatOps.Tests
                 e.StartTime == expectedEntity.StartTime &&
                 e.EndTime == expectedEntity.EndTime &&
                 e.MaxElevationTime == expectedEntity.MaxElevationTime &&
-                e.MaxElevation == expectedEntity.MaxElevation &&
+                Math.Abs(e.MaxElevation - expectedEntity.MaxElevation) < Tolerance &&
                 e.DurationSeconds == expectedEntity.DurationSeconds &&
-                e.StartAzimuth == expectedEntity.StartAzimuth &&
-                e.EndAzimuth == expectedEntity.EndAzimuth &&
+                Math.Abs(e.StartAzimuth - expectedEntity.StartAzimuth) < Tolerance &&
+                Math.Abs(e.EndAzimuth - expectedEntity.EndAzimuth) < Tolerance &&
                 e.TleLine1 == expectedEntity.TleLine1 &&
                 e.TleLine2 == expectedEntity.TleLine2 &&
                 e.TleUpdateTime == expectedEntity.TleUpdateTime
@@ -239,7 +240,7 @@ namespace SatOps.Tests
                 e.GroundStationId == entity.GroundStationId &&
                 e.StartTime == entity.StartTime &&
                 e.EndTime == entity.EndTime &&
-                e.MaxElevation == entity.MaxElevation
+                Math.Abs(e.MaxElevation - entity.MaxElevation) < Tolerance
             )), Times.Once);
         }
 
@@ -291,7 +292,7 @@ namespace SatOps.Tests
                 It.IsAny<int>(),
                 It.IsAny<DateTime>(),
                 It.IsAny<DateTime>()
-            )).ReturnsAsync(new List<Entity>());
+            )).ReturnsAsync([]);
             _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId))
                 .ReturnsAsync((Satellite?)null);
 
@@ -317,7 +318,7 @@ namespace SatOps.Tests
                 It.IsAny<int>(),
                 It.IsAny<DateTime>(),
                 It.IsAny<DateTime>()
-            )).ReturnsAsync(new List<Entity>());
+            )).ReturnsAsync([]);
             _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId))
                 .ReturnsAsync(satellite);
             _mockGroundStationService.Setup(s => s.GetAsync(requestDto.GroundStationId))
@@ -355,7 +356,7 @@ namespace SatOps.Tests
                 It.IsAny<int>(),
                 It.IsAny<DateTime>(),
                 It.IsAny<DateTime>()
-            )).ReturnsAsync(new List<Entity>());
+            )).ReturnsAsync([]);
             _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId))
                 .ReturnsAsync(satellite);
             _mockGroundStationService.Setup(s => s.GetAsync(requestDto.GroundStationId))
@@ -397,7 +398,7 @@ namespace SatOps.Tests
             };
             var expectedOverpasses = new List<OverpassWindowDto>
             {
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -411,7 +412,7 @@ namespace SatOps.Tests
                     EndTime = new DateTime(2025, 10, 27, 16, 56, 0, DateTimeKind.Utc),
                     MaxElevationTime = new DateTime(2025, 10, 27, 16, 50, 0, DateTimeKind.Utc),
                 },
-                new OverpassWindowDto
+                new() 
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -425,7 +426,7 @@ namespace SatOps.Tests
                     EndTime = new DateTime(2025, 10, 27, 18, 33, 0, DateTimeKind.Utc),
                     MaxElevationTime = new DateTime(2025, 10, 27, 18, 27, 0, DateTimeKind.Utc),
                 },
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -439,7 +440,7 @@ namespace SatOps.Tests
                     EndTime = new DateTime(2025, 10, 27, 20, 10, 0, DateTimeKind.Utc),
                     MaxElevationTime = new DateTime(2025, 10, 27, 20, 4, 0, DateTimeKind.Utc),
                 },
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -453,7 +454,7 @@ namespace SatOps.Tests
                     EndTime = new DateTime(2025, 10, 27, 21, 47, 0, DateTimeKind.Utc),
                     MaxElevationTime = new DateTime(2025, 10, 27, 21, 42, 0, DateTimeKind.Utc),
                 },
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -467,7 +468,7 @@ namespace SatOps.Tests
                     EndTime = new DateTime(2025, 10, 27, 23, 26, 0, DateTimeKind.Utc),
                     MaxElevationTime = new DateTime(2025, 10, 27, 23, 20, 0, DateTimeKind.Utc),
                 },
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -481,7 +482,7 @@ namespace SatOps.Tests
                     EndTime = new DateTime(2025, 10, 28, 1, 3, 0, DateTimeKind.Utc),
                     MaxElevationTime = new DateTime(2025, 10, 28, 0, 57, 0, DateTimeKind.Utc),
                 },
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -501,7 +502,7 @@ namespace SatOps.Tests
                 It.IsAny<int>(),
                 It.IsAny<DateTime>(),
                 It.IsAny<DateTime>()
-            )).ReturnsAsync(new List<Entity>());
+            )).ReturnsAsync([]);
             _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId))
                 .ReturnsAsync(satellite);
             _mockGroundStationService.Setup(s => s.GetAsync(requestDto.GroundStationId))
@@ -550,7 +551,7 @@ namespace SatOps.Tests
             };
             var expectedOverpasses = new List<OverpassWindowDto>
             {
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -564,7 +565,7 @@ namespace SatOps.Tests
                     EndTime = new DateTime(2025, 10, 27, 18, 30, 0, DateTimeKind.Utc),
                     MaxElevationTime = new DateTime(2025, 10, 27, 18, 27, 0, DateTimeKind.Utc),
                 },
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -578,7 +579,7 @@ namespace SatOps.Tests
                     EndTime = new DateTime(2025, 10, 27, 23, 22, 0, DateTimeKind.Utc),
                     MaxElevationTime = new DateTime(2025, 10, 27, 23, 20, 0, DateTimeKind.Utc),
                 },
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -598,7 +599,7 @@ namespace SatOps.Tests
                 It.IsAny<int>(),
                 It.IsAny<DateTime>(),
                 It.IsAny<DateTime>()
-            )).ReturnsAsync(new List<Entity>());
+            )).ReturnsAsync([]);
             _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId))
                 .ReturnsAsync(satellite);
             _mockGroundStationService.Setup(s => s.GetAsync(requestDto.GroundStationId))
@@ -647,7 +648,7 @@ namespace SatOps.Tests
             };
             var expectedOverpasses = new List<OverpassWindowDto>
             {
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -661,7 +662,7 @@ namespace SatOps.Tests
                     EndTime = new DateTime(2025, 10, 27, 16, 56, 0, DateTimeKind.Utc),
                     MaxElevationTime = new DateTime(2025, 10, 27, 16, 50, 0, DateTimeKind.Utc),
                 },
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -681,7 +682,7 @@ namespace SatOps.Tests
                 It.IsAny<int>(),
                 It.IsAny<DateTime>(),
                 It.IsAny<DateTime>()
-            )).ReturnsAsync(new List<Entity>());
+            )).ReturnsAsync([]);
             _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId))
                 .ReturnsAsync(satellite);
             _mockGroundStationService.Setup(s => s.GetAsync(requestDto.GroundStationId))
@@ -730,7 +731,7 @@ namespace SatOps.Tests
             };
             var expectedOverpasses = new List<OverpassWindowDto>
             {
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -744,7 +745,7 @@ namespace SatOps.Tests
                     EndTime = new DateTime(2025, 10, 27, 18, 33, 0, DateTimeKind.Utc),
                     MaxElevationTime = new DateTime(2025, 10, 27, 18, 27, 0, DateTimeKind.Utc),
                 },
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -758,7 +759,7 @@ namespace SatOps.Tests
                     EndTime = new DateTime(2025, 10, 27, 23, 26, 0, DateTimeKind.Utc),
                     MaxElevationTime = new DateTime(2025, 10, 27, 23, 20, 0, DateTimeKind.Utc),
                 },
-                new OverpassWindowDto
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -778,7 +779,7 @@ namespace SatOps.Tests
                 It.IsAny<int>(),
                 It.IsAny<DateTime>(),
                 It.IsAny<DateTime>()
-            )).ReturnsAsync(new List<Entity>());
+            )).ReturnsAsync([]);
             _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId))
                 .ReturnsAsync(satellite);
             _mockGroundStationService.Setup(s => s.GetAsync(requestDto.GroundStationId))

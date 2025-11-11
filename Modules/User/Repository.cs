@@ -7,7 +7,6 @@ namespace SatOps.Modules.User
     {
         Task<List<User>> GetAllAsync();
         Task<User?> GetByIdAsync(int id);
-        Task<User?> GetByEmailAsync(string email);
         Task<User?> GetByAuth0UserIdAsync(string auth0UserId);
         Task<User> AddAsync(User entity);
         Task<User?> UpdateAsync(User entity);
@@ -24,11 +23,6 @@ namespace SatOps.Modules.User
         public Task<User?> GetByIdAsync(int id)
         {
             return dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Id == id);
-        }
-
-        public Task<User?> GetByEmailAsync(string email)
-        {
-            return dbContext.Users.AsNoTracking().FirstOrDefaultAsync(u => u.Email == email);
         }
 
         public Task<User?> GetByAuth0UserIdAsync(string auth0UserId)

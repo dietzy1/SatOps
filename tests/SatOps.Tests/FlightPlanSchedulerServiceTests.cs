@@ -10,13 +10,8 @@ using System.Reflection;
 namespace SatOps.Tests
 {
     // A testable version of the scheduler that allows us to call ExecuteAsync
-    public class TestableSchedulerService : SchedulerService
+    public class TestableSchedulerService(IServiceProvider serviceProvider, ILogger<SchedulerService> logger) : SchedulerService(serviceProvider, logger)
     {
-        public TestableSchedulerService(IServiceProvider serviceProvider, ILogger<SchedulerService> logger)
-            : base(serviceProvider, logger)
-        {
-        }
-
         public Task InvokeExecuteAsync(CancellationToken token)
         {
             // Use reflection to call the protected ExecuteAsync method
@@ -41,9 +36,9 @@ namespace SatOps.Tests
 
             // Create a mock IServiceProvider that returns our mocked services
             var serviceCollection = new ServiceCollection();
-            serviceCollection.AddScoped(sp => _mockFlightPlanService.Object);
-            serviceCollection.AddScoped(sp => _mockSatelliteService.Object);
-            serviceCollection.AddScoped(sp => _mockGatewayService.Object);
+            serviceCollection.AddScoped(_ => _mockFlightPlanService.Object);
+            serviceCollection.AddScoped(_ => _mockSatelliteService.Object);
+            serviceCollection.AddScoped(_ => _mockGatewayService.Object);
             _serviceProvider = serviceCollection.BuildServiceProvider();
         }
 
@@ -62,7 +57,7 @@ namespace SatOps.Tests
 
             // Setup mocks
             _mockFlightPlanService.Setup(s => s.GetPlansReadyForTransmissionAsync(It.IsAny<TimeSpan>()))
-                .ReturnsAsync(new List<FlightPlan> { plan }); // Return one plan to process
+                .ReturnsAsync([plan]); // Return one plan to process
             _mockGatewayService.Setup(g => g.IsGroundStationConnected(gsId)).Returns(true);
             _mockSatelliteService.Setup(s => s.GetAsync(satId)).ReturnsAsync(satellite);
             _mockFlightPlanService.Setup(s => s.CompileFlightPlanToCshAsync(planId)).ReturnsAsync(script);
@@ -98,7 +93,7 @@ namespace SatOps.Tests
             var cts = new CancellationTokenSource();
 
             _mockFlightPlanService.Setup(s => s.GetPlansReadyForTransmissionAsync(It.IsAny<TimeSpan>()))
-                .ReturnsAsync(new List<FlightPlan> { plan });
+                .ReturnsAsync([plan]);
             _mockGatewayService.Setup(g => g.IsGroundStationConnected(gsId)).Returns(false); // GS is offline
 
             var loggerMock = new Mock<ILogger<SchedulerService>>();
@@ -130,7 +125,7 @@ namespace SatOps.Tests
             // Arrange
             var cts = new CancellationTokenSource();
             _mockFlightPlanService.Setup(s => s.GetPlansReadyForTransmissionAsync(It.IsAny<TimeSpan>()))
-                .ReturnsAsync(new List<FlightPlan>()); // No plans returned
+                .ReturnsAsync([]); // No plans returned
 
             var loggerMock = new Mock<ILogger<SchedulerService>>();
             var scheduler = new TestableSchedulerService(_serviceProvider, loggerMock.Object);
