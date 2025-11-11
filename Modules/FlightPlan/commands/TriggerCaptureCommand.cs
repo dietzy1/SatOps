@@ -51,7 +51,7 @@ namespace SatOps.Modules.FlightPlan.Commands
                 {
                     yield return new ValidationResult(
                         "IntervalMicroseconds must be greater than 0 when capturing multiple images",
-                        new[] { nameof(CameraSettings.IntervalMicroseconds) }
+                        [nameof(CameraSettings.IntervalMicroseconds)]
                     );
                 }
 

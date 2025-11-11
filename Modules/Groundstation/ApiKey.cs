@@ -4,7 +4,7 @@ namespace SatOps.Modules.Groundstation
 {
     public class ApiKey
     {
-        public string Hash { get; private set; }
+        public string Hash { get; }
 
         private ApiKey(string hash)
         {

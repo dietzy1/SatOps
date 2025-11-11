@@ -61,7 +61,7 @@ namespace SatOps.Modules.FlightPlan
             {
                 yield return new ValidationResult(
                     $"ExecutionTime should not be provided for {CommandType}. It will be calculated automatically based on target location.",
-                    new[] { nameof(ExecutionTime) }
+                    [nameof(ExecutionTime)]
                 );
             }
         }

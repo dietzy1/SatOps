@@ -46,15 +46,6 @@ namespace SatOps.Modules.GroundStationLink
         public int GroundStationId { get; set; }
     }
 
-    public class ConnectionStatusDto
-    {
-        public int GroundStationId { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public DateTime ConnectedAt { get; set; }
-        public double UptimeMinutes { get; set; }
-        public Guid? LastCommandId { get; set; }
-    }
-
     public class ImageDataReceiveDto
     {
         [Required]

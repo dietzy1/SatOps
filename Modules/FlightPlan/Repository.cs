@@ -10,7 +10,6 @@ namespace SatOps.Modules.FlightPlan
         Task<FlightPlan?> GetByIdReadOnlyAsync(int id); // For reads (untracked)
         Task<List<FlightPlan>> GetAllAsync();
         Task UpdateAsync(FlightPlan entity);
-        Task DeleteAsync(int id);
         Task<List<FlightPlan>> GetPlansReadyForTransmissionAsync(DateTime horizon);
     }
 
@@ -46,16 +45,6 @@ namespace SatOps.Modules.FlightPlan
             entity.UpdatedAt = DateTime.UtcNow;
             dbContext.FlightPlans.Update(entity);
             await dbContext.SaveChangesAsync();
-        }
-
-        public async Task DeleteAsync(int id)
-        {
-            var entity = await GetByIdAsync(id);
-            if (entity != null)
-            {
-                dbContext.FlightPlans.Remove(entity);
-                await dbContext.SaveChangesAsync();
-            }
         }
 
         public Task<List<FlightPlan>> GetPlansReadyForTransmissionAsync(DateTime horizon)

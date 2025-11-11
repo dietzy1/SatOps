@@ -3,27 +3,18 @@ using SatOps.Modules.Satellite;
 
 namespace SatOps.Modules.FlightPlan
 {
-    public class SchedulerService : BackgroundService
+    public class SchedulerService(IServiceProvider serviceProvider, ILogger<SchedulerService> logger) : BackgroundService
     {
-        private readonly IServiceProvider _serviceProvider;
-        private readonly ILogger<SchedulerService> _logger;
-
-        public SchedulerService(IServiceProvider serviceProvider, ILogger<SchedulerService> logger)
-        {
-            _serviceProvider = serviceProvider;
-            _logger = logger;
-        }
-
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("Flight Plan Scheduler Service is starting.");
+            logger.LogInformation("Flight Plan Scheduler Service is starting.");
 
             while (!stoppingToken.IsCancellationRequested)
             {
-                _logger.LogInformation("Scheduler running job check at: {time}", DateTimeOffset.Now);
+                logger.LogInformation("Scheduler running job check at: {time}", DateTimeOffset.Now);
 
                 // We create a new scope for each run
-                using (var scope = _serviceProvider.CreateScope())
+                using (var scope = serviceProvider.CreateScope())
                 {
                     var flightPlanService = scope.ServiceProvider.GetRequiredService<IFlightPlanService>();
                     var satelliteService = scope.ServiceProvider.GetRequiredService<ISatelliteService>();
@@ -38,14 +29,14 @@ namespace SatOps.Modules.FlightPlan
                         {
                             try
                             {
-                                _logger.LogInformation("Found plan {PlanId} for GS {GSId}, scheduled for {ScheduledTime}. Preparing for transmission.", plan.Id, plan.GroundStationId, plan.ScheduledAt);
+                                logger.LogInformation("Found plan {PlanId} for GS {GSId}, scheduled for {ScheduledTime}. Preparing for transmission.", plan.Id, plan.GroundStationId, plan.ScheduledAt);
 
                                 var satellite = await satelliteService.GetAsync(plan.SatelliteId);
                                 if (satellite == null)
                                 {
                                     {
                                         var reason = $"Satellite with ID {plan.SatelliteId} not found in database.";
-                                        _logger.LogError("{Reason} for flight plan {PlanId}. Skipping.", reason, plan.Id);
+                                        logger.LogError("{Reason} for flight plan {PlanId}. Skipping.", reason, plan.Id);
                                         await flightPlanService.UpdateFlightPlanStatusAsync(plan.Id, FlightPlanStatus.Failed, reason);
                                         continue;
                                     }
@@ -64,23 +55,23 @@ namespace SatOps.Modules.FlightPlan
 
                                 // Update status to prevent re-sending.
                                 await flightPlanService.UpdateFlightPlanStatusAsync(plan.Id, FlightPlanStatus.Transmitted);
-                                _logger.LogInformation("Successfully transmitted flight plan {PlanId} to Ground Station {GSId}.", plan.Id, plan.GroundStationId);
+                                logger.LogInformation("Successfully transmitted flight plan {PlanId} to Ground Station {GSId}.", plan.Id, plan.GroundStationId);
                             }
                             catch (Exception ex)
                             {
                                 var reason = $"An exception occurred during transmission: {ex.Message}";
-                                _logger.LogError(ex, "Failed to transmit flight plan {PlanId} to GS {GSId}", plan.Id, plan.GroundStationId);
+                                logger.LogError(ex, "Failed to transmit flight plan {PlanId} to GS {GSId}", plan.Id, plan.GroundStationId);
                                 await flightPlanService.UpdateFlightPlanStatusAsync(plan.Id, FlightPlanStatus.Failed, reason);
                             }
                         }
                         else
                         {
                             var reason = $"Ground Station {plan.GroundStationId} is not connected.";
-                            _logger.LogWarning("Cannot transmit flight plan {PlanId}: {Reason}", plan.Id, reason);
+                            logger.LogWarning("Cannot transmit flight plan {PlanId}: {Reason}", plan.Id, reason);
 
                             if (plan.ScheduledAt.HasValue && (plan.ScheduledAt.Value - DateTime.UtcNow) < TimeSpan.FromMinutes(1))
                             {
-                                _logger.LogError("Marking imminent flight plan {PlanId} as FAILED because GS is offline.", plan.Id);
+                                logger.LogError("Marking imminent flight plan {PlanId} as FAILED because GS is offline.", plan.Id);
                                 await flightPlanService.UpdateFlightPlanStatusAsync(plan.Id, FlightPlanStatus.Failed, reason);
                             }
                         }
