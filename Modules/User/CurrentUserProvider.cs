@@ -1,5 +1,3 @@
-using System.Security.Claims;
-
 namespace SatOps.Modules.User;
 
 public interface ICurrentUserProvider

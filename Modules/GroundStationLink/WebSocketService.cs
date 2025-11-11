@@ -10,7 +10,6 @@ namespace SatOps.Modules.GroundStationLink
         public required WebSocket Socket { get; set; }
         public required int GroundStationId { get; set; }
         public required string Name { get; set; }
-        public DateTime ConnectedAt { get; } = DateTime.UtcNow;
         public Guid? LastCommandId { get; set; }
         public SemaphoreSlim SendLock { get; } = new(1, 1);
     }
@@ -21,7 +20,6 @@ namespace SatOps.Modules.GroundStationLink
         Task UnregisterConnection(int groundStationId);
         bool IsGroundStationConnected(int groundStationId);
         Task SendScheduledCommand(int groundStationId, int satelliteId, string satelliteName, int flightPlanId, DateTime executionTime, List<string> cshScript);
-        IEnumerable<GroundStationConnection> GetAllConnections();
     }
 
     public class WebSocketService(ILogger<WebSocketService> logger) : IWebSocketService

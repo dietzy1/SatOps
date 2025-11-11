@@ -15,8 +15,6 @@ namespace SatOps.Tests
         private readonly Mock<IFlightPlanRepository> _mockFlightPlanRepo;
         private readonly Mock<ISatelliteService> _mockSatelliteService;
         private readonly Mock<IGroundStationService> _mockGroundStationService;
-        private readonly Mock<IOverpassService> _mockOverpassService;
-        private readonly Mock<IImagingCalculation> _mockImagingCalculation;
         private readonly Mock<ICurrentUserProvider> _mockCurrentUserProvider;
 
         private readonly FlightPlanService _sut;
@@ -27,8 +25,8 @@ namespace SatOps.Tests
             _mockFlightPlanRepo = new Mock<IFlightPlanRepository>();
             _mockSatelliteService = new Mock<ISatelliteService>();
             _mockGroundStationService = new Mock<IGroundStationService>();
-            _mockOverpassService = new Mock<IOverpassService>();
-            _mockImagingCalculation = new Mock<IImagingCalculation>();
+            var mockOverpassService = new Mock<IOverpassService>();
+            var mockImagingCalculation = new Mock<IImagingCalculation>();
             _mockCurrentUserProvider = new Mock<ICurrentUserProvider>();
 
             // Create the service instance
@@ -36,8 +34,8 @@ namespace SatOps.Tests
                 _mockFlightPlanRepo.Object,
                 _mockSatelliteService.Object,
                 _mockGroundStationService.Object,
-                _mockOverpassService.Object,
-                _mockImagingCalculation.Object,
+                mockOverpassService.Object, 
+                mockImagingCalculation.Object,
                 _mockCurrentUserProvider.Object
             );
         }
@@ -53,7 +51,7 @@ namespace SatOps.Tests
                 Name = "Test Plan",
                 GsId = 1,
                 SatId = 1,
-                Commands = new List<Command>() // Empty command list
+                Commands = [] // Empty command list
             };
 
             // Setup mocks
@@ -81,7 +79,7 @@ namespace SatOps.Tests
             var testUserId = 456;
             var planId = 1;
             var draftPlan = new FlightPlan { Id = planId, Status = FlightPlanStatus.Draft };
-            draftPlan.SetCommands(new List<Command>()); // Ensure commands are valid
+            draftPlan.SetCommands([]); // Ensure commands are valid
 
             _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(testUserId);
             _mockFlightPlanRepo.Setup(r => r.GetByIdAsync(planId)).ReturnsAsync(draftPlan);
@@ -148,7 +146,7 @@ namespace SatOps.Tests
             var expectedHorizon = DateTime.UtcNow.Add(lookahead);
 
             _mockFlightPlanRepo.Setup(r => r.GetPlansReadyForTransmissionAsync(It.IsAny<DateTime>()))
-                .ReturnsAsync(new List<FlightPlan>());
+                .ReturnsAsync([]);
 
             // Act
             await _sut.GetPlansReadyForTransmissionAsync(lookahead);

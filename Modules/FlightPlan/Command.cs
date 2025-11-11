@@ -53,7 +53,7 @@ namespace SatOps.Modules.FlightPlan
             {
                 yield return new ValidationResult(
                     "ExecutionTime is required",
-                    new[] { nameof(ExecutionTime) }
+                    [nameof(ExecutionTime)]
                 );
             }
             // For commands that do require calculation, ExecutionTime should not be provided by user
@@ -61,7 +61,7 @@ namespace SatOps.Modules.FlightPlan
             {
                 yield return new ValidationResult(
                     $"ExecutionTime should not be provided for {CommandType}. It will be calculated automatically based on target location.",
-                    new[] { nameof(ExecutionTime) }
+                    [nameof(ExecutionTime)]
                 );
             }
         }
@@ -211,7 +211,7 @@ namespace SatOps.Modules.FlightPlan
         /// </summary>
         public static async Task CalculateExecutionTimesAsync(
             this List<Command> commands,
-            SatOps.Modules.Satellite.Satellite satellite,
+            Satellite.Satellite satellite,
             IImagingCalculation imagingCalculation,
             DateTime? commandReceptionTime = null)
         {

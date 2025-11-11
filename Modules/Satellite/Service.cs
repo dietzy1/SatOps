@@ -4,7 +4,6 @@ namespace SatOps.Modules.Satellite
     {
         Task<List<Satellite>> ListAsync();
         Task<Satellite?> GetAsync(int id);
-        Task<List<Satellite>> GetActiveSatellitesAsync();
         Task<bool?> RefreshTleDataAsync(int satelliteId);
     }
 
@@ -42,12 +41,6 @@ namespace SatOps.Modules.Satellite
             }
 
             return satellite;
-        }
-
-        public async Task<List<Satellite>> GetActiveSatellitesAsync()
-        {
-            var allSatellites = await repository.GetAllAsync();
-            return allSatellites.Where(s => s.Status == SatelliteStatus.Active).ToList();
         }
 
         public async Task<bool?> RefreshTleDataAsync(int satelliteId)

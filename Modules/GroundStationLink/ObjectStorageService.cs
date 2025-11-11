@@ -11,8 +11,6 @@ namespace SatOps.Modules.GroundStationLink
     public interface IObjectStorageService
     {
         Task<string> UploadFileAsync(Stream fileStream, string fileName, string contentType, DataType dataType);
-        Task<Stream> GetFileAsync(string objectPath);
-        Task DeleteFileAsync(string objectPath);
         Task<string> GeneratePresignedUrlAsync(string objectPath, int expiryHours = 1);
     }
 
@@ -44,43 +42,6 @@ namespace SatOps.Modules.GroundStationLink
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to upload {DataType} file {FileName} to MinIO", dataType, fileName);
-                throw;
-            }
-        }
-
-        public async Task<Stream> GetFileAsync(string objectPath)
-        {
-            try
-            {
-                var memoryStream = new MemoryStream();
-                var getObjectArgs = new GetObjectArgs()
-                    .WithBucket(_bucketName)
-                    .WithObject(objectPath)
-                    .WithCallbackStream(stream => stream.CopyTo(memoryStream));
-                await minioClient.GetObjectAsync(getObjectArgs);
-                memoryStream.Position = 0;
-                return memoryStream;
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to get file {ObjectPath} from MinIO", objectPath);
-                throw;
-            }
-        }
-
-        public async Task DeleteFileAsync(string objectPath)
-        {
-            try
-            {
-                var removeObjectArgs = new RemoveObjectArgs()
-                    .WithBucket(_bucketName)
-                    .WithObject(objectPath);
-                await minioClient.RemoveObjectAsync(removeObjectArgs);
-                logger.LogInformation("Successfully deleted file {ObjectPath} from MinIO", objectPath);
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "Failed to delete file {ObjectPath} from MinIO", objectPath);
                 throw;
             }
         }

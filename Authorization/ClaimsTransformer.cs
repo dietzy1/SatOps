@@ -5,26 +5,14 @@ using System.Security.Claims;
 
 namespace SatOps.Authorization
 {
-    public class UserPermissionsClaimsTransformation : IClaimsTransformation
+    public class UserPermissionsClaimsTransformation(
+        IUserService userService,
+        ILogger<UserPermissionsClaimsTransformation> logger,
+        IHttpContextAccessor httpContextAccessor,
+        IMemoryCache cache) : IClaimsTransformation
     {
-        private readonly IUserService _userService;
-        private readonly ILogger<UserPermissionsClaimsTransformation> _logger;
-        private readonly IHttpContextAccessor _httpContextAccessor;
-        private readonly IMemoryCache _cache;
-        private static readonly SemaphoreSlim _userCreationLock = new SemaphoreSlim(1, 1);
+        private static readonly SemaphoreSlim UserCreationLock = new(1, 1);
         private record CachedUserData(int UserId, UserRole Role);
-
-        public UserPermissionsClaimsTransformation(
-            IUserService userService,
-            ILogger<UserPermissionsClaimsTransformation> logger,
-            IHttpContextAccessor httpContextAccessor,
-            IMemoryCache cache)
-        {
-            _userService = userService;
-            _logger = logger;
-            _httpContextAccessor = httpContextAccessor;
-            _cache = cache;
-        }
 
         public async Task<ClaimsPrincipal> TransformAsync(ClaimsPrincipal principal)
         {
@@ -38,7 +26,7 @@ namespace SatOps.Authorization
             var typeClaim = identity.FindFirst("type");
             if (typeClaim?.Value == "GroundStation")
             {
-                _logger.LogDebug("Skipping user claims transformation for ground station token");
+                logger.LogDebug("Skipping user claims transformation for ground station token");
                 return principal;
             }
 
@@ -46,37 +34,37 @@ namespace SatOps.Authorization
 
             if (string.IsNullOrEmpty(auth0UserId))
             {
-                _logger.LogWarning("No Auth0 user ID (sub claim) found in token");
+                logger.LogWarning("No Auth0 user ID (sub claim) found in token");
                 return principal;
             }
 
             var cacheKey = $"user_permissions_{auth0UserId}";
 
-            if (_cache.TryGetValue<CachedUserData>(cacheKey, out var cachedUser))
+            if (cache.TryGetValue<CachedUserData>(cacheKey, out var cachedUser))
             {
-                _logger.LogDebug("Cache hit for user {Auth0UserId}", auth0UserId);
+                logger.LogDebug("Cache hit for user {Auth0UserId}", auth0UserId);
                 return AddClaimsFromUserData(principal, cachedUser!);
             }
 
-            _logger.LogDebug("Cache miss for user {Auth0UserId}, fetching from DB.", auth0UserId);
+            logger.LogDebug("Cache miss for user {Auth0UserId}, fetching from DB.", auth0UserId);
 
             try
             {
-                var existingUser = await _userService.GetByAuth0UserIdAsync(auth0UserId);
+                var existingUser = await userService.GetByAuth0UserIdAsync(auth0UserId);
 
                 if (existingUser == null)
                 {
-                    await _userCreationLock.WaitAsync();
+                    await UserCreationLock.WaitAsync();
                     try
                     {
-                        existingUser = await _userService.GetByAuth0UserIdAsync(auth0UserId);
+                        existingUser = await userService.GetByAuth0UserIdAsync(auth0UserId);
                         if (existingUser == null)
                         {
-                            _logger.LogInformation("New user {Auth0UserId} detected, creating user", auth0UserId);
-                            var accessToken = _httpContextAccessor.HttpContext?.Request.Headers.Authorization
+                            logger.LogInformation("New user {Auth0UserId} detected, creating user", auth0UserId);
+                            var accessToken = httpContextAccessor.HttpContext?.Request.Headers.Authorization
                                 .ToString()
                                 .Replace("Bearer ", "") ?? string.Empty;
-                            existingUser = await _userService.GetOrCreateUserFromAuth0Async(
+                            existingUser = await userService.GetOrCreateUserFromAuth0Async(
                                 auth0UserId,
                                 accessToken
                             );
@@ -84,7 +72,7 @@ namespace SatOps.Authorization
                     }
                     finally
                     {
-                        _userCreationLock.Release();
+                        UserCreationLock.Release();
                     }
                 }
 
@@ -92,13 +80,13 @@ namespace SatOps.Authorization
                 var cacheOptions = new MemoryCacheEntryOptions()
                     .SetAbsoluteExpiration(TimeSpan.FromMinutes(5));
 
-                _cache.Set(cacheKey, userDataToCache, cacheOptions);
+                cache.Set(cacheKey, userDataToCache, cacheOptions);
 
                 return AddClaimsFromUserData(principal, userDataToCache);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error transforming claims for user {Auth0UserId}", auth0UserId);
+                logger.LogError(ex, "Error transforming claims for user {Auth0UserId}", auth0UserId);
                 return principal;
             }
         }

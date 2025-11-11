@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
 
 namespace SatOps.Modules.FlightPlan
 {
@@ -41,7 +40,7 @@ namespace SatOps.Modules.FlightPlan
 
         [Required(ErrorMessage = "Commands list is required")]
         [MinLength(1, ErrorMessage = "At least one command is required")]
-        public List<Command> Commands { get; set; } = new();
+        public List<Command> Commands { get; set; } = [];
 
         /// <summary>
         /// Validates the entire DTO including all commands

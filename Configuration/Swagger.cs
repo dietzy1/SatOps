@@ -95,7 +95,7 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
                                 Id = "oauth2"
                             }
                         },
-                        new[] { "openid", "profile", "email" }
+                        ["openid", "profile", "email"]
                     }
                 });
 
