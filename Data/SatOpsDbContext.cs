@@ -137,6 +137,11 @@ namespace SatOps.Data
                 entity.Property(e => e.Id).UseIdentityByDefaultColumn();
 
                 // --- Relationships ---
+                entity.HasOne(o => o.FlightPlan)
+                    .WithOne(fp => fp.Overpass)
+                    .HasForeignKey<OverpassEntity>(o => o.FlightPlanId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
                 entity.HasOne(e => e.Satellite)
                     .WithMany(s => s.Overpasses)
                     .HasForeignKey(e => e.SatelliteId)
@@ -148,7 +153,10 @@ namespace SatOps.Data
                     .OnDelete(DeleteBehavior.Cascade);
 
                 // --- Indexes ---
+
                 entity.HasIndex(e => new { e.SatelliteId, e.GroundStationId, e.StartTime });
+
+                entity.HasIndex(e => e.FlightPlanId).IsUnique();
             });
 
             modelBuilder.Entity<ImageDataEntity>(entity =>

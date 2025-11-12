@@ -23,7 +23,6 @@ namespace SatOps.Modules.FlightPlan
         // --- Foreign Key Properties ---
         public int GroundStationId { get; set; }
         public int SatelliteId { get; set; }
-        public int? OverpassId { get; set; }
         public int? PreviousPlanId { get; set; }
         public int CreatedById { get; set; }
         public int? ApprovedById { get; set; }
@@ -35,7 +34,6 @@ namespace SatOps.Modules.FlightPlan
         [ForeignKey(nameof(SatelliteId))]
         public virtual Satellite.Satellite Satellite { get; set; } = null!;
 
-        [ForeignKey(nameof(OverpassId))]
         public virtual Overpass.Entity? Overpass { get; set; }
 
         [ForeignKey(nameof(PreviousPlanId))]

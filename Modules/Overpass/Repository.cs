@@ -107,11 +107,14 @@ namespace SatOps.Modules.Overpass
                 .ToListAsync();
         }
 
-        public async Task<SatOps.Modules.FlightPlan.FlightPlan?> GetAssociatedFlightPlanAsync(int overpassId)
+        public async Task<FlightPlan.FlightPlan?> GetAssociatedFlightPlanAsync(int overpassId)
         {
-            return await dbContext.FlightPlans
+            var overpass = await dbContext.Overpasses
                 .AsNoTracking()
-                .FirstOrDefaultAsync(fp => fp.OverpassId == overpassId);
+                .Include(o => o.FlightPlan)
+                .FirstOrDefaultAsync(o => o.Id == overpassId);
+
+            return overpass?.FlightPlan;
         }
     }
 }

@@ -338,7 +338,6 @@ namespace SatOps.Modules.FlightPlan
                     return (false, message);
                 }
 
-                flightPlan.OverpassId = overpassEntity.Id;
                 flightPlan.Status = FlightPlanStatus.AssignedToOverpass;
                 flightPlan.ScheduledAt = selectedOverpass.MaxElevationTime;
                 flightPlan.UpdatedAt = DateTime.UtcNow;

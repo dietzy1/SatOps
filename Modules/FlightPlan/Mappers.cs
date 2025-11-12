@@ -10,7 +10,7 @@ namespace SatOps.Modules.FlightPlan
                 Name = entity.Name,
                 GsId = entity.GroundStationId,
                 SatId = entity.SatelliteId,
-                OverpassId = entity.OverpassId,
+                OverpassId = entity.Overpass?.Id,
                 PreviousPlanId = entity.PreviousPlanId,
                 CreatedById = entity.CreatedById,
                 ApprovedById = entity.ApprovedById,
