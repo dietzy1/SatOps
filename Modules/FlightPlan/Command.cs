@@ -231,7 +231,7 @@ namespace SatOps.Modules.FlightPlan
                     if (captureCommand.CaptureLocation == null)
                     {
                         throw new InvalidOperationException(
-                            $"TriggerCaptureCommand requires CaptureLocation to calculate execution time.");
+                            "TriggerCaptureCommand requires CaptureLocation to calculate execution time.");
                     }
 
                     // Create target coordinate
@@ -244,11 +244,13 @@ namespace SatOps.Modules.FlightPlan
                     var maxSearchDuration = TimeSpan.FromHours(48);
                     var minOffNadirDegrees = 80.0;
 
-                    var imagingOpportunity = imagingCalculation.FindBestImagingOpportunity(
-                        sgp4Satellite,
-                        targetCoordinate,
-                        receptionTime,
-                        maxSearchDuration
+                    var imagingOpportunity = await Task.Run(() =>
+                        imagingCalculation.FindBestImagingOpportunity(
+                            sgp4Satellite,
+                            targetCoordinate,
+                            receptionTime,
+                            maxSearchDuration
+                        )
                     );
 
                     // Check if the opportunity is within acceptable off-nadir angle
@@ -301,7 +303,7 @@ namespace SatOps.Modules.FlightPlan
             try
             {
                 var commands = JsonSerializer.Deserialize<List<Command>>(json, options);
-                return commands ?? new List<Command>();
+                return commands ?? [];
             }
             catch (JsonException ex)
             {
@@ -324,15 +326,6 @@ namespace SatOps.Modules.FlightPlan
         public static List<Command> FromJsonDocument(JsonDocument document)
         {
             var json = document.RootElement.GetRawText();
-            return FromJson(json);
-        }
-
-        /// <summary>
-        /// Deserializes commands from JsonElement
-        /// </summary>
-        public static List<Command> FromJsonElement(JsonElement element)
-        {
-            var json = element.GetRawText();
             return FromJson(json);
         }
     }

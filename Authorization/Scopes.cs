@@ -18,17 +18,6 @@ namespace SatOps.Authorization
     }
 
     /// <summary>
-    /// User roles in the system.
-    /// Matches the UserRole enum but as strings for authorization.
-    /// </summary>
-    public static class Roles
-    {
-        public const string Viewer = "Viewer";
-        public const string Operator = "Operator";
-        public const string Admin = "Admin";
-    }
-
-    /// <summary>
     /// Scopes for ground station machine-to-machine authentication.
     /// Ground stations use these scopes instead of roles.
     /// </summary>

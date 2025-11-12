@@ -45,7 +45,7 @@ namespace SatOps.Modules.Groundstation
                 Id = station.Id,
                 Name = station.Name,
                 Connected = isConnected,
-                LastUpdated = DateTime.UtcNow
+                CheckedAt = DateTime.UtcNow
             };
             return Ok(healthDto);
         }

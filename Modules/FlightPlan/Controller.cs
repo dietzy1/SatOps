@@ -36,7 +36,7 @@ namespace SatOps.Modules.FlightPlan
             try
             {
                 var created = await service.CreateAsync(input);
-                var dto = Mappers.ToDto(created);
+                var dto = created.ToDto();
                 return CreatedAtAction(nameof(Get), new { id = created.Id }, dto);
             }
             catch (ArgumentException ex)
@@ -63,7 +63,7 @@ namespace SatOps.Modules.FlightPlan
                                 "It may not be in an updateable state."
                     });
                 }
-                return Ok(Mappers.ToDto(newVersion));
+                return Ok(newVersion.ToDto());
             }
             catch (ArgumentException ex)
             {
@@ -135,7 +135,7 @@ namespace SatOps.Modules.FlightPlan
         /// <summary>
         /// Retrieves all images associated with a specific flight plan
         /// </summary>
-        /// <param name="flightId">The ID of the flight plan</param>
+        /// <param name="id">The ID of the flight plan</param>
         /// <returns>List of images with pre-signed URLs for download</returns>
         [HttpGet("{id}/images")]
         [Authorize(Policy = Authorization.Policies.RequireViewer)]

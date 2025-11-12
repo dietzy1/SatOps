@@ -84,7 +84,6 @@ namespace SatOps.Modules.Groundstation
         public int Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public bool Connected { get; set; }
-        public DateTime LastUpdated { get; set; }
-        public DateTime CheckedAt { get; set; } = DateTime.UtcNow;
+        public DateTime CheckedAt { get; set; }
     }
 }

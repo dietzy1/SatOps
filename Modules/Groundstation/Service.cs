@@ -13,7 +13,6 @@ namespace SatOps.Modules.Groundstation
         Task<(GroundStation createdStation, string rawApiKey)> CreateAsync(GroundStation entity);
         Task<GroundStation?> PatchAsync(int id, GroundStationPatchDto patchDto);
         Task<bool> DeleteAsync(int id);
-        Task<List<GroundStation>> GetConnectedStationsAsync();
         Task<string?> GenerateGroundStationTokenAsync(TokenRequestDto request);
     }
 
@@ -85,13 +84,6 @@ namespace SatOps.Modules.Groundstation
         }
 
         public Task<bool> DeleteAsync(int id) => repository.DeleteAsync(id);
-
-        public async Task<List<GroundStation>> GetConnectedStationsAsync()
-        {
-            var allStations = await repository.GetAllAsync();
-            return allStations.Where(s => gatewayService.IsGroundStationConnected(s.Id)).ToList();
-        }
-
 
         public async Task<string?> GenerateGroundStationTokenAsync(TokenRequestDto request)
         {
