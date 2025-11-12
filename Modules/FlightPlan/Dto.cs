@@ -90,7 +90,7 @@ namespace SatOps.Modules.FlightPlan
     }
 
     // DTO for associating with overpass using timerange and optional matching criteria
-    public class AssociateOverpassDto
+    public class AssignOverpassDto
     {
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }

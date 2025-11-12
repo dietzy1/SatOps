@@ -12,7 +12,7 @@ namespace SatOps.Modules.Overpass
         Task<bool> UpdateAsync(Entity overpass);
         Task<bool> DeleteAsync(int id);
         Task<List<Entity>> GetByTimeRangeAsync(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime);
-        Task<Entity?> FindExistingOverpassAsync(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime, double maxElevation);
+        Task<Entity?> FindOverpassInTimeWindowAsync(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime, int toleranceMinutes);
         Task<List<Entity>> FindStoredOverpassesInTimeRange(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime);
         Task<FlightPlan.FlightPlan?> GetAssociatedFlightPlanAsync(int overpassId);
     }
@@ -78,18 +78,20 @@ namespace SatOps.Modules.Overpass
                 .ToListAsync();
         }
 
-        public async Task<Entity?> FindExistingOverpassAsync(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime, double maxElevation)
+        public async Task<Entity?> FindOverpassInTimeWindowAsync(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime, int toleranceMinutes)
         {
-            // Find an existing overpass that matches the parameters (within a small tolerance)
-            var toleranceMinutes = 5; // 5-minute tolerance
+            // Find any existing overpass (assigned or not) that overlaps with the requested time window
+            // This prevents creating duplicate overpass records for the same physical satellite pass
+            // Uses tolerance to account for TLE data variations between calculations
 
             return await dbContext.Overpasses
-                .AsNoTracking()
-                .FirstOrDefaultAsync(o => o.SatelliteId == satelliteId &&
-                                         o.GroundStationId == groundStationId &&
-                                         Math.Abs((o.StartTime - startTime).TotalMinutes) < toleranceMinutes &&
-                                         Math.Abs((o.EndTime - endTime).TotalMinutes) < toleranceMinutes &&
-                                         Math.Abs(o.MaxElevation - maxElevation) < 1.0); // 1 degree tolerance
+                .Include(o => o.FlightPlan)
+                .Where(o => o.SatelliteId == satelliteId &&
+                           o.GroundStationId == groundStationId &&
+                           Math.Abs((o.StartTime - startTime).TotalMinutes) <= toleranceMinutes &&
+                           Math.Abs((o.EndTime - endTime).TotalMinutes) <= toleranceMinutes)
+                .OrderBy(o => Math.Abs((o.StartTime - startTime).TotalMinutes) + Math.Abs((o.EndTime - endTime).TotalMinutes))
+                .FirstOrDefaultAsync();
         }
 
         public async Task<List<Entity>> FindStoredOverpassesInTimeRange(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime)

@@ -15,7 +15,7 @@ namespace SatOps.Modules.FlightPlan
         Task<FlightPlan> CreateAsync(CreateFlightPlanDto createDto);
         Task<FlightPlan?> CreateNewVersionAsync(int id, CreateFlightPlanDto updateDto);
         Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status);
-        Task<(bool Success, string Message)> AssociateWithOverpassAsync(int flightPlanId, AssociateOverpassDto overpassRequest);
+        Task<(bool Success, string Message)> AssignOverpassAsync(int flightPlanId, AssignOverpassDto overpassRequest);
         Task<List<string>> CompileFlightPlanToCshAsync(int id);
         Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request);
         Task UpdateFlightPlanStatusAsync(int flightPlanId, FlightPlanStatus newStatus, string? failureReason = null);
@@ -200,9 +200,9 @@ namespace SatOps.Modules.FlightPlan
             return (true, $"Flight plan {status.ToLowerInvariant()} successfully");
         }
 
-        public async Task<(bool Success, string Message)> AssociateWithOverpassAsync(
+        public async Task<(bool Success, string Message)> AssignOverpassAsync(
             int id,
-            AssociateOverpassDto dto)
+            AssignOverpassDto dto)
         {
             try
             {
@@ -210,6 +210,22 @@ namespace SatOps.Modules.FlightPlan
                 if (flightPlan == null)
                 {
                     return (false, "Flight plan not found.");
+                }
+
+                // Validate that overpass time is not in the past
+                if (dto.StartTime < DateTime.UtcNow)
+                {
+                    return (false, "Cannot assign an overpass that starts in the past.");
+                }
+
+                if (dto.EndTime < DateTime.UtcNow)
+                {
+                    return (false, "Cannot assign an overpass that ends in the past.");
+                }
+
+                if (dto.StartTime >= dto.EndTime)
+                {
+                    return (false, "Start time must be before end time.");
                 }
 
                 // Check if the current status allows association with overpass
@@ -232,10 +248,18 @@ namespace SatOps.Modules.FlightPlan
                         return (false, $"Unknown flight plan status: {flightPlan.Status}");
                 }
 
+                // Get satellite data for TLE information
+                var satellite = await satelliteService.GetAsync(flightPlan.SatelliteId);
+                if (satellite == null)
+                {
+                    return (false, "Associated satellite not found.");
+                }
+
                 // Calculate overpasses with a broader time window to allow for tolerance matching
-                var toleranceHours = 2; // Allow 2-hour tolerance around the requested time window
-                var expandedStartTime = dto.StartTime.AddHours(-toleranceHours);
-                var expandedEndTime = dto.EndTime.AddHours(toleranceHours);
+                // We use a 30-minute tolerance window on each side to account for TLE variations
+                var toleranceMinutes = 30;
+                var expandedStartTime = dto.StartTime.AddMinutes(-toleranceMinutes);
+                var expandedEndTime = dto.EndTime.AddMinutes(toleranceMinutes);
 
                 // Create overpass calculation request
                 var overpassCalculationRequest = new OverpassWindowsCalculationRequestDto
@@ -247,35 +271,93 @@ namespace SatOps.Modules.FlightPlan
                 };
 
                 var availableOverpasses = await overpassService.CalculateOverpassesAsync(overpassCalculationRequest);
-                if (availableOverpasses?.Count == 0)
+                if (availableOverpasses == null || availableOverpasses.Count == 0)
                 {
-                    return (false, "No matching overpass found");
+                    return (false, "No matching overpass found in the specified time window.");
                 }
 
-                var selectedOverpass = availableOverpasses?.FirstOrDefault();
+                // Define matching tolerance (in minutes)
+                var matchToleranceMinutes = 15; // Allow 15-minute tolerance for matching
+
+                // Find the best matching overpass based on multiple criteria
+                OverpassWindowDto? selectedOverpass = null;
+                double bestScore = double.MaxValue;
+
+                foreach (var candidate in availableOverpasses)
+                {
+                    var startTimeDiff = Math.Abs((candidate.StartTime - dto.StartTime).TotalMinutes);
+                    var endTimeDiff = Math.Abs((candidate.EndTime - dto.EndTime).TotalMinutes);
+
+                    // Check if within tolerance
+                    if (startTimeDiff > matchToleranceMinutes || endTimeDiff > matchToleranceMinutes)
+                    {
+                        continue;
+                    }
+
+                    // Calculate additional matching criteria if provided
+                    double elevationDiff = 0;
+                    if (dto.MaxElevation.HasValue)
+                    {
+                        elevationDiff = Math.Abs(candidate.MaxElevation - dto.MaxElevation.Value);
+                    }
+
+                    double durationDiff = 0;
+                    if (dto.DurationSeconds.HasValue)
+                    {
+                        durationDiff = Math.Abs(candidate.DurationSeconds - dto.DurationSeconds.Value);
+                    }
+
+                    // Composite score (weighted)
+                    var score = (startTimeDiff * 2.0) + (endTimeDiff * 2.0) + (elevationDiff * 0.5) + (durationDiff / 60.0 * 0.5);
+
+                    if (score < bestScore)
+                    {
+                        bestScore = score;
+                        selectedOverpass = candidate;
+                    }
+                }
+
                 if (selectedOverpass == null)
                 {
-                    return (false, "No suitable overpass found");
+                    return (false, $"No overpass found within {matchToleranceMinutes}-minute tolerance of the specified time window.");
                 }
 
-                var storedOverpass = await overpassService.FindOrCreateOverpassAsync(selectedOverpass);
-                if (storedOverpass == null)
+                // Try to find or create an overpass record for this physical satellite pass
+                // This will check if an overpass already exists in the time window and reject if it's already assigned
+                var (success, overpassEntity, message) = await overpassService.FindOrCreateOverpassForFlightPlanAsync(
+                    selectedOverpass,
+                    flightPlan.Id,
+                    matchToleranceMinutes,
+                    satellite.TleLine1,
+                    satellite.TleLine2,
+                    DateTime.UtcNow
+                );
+
+                if (!success || overpassEntity == null)
                 {
-                    return (false, "Failed to store overpass data");
+                    return (false, message);
                 }
 
-                flightPlan.OverpassId = storedOverpass.Id;
-                flightPlan.ScheduledAt = selectedOverpass.StartTime;
+                flightPlan.OverpassId = overpassEntity.Id;
                 flightPlan.Status = FlightPlanStatus.AssignedToOverpass;
+                flightPlan.ScheduledAt = selectedOverpass.MaxElevationTime;
                 flightPlan.UpdatedAt = DateTime.UtcNow;
 
                 await repository.UpdateAsync(flightPlan);
 
-                return (true, "Flight plan associated with overpass successfully");
+                return (true, $"Flight plan successfully assigned to overpass (ID: {overpassEntity.Id}).");
+            }
+            catch (ArgumentException ex)
+            {
+                return (false, $"Invalid data: {ex.Message}");
+            }
+            catch (InvalidOperationException ex)
+            {
+                return (false, $"Operation error: {ex.Message}");
             }
             catch (Exception ex)
             {
-                return (false, $"Error associating flight plan with overpass: {ex.Message}");
+                return (false, $"An unexpected error occurred: {ex.Message}");
             }
         }
 

@@ -100,11 +100,11 @@ namespace SatOps.Modules.FlightPlan
         // Should this endpoint be moved to /overpasses controller?
         [HttpPost("{id}/overpasses")]
         [Authorize(Policy = Authorization.Policies.RequireOperator)]
-        public async Task<ActionResult> AssociateOverpass(
+        public async Task<ActionResult> AssignOverpass(
             int id,
-            [FromBody] AssociateOverpassDto input)
+            [FromBody] AssignOverpassDto input)
         {
-            var (success, message) = await service.AssociateWithOverpassAsync(id, input);
+            var (success, message) = await service.AssignOverpassAsync(id, input);
             if (!success)
             {
                 return Conflict(new { detail = message });

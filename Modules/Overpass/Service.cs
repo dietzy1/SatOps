@@ -9,9 +9,14 @@ namespace SatOps.Modules.Overpass
     public interface IOverpassService
     {
         Task<List<OverpassWindowDto>> CalculateOverpassesAsync(OverpassWindowsCalculationRequestDto request);
-        Task<Entity> StoreOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null);
         Task<Entity?> GetStoredOverpassAsync(int id);
-        Task<Entity> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null);
+        Task<(bool Success, Entity? Overpass, string Message)> FindOrCreateOverpassForFlightPlanAsync(
+            OverpassWindowDto overpassWindow,
+            int flightPlanId,
+            int toleranceMinutes,
+            string? tleLine1 = null,
+            string? tleLine2 = null,
+            DateTime? tleUpdateTime = null);
     }
 
     public class OverpassService(ISatelliteService satelliteService, IGroundStationService groundStationService, IOverpassRepository overpassRepository) : IOverpassService
@@ -46,22 +51,19 @@ namespace SatOps.Modules.Overpass
                     throw new InvalidOperationException("Satellite TLE data is not available.");
                 }
 
-                // Create TLE strings
                 var tle1 = satellite.Name;
                 var tle2 = satellite.TleLine1;
                 var tle3 = satellite.TleLine2;
 
-                // Create a TLE and then satellite from the TLEs
+
                 var tle = new Tle(tle1, tle2, tle3);
                 var sat = new SGPdotNET.Observation.Satellite(tle);
 
-                // Set up ground station location from stored coordinates
                 var location = new GeodeticCoordinate(
                     Angle.FromDegrees(groundStationEntity.Location.Latitude),
                     Angle.FromDegrees(groundStationEntity.Location.Longitude),
                     groundStationEntity.Location.Altitude); // Assuming sea level for stored ground stations
 
-                // Create a ground station
                 var groundStation = new SGPdotNET.Observation.GroundStation(location);
                 var overpassWindows = new List<OverpassWindowDto>();
                 var timeStep = TimeSpan.FromMinutes(1); // Check every minute
@@ -153,12 +155,40 @@ namespace SatOps.Modules.Overpass
             }
         }
 
-        public async Task<Entity> StoreOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null)
+        public async Task<Entity?> GetStoredOverpassAsync(int id)
         {
+            return await overpassRepository.GetByIdReadOnlyAsync(id);
+        }
+
+        public async Task<(bool Success, Entity? Overpass, string Message)> FindOrCreateOverpassForFlightPlanAsync(
+            OverpassWindowDto overpassWindow,
+            int flightPlanId,
+            int toleranceMinutes,
+            string? tleLine1 = null,
+            string? tleLine2 = null,
+            DateTime? tleUpdateTime = null)
+        {
+            // Check if there's already an overpass in this time window
+            var existingOverpass = await overpassRepository.FindOverpassInTimeWindowAsync(
+                overpassWindow.SatelliteId,
+                overpassWindow.GroundStationId,
+                overpassWindow.StartTime,
+                overpassWindow.EndTime,
+                toleranceMinutes
+            );
+
+            if (existingOverpass != null)
+            {
+                return (false, null,
+                    $"An overpass is already assigned to flight plan '{existingOverpass.FlightPlan?.Name ?? "Unknown"}' (ID: {existingOverpass.FlightPlanId}) " +
+                    $"in this time window. Each satellite pass can only be assigned to one flight plan.");
+            }
+
             var overpassEntity = new Entity
             {
                 SatelliteId = overpassWindow.SatelliteId,
                 GroundStationId = overpassWindow.GroundStationId,
+                FlightPlanId = flightPlanId,
                 StartTime = overpassWindow.StartTime,
                 EndTime = overpassWindow.EndTime,
                 MaxElevationTime = overpassWindow.MaxElevationTime,
@@ -171,32 +201,8 @@ namespace SatOps.Modules.Overpass
                 TleUpdateTime = tleUpdateTime
             };
 
-            return await overpassRepository.AddAsync(overpassEntity);
-        }
-
-        public async Task<Entity?> GetStoredOverpassAsync(int id)
-        {
-            return await overpassRepository.GetByIdReadOnlyAsync(id);
-        }
-
-        public async Task<Entity> FindOrCreateOverpassAsync(OverpassWindowDto overpassWindow, string? tleLine1 = null, string? tleLine2 = null, DateTime? tleUpdateTime = null)
-        {
-            // First try to find an existing overpass that matches
-            var existingOverpass = await overpassRepository.FindExistingOverpassAsync(
-                overpassWindow.SatelliteId,
-                overpassWindow.GroundStationId,
-                overpassWindow.StartTime,
-                overpassWindow.EndTime,
-                overpassWindow.MaxElevation
-            );
-
-            if (existingOverpass != null)
-            {
-                return existingOverpass;
-            }
-
-            // If not found, create and store a new one
-            return await StoreOverpassAsync(overpassWindow, tleLine1, tleLine2, tleUpdateTime);
+            var createdOverpass = await overpassRepository.AddAsync(overpassEntity);
+            return (true, createdOverpass, "Overpass created and assigned successfully.");
         }
 
         private async Task<List<OverpassWindowDto>> MergeAndEnrichOverpasses(

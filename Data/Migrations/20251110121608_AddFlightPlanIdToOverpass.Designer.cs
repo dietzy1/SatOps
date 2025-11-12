@@ -3,18 +3,21 @@ using System;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using SatOps.Data;
 
 #nullable disable
 
-namespace SatOps.data.migrations
+namespace SatOps.Data.Migrations
 {
     [DbContext(typeof(SatOpsDbContext))]
-    partial class SatOpsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251110121608_AddFlightPlanIdToOverpass")]
+    partial class AddFlightPlanIdToOverpass
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -212,10 +215,10 @@ namespace SatOps.data.migrations
                         {
                             Id = 1,
                             ApiKeyHash = "",
-                            ApplicationId = new Guid("5a69c05e-4612-4ea9-940b-13398b689750"),
-                            CreatedAt = new DateTime(2025, 11, 11, 17, 31, 43, 47, DateTimeKind.Utc).AddTicks(7580),
+                            ApplicationId = new Guid("dfef8181-269c-4932-b41e-41fb2c306577"),
+                            CreatedAt = new DateTime(2025, 11, 10, 12, 16, 7, 952, DateTimeKind.Utc).AddTicks(6740),
                             Name = "Aarhus",
-                            UpdatedAt = new DateTime(2025, 11, 11, 17, 31, 43, 47, DateTimeKind.Utc).AddTicks(7580)
+                            UpdatedAt = new DateTime(2025, 11, 10, 12, 16, 7, 952, DateTimeKind.Utc).AddTicks(6740)
                         });
                 });
 
@@ -236,7 +239,7 @@ namespace SatOps.data.migrations
                     b.Property<DateTime>("EndTime")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("FlightPlanId")
+                    b.Property<int?>("FlightPlanId")
                         .HasColumnType("integer");
 
                     b.Property<int>("GroundStationId")
@@ -326,8 +329,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 11, 11, 17, 31, 43, 47, DateTimeKind.Utc).AddTicks(7810),
-                            LastUpdate = new DateTime(2025, 11, 11, 17, 31, 43, 47, DateTimeKind.Utc).AddTicks(7820),
+                            CreatedAt = new DateTime(2025, 11, 10, 12, 16, 7, 952, DateTimeKind.Utc).AddTicks(6930),
+                            LastUpdate = new DateTime(2025, 11, 10, 12, 16, 7, 952, DateTimeKind.Utc).AddTicks(6930),
                             Name = "International Space Station (ISS)",
                             NoradId = 25544,
                             Status = 0,
@@ -337,8 +340,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 11, 11, 17, 31, 43, 47, DateTimeKind.Utc).AddTicks(7820),
-                            LastUpdate = new DateTime(2025, 11, 11, 17, 31, 43, 47, DateTimeKind.Utc).AddTicks(7820),
+                            CreatedAt = new DateTime(2025, 11, 10, 12, 16, 7, 952, DateTimeKind.Utc).AddTicks(6930),
+                            LastUpdate = new DateTime(2025, 11, 10, 12, 16, 7, 952, DateTimeKind.Utc).AddTicks(6930),
                             Name = "SENTINEL-2C",
                             NoradId = 60989,
                             Status = 0,
@@ -511,9 +514,7 @@ namespace SatOps.data.migrations
                 {
                     b.HasOne("SatOps.Modules.FlightPlan.FlightPlan", "FlightPlan")
                         .WithMany()
-                        .HasForeignKey("FlightPlanId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("FlightPlanId");
 
                     b.HasOne("SatOps.Modules.Groundstation.GroundStation", "GroundStation")
                         .WithMany("Overpasses")

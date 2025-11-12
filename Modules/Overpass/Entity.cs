@@ -12,6 +12,7 @@ namespace SatOps.Modules.Overpass
         // Foreign key fields
         public int SatelliteId { get; set; }
         public int GroundStationId { get; set; }
+        public int FlightPlanId { get; set; }
 
         // Navigation properties
         [ForeignKey(nameof(SatelliteId))]
@@ -19,6 +20,9 @@ namespace SatOps.Modules.Overpass
 
         [ForeignKey(nameof(GroundStationId))]
         public GroundStation GroundStation { get; set; } = null!;
+
+        [ForeignKey(nameof(FlightPlanId))]
+        public FlightPlan.FlightPlan FlightPlan { get; set; } = null!;
 
         // Data
         public DateTime StartTime { get; set; }
