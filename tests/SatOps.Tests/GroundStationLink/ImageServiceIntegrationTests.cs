@@ -8,7 +8,7 @@ using SatOps.Modules.GroundStationLink;
 using SatOps.Data;
 using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 using SatOps.Modules.Groundstation;
-using SatOps.Modules.FlightPlan;
+using FlightPlanEntity = SatOps.Modules.FlightPlan.FlightPlan;
 using System.Text;
 
 namespace SatOps.Tests
@@ -39,7 +39,7 @@ namespace SatOps.Tests
         {
             _dbContext.Satellites.Add(new SatelliteEntity { Id = 1, Name = "TestSat" });
             _dbContext.GroundStations.Add(new GroundStation { Id = 1, Name = "TestGS" });
-            _dbContext.FlightPlans.Add(new FlightPlan { Id = 1, Name = "TestFP" });
+            _dbContext.FlightPlans.Add(new FlightPlanEntity { Id = 1, Name = "TestFP" });
             _dbContext.SaveChanges();
         }
 

@@ -7,6 +7,8 @@ using SatOps.Modules.Satellite;
 using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Overpass;
+using FlightPlanEntity = SatOps.Modules.FlightPlan.FlightPlan;
+
 
 namespace SatOps.Tests
 {
@@ -59,8 +61,8 @@ namespace SatOps.Tests
             _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(testUserId);
             _mockGroundStationService.Setup(s => s.GetAsync(createDto.GsId)).ReturnsAsync(new GroundStation());
             _mockSatelliteService.Setup(s => s.GetAsync(createDto.SatId)).ReturnsAsync(new SatelliteEntity());
-            _mockFlightPlanRepo.Setup(r => r.AddAsync(It.IsAny<FlightPlan>()))
-                .ReturnsAsync((FlightPlan fp) => fp);
+            _mockFlightPlanRepo.Setup(r => r.AddAsync(It.IsAny<FlightPlanEntity>()))
+                .ReturnsAsync((FlightPlanEntity fp) => fp);
 
             // Act
             var result = await _sut.CreateAsync(createDto);
@@ -68,7 +70,7 @@ namespace SatOps.Tests
             // Assert
             result.Should().NotBeNull();
             result.CreatedById.Should().Be(testUserId);
-            _mockFlightPlanRepo.Verify(r => r.AddAsync(It.Is<FlightPlan>(fp => fp.CreatedById == testUserId)), Times.Once);
+            _mockFlightPlanRepo.Verify(r => r.AddAsync(It.Is<FlightPlanEntity>(fp => fp.CreatedById == testUserId)), Times.Once);
         }
 
         [Theory]
@@ -79,7 +81,7 @@ namespace SatOps.Tests
             // Arrange
             var testUserId = 456;
             var planId = 1;
-            var draftPlan = new FlightPlan { Id = planId, Status = FlightPlanStatus.Draft };
+            var draftPlan = new FlightPlanEntity { Id = planId, Status = FlightPlanStatus.Draft };
             draftPlan.SetCommands([]); // Ensure commands are valid
 
             _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(testUserId);
@@ -90,7 +92,7 @@ namespace SatOps.Tests
 
             // Assert
             success.Should().BeTrue();
-            _mockFlightPlanRepo.Verify(r => r.UpdateAsync(It.Is<FlightPlan>(p =>
+            _mockFlightPlanRepo.Verify(r => r.UpdateAsync(It.Is<FlightPlanEntity>(p =>
                 p.Id == planId &&
                 p.Status == FlightPlanStatusExtensions.FromScreamCase(targetStatus) &&
                 p.ApprovedById == testUserId
@@ -102,7 +104,7 @@ namespace SatOps.Tests
         {
             // Arrange
             var planId = 1;
-            var approvedPlan = new FlightPlan { Id = planId, Status = FlightPlanStatus.Approved };
+            var approvedPlan = new FlightPlanEntity { Id = planId, Status = FlightPlanStatus.Approved };
 
             _mockFlightPlanRepo.Setup(r => r.GetByIdAsync(planId)).ReturnsAsync(approvedPlan);
             _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(123);
@@ -113,7 +115,7 @@ namespace SatOps.Tests
             // Assert
             success.Should().BeFalse();
             message.Should().Be("Cannot modify a plan that has already been approved.");
-            _mockFlightPlanRepo.Verify(r => r.UpdateAsync(It.IsAny<FlightPlan>()), Times.Never);
+            _mockFlightPlanRepo.Verify(r => r.UpdateAsync(It.IsAny<FlightPlanEntity>()), Times.Never);
         }
 
 
@@ -122,7 +124,7 @@ namespace SatOps.Tests
         {
             // Arrange
             var planId = 1;
-            var plan = new FlightPlan { Id = planId, Status = FlightPlanStatus.AssignedToOverpass };
+            var plan = new FlightPlanEntity { Id = planId, Status = FlightPlanStatus.AssignedToOverpass };
             var newStatus = FlightPlanStatus.Failed;
             var reason = "Ground station offline";
 
@@ -132,7 +134,7 @@ namespace SatOps.Tests
             await _sut.UpdateFlightPlanStatusAsync(planId, newStatus, reason);
 
             // Assert
-            _mockFlightPlanRepo.Verify(r => r.UpdateAsync(It.Is<FlightPlan>(p =>
+            _mockFlightPlanRepo.Verify(r => r.UpdateAsync(It.Is<FlightPlanEntity>(p =>
                 p.Id == planId &&
                 p.Status == newStatus &&
                 p.FailureReason == reason

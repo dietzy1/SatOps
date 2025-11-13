@@ -22,11 +22,5 @@ namespace SatOps.Modules.FlightPlan.Commands
             var commandString = $"set pipeline_run {Mode!.Value} -n {DippNode}";
             return Task.FromResult(new List<string> { commandString });
         }
-
-        // No custom validation needed beyond data annotations
-        public override IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
-        {
-            yield break;
-        }
     }
 }

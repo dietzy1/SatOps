@@ -7,6 +7,7 @@ using SatOps.Modules.GroundStationLink;
 using SatOps.Modules.Satellite;
 using System.Reflection;
 using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
+using FlightPlanEntity = SatOps.Modules.FlightPlan.FlightPlan;
 
 namespace SatOps.Tests
 {
@@ -51,7 +52,7 @@ namespace SatOps.Tests
             var gsId = 10;
             var satId = 20;
             var scheduledTime = DateTime.UtcNow.AddMinutes(2);
-            var plan = new FlightPlan { Id = planId, GroundStationId = gsId, SatelliteId = satId, ScheduledAt = scheduledTime };
+            var plan = new FlightPlanEntity { Id = planId, GroundStationId = gsId, SatelliteId = satId, ScheduledAt = scheduledTime };
             var satellite = new SatelliteEntity { Id = satId, Name = "SAT-1" };
             var script = new List<string> { "do_something" };
             var cts = new CancellationTokenSource();
@@ -90,7 +91,7 @@ namespace SatOps.Tests
             var planId = 1;
             var gsId = 10;
             var scheduledTime = DateTime.UtcNow.AddSeconds(30); // Imminent!
-            var plan = new FlightPlan { Id = planId, GroundStationId = gsId, ScheduledAt = scheduledTime };
+            var plan = new FlightPlanEntity { Id = planId, GroundStationId = gsId, ScheduledAt = scheduledTime };
             var cts = new CancellationTokenSource();
 
             _mockFlightPlanService.Setup(s => s.GetPlansReadyForTransmissionAsync(It.IsAny<TimeSpan>()))

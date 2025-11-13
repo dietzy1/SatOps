@@ -35,7 +35,6 @@ namespace SatOps.Modules.FlightPlan
 
         public Task<FlightPlan?> GetByIdAsync(int id) => repository.GetByIdReadOnlyAsync(id);
 
-        // In Modules/FlightPlan/Service.cs
 
         public async Task<FlightPlan> CreateAsync(CreateFlightPlanDto createDto)
         {

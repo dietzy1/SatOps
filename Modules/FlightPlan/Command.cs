@@ -190,16 +190,6 @@ namespace SatOps.Modules.FlightPlan
                         errors.Add($"Command {i + 1} ({command.CommandType}): {result.ErrorMessage}");
                     }
                 }
-
-                // Validate custom logic via IValidatableObject
-                var customResults = command.Validate(context);
-                foreach (var result in customResults)
-                {
-                    if (result != ValidationResult.Success)
-                    {
-                        errors.Add($"Command {i + 1} ({command.CommandType}): {result.ErrorMessage}");
-                    }
-                }
             }
 
             return (errors.Count == 0, errors);
