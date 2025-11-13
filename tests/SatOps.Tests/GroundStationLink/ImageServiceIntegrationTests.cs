@@ -13,13 +13,13 @@ using System.Text;
 
 namespace SatOps.Tests
 {
-    public class OperationServiceTests
+    public class ImageServiceTests
     {
         private readonly Mock<IObjectStorageService> _mockObjectStorageService;
         private readonly SatOpsDbContext _dbContext;
         private readonly ImageService _imageService;
 
-        public OperationServiceTests()
+        public ImageServiceTests()
         {
             // Use an in-memory database for testing to isolate from a real database
             var options = new DbContextOptionsBuilder<SatOpsDbContext>()

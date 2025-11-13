@@ -11,12 +11,13 @@ namespace SatOps.Data
 {
     public class SatOpsDbContext(DbContextOptions<SatOpsDbContext> options) : DbContext(options)
     {
-        public DbSet<GroundStationEntity> GroundStations => Set<GroundStationEntity>();
-        public DbSet<FlightPlanEntity> FlightPlans => Set<FlightPlanEntity>();
-        public DbSet<SatelliteEntity> Satellites => Set<SatelliteEntity>();
-        public DbSet<UserEntity> Users => Set<UserEntity>();
-        public DbSet<ImageDataEntity> ImageData => Set<ImageDataEntity>();
-        public DbSet<OverpassEntity> Overpasses => Set<OverpassEntity>();
+        public virtual DbSet<GroundStationEntity> GroundStations { get; set; }
+        public virtual DbSet<FlightPlanEntity> FlightPlans { get; set; }
+        public virtual DbSet<SatelliteEntity> Satellites { get; set; }
+        public virtual DbSet<UserEntity> Users { get; set; }
+        public virtual DbSet<ImageDataEntity> ImageData { get; set; }
+        public virtual DbSet<OverpassEntity> Overpasses { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

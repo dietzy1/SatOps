@@ -34,7 +34,7 @@ namespace SatOps.Tests
                 _mockFlightPlanRepo.Object,
                 _mockSatelliteService.Object,
                 _mockGroundStationService.Object,
-                mockOverpassService.Object, 
+                mockOverpassService.Object,
                 mockImagingCalculation.Object,
                 _mockCurrentUserProvider.Object
             );
