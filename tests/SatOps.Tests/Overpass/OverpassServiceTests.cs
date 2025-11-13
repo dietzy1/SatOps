@@ -10,7 +10,6 @@ namespace SatOps.Tests
     public class OverpassServiceTests
     {
         private readonly IOverpassService _overpassService;
-
         private readonly Mock<ISatelliteService> _mockSatelliteService;
         private readonly Mock<IGroundStationService> _mockGroundStationService;
         private readonly Mock<IOverpassRepository> _mockOverpassRepository;
@@ -30,7 +29,7 @@ namespace SatOps.Tests
         }
 
         [Fact]
-        public async Task ReturnValidEntity_WhenGetStoredOverpassAsync_IsCalledWithExistingId()
+        public async Task GetStoredOverpassAsync_ShouldReturnEntity_WhenIdExists()
         {
             // Arrange
             var existingId = 1;
@@ -46,14 +45,12 @@ namespace SatOps.Tests
         }
 
         [Fact]
-        public async Task ReturnNull_WhenGetStoredOverpassAsync_IsCalledWithNonExistingId()
+        public async Task GetStoredOverpassAsync_ShouldReturnNull_WhenIdDoesNotExist()
         {
             // Arrange
-            var existingId = 1;
             var nonExistingId = 999;
-            var expectedOverpass = new Entity { Id = existingId };
-            _mockOverpassRepository.Setup(repo => repo.GetByIdReadOnlyAsync(existingId))
-                .ReturnsAsync(expectedOverpass);
+            _mockOverpassRepository.Setup(repo => repo.GetByIdReadOnlyAsync(nonExistingId))
+                .ReturnsAsync((Entity?)null);
 
             // Act
             var result = await _overpassService.GetStoredOverpassAsync(nonExistingId);
@@ -63,7 +60,7 @@ namespace SatOps.Tests
         }
 
         [Fact]
-        public async Task StoreOverpassAsync_CallsRepositoryAddAsync_WithCorrectEntity()
+        public async Task FindOrCreateOverpassForFlightPlanAsync_ShouldCreateNewOverpass_WhenNoneExists()
         {
             // Arrange
             var overpassWindowDto = new OverpassWindowDto
@@ -71,302 +68,130 @@ namespace SatOps.Tests
                 SatelliteId = 1,
                 GroundStationId = 1,
                 StartTime = DateTime.UtcNow,
-                EndTime = DateTime.UtcNow.AddMinutes(10),
-                MaxElevationTime = DateTime.UtcNow.AddMinutes(5),
-                MaxElevation = 45.0,
-                DurationSeconds = 600,
-                StartAzimuth = 90.0,
-                EndAzimuth = 270.0,
+                EndTime = DateTime.UtcNow.AddMinutes(10)
             };
-            var tleLine1 = "1 25544U 98067A   20029.54791435  .00001264  00000-0  29621-4 0  9991";
-            var tleLine2 = "2 25544  51.6432 348.7416 0007417  85.4084 274.7553 15.49112339210616";
-            var tleUpdateTime = DateTime.UtcNow.AddDays(-1);
-            var expectedEntity = new Entity
-            {
-                SatelliteId = overpassWindowDto.SatelliteId,
-                GroundStationId = overpassWindowDto.GroundStationId,
-                StartTime = overpassWindowDto.StartTime,
-                EndTime = overpassWindowDto.EndTime,
-                MaxElevationTime = overpassWindowDto.MaxElevationTime,
-                MaxElevation = overpassWindowDto.MaxElevation,
-                DurationSeconds = (int)overpassWindowDto.DurationSeconds,
-                StartAzimuth = overpassWindowDto.StartAzimuth,
-                EndAzimuth = overpassWindowDto.EndAzimuth,
-                TleLine1 = tleLine1,
-                TleLine2 = tleLine2,
-                TleUpdateTime = tleUpdateTime
-            };
+            var flightPlanId = 101;
+            var toleranceMinutes = 15;
 
-            // Act
-            await _overpassService.StoreOverpassAsync(
-                overpassWindowDto,
-                tleLine1,
-                tleLine2,
-                tleUpdateTime
-            );
-
-            // Assert
-            _mockOverpassRepository.Verify(repo => repo.AddAsync(It.Is<Entity>(e =>
-                e.SatelliteId == expectedEntity.SatelliteId &&
-                e.GroundStationId == expectedEntity.GroundStationId &&
-                e.StartTime == expectedEntity.StartTime &&
-                e.EndTime == expectedEntity.EndTime &&
-                e.MaxElevationTime == expectedEntity.MaxElevationTime &&
-                Math.Abs(e.MaxElevation - expectedEntity.MaxElevation) < Tolerance &&
-                e.DurationSeconds == expectedEntity.DurationSeconds &&
-                Math.Abs(e.StartAzimuth - expectedEntity.StartAzimuth) < Tolerance &&
-                Math.Abs(e.EndAzimuth - expectedEntity.EndAzimuth) < Tolerance &&
-                e.TleLine1 == expectedEntity.TleLine1 &&
-                e.TleLine2 == expectedEntity.TleLine2 &&
-                e.TleUpdateTime == expectedEntity.TleUpdateTime
-            )), Times.Once);
-        }
-
-        [Fact]
-        public async Task StoreOverpassAsync_ReturnsEntity_WithCorrectProperties()
-        {
-            // Arrange
-            var overpassWindowDto = new OverpassWindowDto
-            {
-                SatelliteId = 1,
-                GroundStationId = 1,
-                StartTime = DateTime.UtcNow,
-                EndTime = DateTime.UtcNow.AddMinutes(10),
-                MaxElevationTime = DateTime.UtcNow.AddMinutes(5),
-                MaxElevation = 45.0,
-                DurationSeconds = 600,
-                StartAzimuth = 90.0,
-                EndAzimuth = 270.0,
-            };
-            var tleLine1 = "1 25544U 98067A   20029.54791435  .00001264  00000-0  29621-4 0  9991";
-            var tleLine2 = "2 25544  51.6432 348.7416 0007417  85.4084 274.7553 15.49112339210616";
-            var tleUpdateTime = DateTime.UtcNow.AddDays(-1);
-            var expectedEntity = new Entity
-            {
-                SatelliteId = overpassWindowDto.SatelliteId,
-                GroundStationId = overpassWindowDto.GroundStationId,
-                StartTime = overpassWindowDto.StartTime,
-                EndTime = overpassWindowDto.EndTime,
-                MaxElevationTime = overpassWindowDto.MaxElevationTime,
-                MaxElevation = overpassWindowDto.MaxElevation,
-                DurationSeconds = (int)overpassWindowDto.DurationSeconds,
-                StartAzimuth = overpassWindowDto.StartAzimuth,
-                EndAzimuth = overpassWindowDto.EndAzimuth,
-                TleLine1 = tleLine1,
-                TleLine2 = tleLine2,
-                TleUpdateTime = tleUpdateTime
-            };
-            _mockOverpassRepository.Setup(repo => repo.AddAsync(It.IsAny<Entity>()))
-                .ReturnsAsync((Entity e) => e);
-
-            // Act
-            var result = await _overpassService.StoreOverpassAsync(
-                overpassWindowDto,
-                tleLine1,
-                tleLine2,
-                tleUpdateTime
-            );
-
-            // Assert
-            result.Should().BeEquivalentTo(expectedEntity);
-        }
-
-        [Fact]
-        public async Task FindOrCreateOverpassAsync_ReturnsMatchingEntity_WhenOverPassExists()
-        {
-            // Arrange
-            var overpassWindowDto = new OverpassWindowDto
-            {
-                SatelliteId = 1,
-                GroundStationId = 1,
-                StartTime = DateTime.UtcNow,
-                EndTime = DateTime.UtcNow.AddMinutes(10),
-                MaxElevation = 45.0,
-            };
-            var existingEntity = new Entity
-            {
-                SatelliteId = overpassWindowDto.SatelliteId,
-                GroundStationId = overpassWindowDto.GroundStationId,
-                StartTime = overpassWindowDto.StartTime,
-                EndTime = overpassWindowDto.EndTime,
-                MaxElevation = overpassWindowDto.MaxElevation,
-            };
-            _mockOverpassRepository.Setup(repo => repo.FindExistingOverpassAsync(
+            _mockOverpassRepository.Setup(repo => repo.FindOverpassInTimeWindowAsync(
                 overpassWindowDto.SatelliteId,
                 overpassWindowDto.GroundStationId,
                 overpassWindowDto.StartTime,
                 overpassWindowDto.EndTime,
-                overpassWindowDto.MaxElevation
-            )).ReturnsAsync(existingEntity);
+                toleranceMinutes
+            )).ReturnsAsync((Entity?)null);
 
-            // Act
-            var result = await _overpassService.FindOrCreateOverpassAsync(
-                overpassWindowDto
-            );
-
-            // Assert
-            result.Should().BeEquivalentTo(existingEntity);
-        }
-
-        [Fact]
-        public async Task FindOrCreateOverpassAsync_CallsRepositoryAddAsync_WhenOverpassDoesNotExist()
-        {
-            // Arrange
-            var overpassWindowDto = new OverpassWindowDto
-            {
-                SatelliteId = 1,
-                GroundStationId = 1,
-                StartTime = DateTime.UtcNow,
-                EndTime = DateTime.UtcNow.AddMinutes(10),
-                MaxElevation = 45.0,
-            };
-            var entity = new Entity
-            {
-                SatelliteId = overpassWindowDto.SatelliteId,
-                GroundStationId = overpassWindowDto.GroundStationId,
-                StartTime = overpassWindowDto.StartTime,
-                EndTime = overpassWindowDto.EndTime,
-                MaxElevation = overpassWindowDto.MaxElevation,
-            };
-
-            // Act
-            await _overpassService.FindOrCreateOverpassAsync(
-                overpassWindowDto
-            );
-
-            // Assert
-            _mockOverpassRepository.Verify(repo => repo.AddAsync(It.Is<Entity>(e =>
-                e.SatelliteId == entity.SatelliteId &&
-                e.GroundStationId == entity.GroundStationId &&
-                e.StartTime == entity.StartTime &&
-                e.EndTime == entity.EndTime &&
-                Math.Abs(e.MaxElevation - entity.MaxElevation) < Tolerance
-            )), Times.Once);
-        }
-
-        [Fact]
-        public async Task FindOrCreateOverpassAsync_ReturnsNewEntity_WhenOverpassDoesNotExist()
-        {
-            // Arrange
-            var overpassWindowDto = new OverpassWindowDto
-            {
-                SatelliteId = 1,
-                GroundStationId = 1,
-                StartTime = DateTime.UtcNow,
-                EndTime = DateTime.UtcNow.AddMinutes(10),
-                MaxElevation = 45.0,
-            };
-            var expectedEntity = new Entity
-            {
-                SatelliteId = overpassWindowDto.SatelliteId,
-                GroundStationId = overpassWindowDto.GroundStationId,
-                StartTime = overpassWindowDto.StartTime,
-                EndTime = overpassWindowDto.EndTime,
-                MaxElevation = overpassWindowDto.MaxElevation,
-            };
             _mockOverpassRepository.Setup(repo => repo.AddAsync(It.IsAny<Entity>()))
                 .ReturnsAsync((Entity e) => e);
 
             // Act
-            var result = await _overpassService.FindOrCreateOverpassAsync(
-                overpassWindowDto
+            var (success, result, message) = await _overpassService.FindOrCreateOverpassForFlightPlanAsync(
+                overpassWindowDto,
+                flightPlanId,
+                toleranceMinutes
             );
 
             // Assert
-            result.Should().BeEquivalentTo(expectedEntity);
+            success.Should().BeTrue();
+            result.Should().NotBeNull();
+            result!.FlightPlanId.Should().Be(flightPlanId);
+            message.Should().Be("Overpass created and assigned successfully.");
+            _mockOverpassRepository.Verify(repo => repo.AddAsync(It.IsAny<Entity>()), Times.Once);
         }
 
         [Fact]
-        public async Task CalculateOverpassesAsync_ThrowsArgumentException_WhenSatelliteNotFound()
+        public async Task FindOrCreateOverpassForFlightPlanAsync_ShouldFail_WhenOverpassAlreadyExists()
         {
             // Arrange
-            var requestDto = new OverpassWindowsCalculationRequestDto
+            var overpassWindowDto = new OverpassWindowDto
             {
                 SatelliteId = 1,
                 GroundStationId = 1,
                 StartTime = DateTime.UtcNow,
-                EndTime = DateTime.UtcNow.AddHours(1),
+                EndTime = DateTime.UtcNow.AddMinutes(10)
             };
+            var flightPlanId = 101;
+            var toleranceMinutes = 15;
+
+            var existingFlightPlan = new Modules.FlightPlan.FlightPlan { Id = 99, Name = "Existing Plan" };
+            var existingOverpass = new Entity
+            {
+                Id = 1,
+                FlightPlanId = existingFlightPlan.Id,
+                FlightPlan = existingFlightPlan
+            };
+
+            _mockOverpassRepository.Setup(repo => repo.FindOverpassInTimeWindowAsync(
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<int>()
+            )).ReturnsAsync(existingOverpass);
+
+            // Act
+            var (success, result, message) = await _overpassService.FindOrCreateOverpassForFlightPlanAsync(
+                overpassWindowDto,
+                flightPlanId,
+                toleranceMinutes
+            );
+
+            // Assert
+            success.Should().BeFalse();
+            result.Should().BeNull();
+            message.Should().Contain("An overpass is already assigned to flight plan 'Existing Plan'");
+            _mockOverpassRepository.Verify(repo => repo.AddAsync(It.IsAny<Entity>()), Times.Never);
+        }
+
+        [Fact]
+        public async Task CalculateOverpassesAsync_ShouldThrowArgumentException_WhenSatelliteNotFound()
+        {
+            // Arrange
+            var requestDto = new OverpassWindowsCalculationRequestDto { SatelliteId = 1, GroundStationId = 1 };
+
             _mockOverpassRepository.Setup(repo => repo.FindStoredOverpassesInTimeRange(
-                It.IsAny<int>(),
-                It.IsAny<int>(),
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()
-            )).ReturnsAsync([]);
-            _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId))
-                .ReturnsAsync((Satellite?)null);
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()
+            )).ReturnsAsync(new List<Entity>());
+
+            _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId)).ReturnsAsync((Satellite?)null);
 
             // Act & Assert
-            await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await _overpassService.CalculateOverpassesAsync(requestDto));
+            await Assert.ThrowsAsync<ArgumentException>(() => _overpassService.CalculateOverpassesAsync(requestDto));
         }
 
         [Fact]
-        public async Task CalculateOverpassesAsync_ThrowsArgumentException_WhenGroundstationNotFound()
+        public async Task CalculateOverpassesAsync_ShouldThrowArgumentException_WhenGroundstationNotFound()
         {
             // Arrange
-            var requestDto = new OverpassWindowsCalculationRequestDto
-            {
-                SatelliteId = 1,
-                GroundStationId = 1,
-                StartTime = DateTime.UtcNow,
-                EndTime = DateTime.UtcNow.AddHours(1),
-            };
+            var requestDto = new OverpassWindowsCalculationRequestDto { SatelliteId = 1, GroundStationId = 1 };
             var satellite = new Satellite { Id = requestDto.SatelliteId, Name = "TestSat" };
+
             _mockOverpassRepository.Setup(repo => repo.FindStoredOverpassesInTimeRange(
-                It.IsAny<int>(),
-                It.IsAny<int>(),
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()
-            )).ReturnsAsync([]);
-            _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId))
-                .ReturnsAsync(satellite);
-            _mockGroundStationService.Setup(s => s.GetAsync(requestDto.GroundStationId))
-                .ReturnsAsync((GroundStation?)null);
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()
+            )).ReturnsAsync(new List<Entity>());
+
+            _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId)).ReturnsAsync(satellite);
+            _mockGroundStationService.Setup(s => s.GetAsync(requestDto.GroundStationId)).ReturnsAsync((GroundStation?)null);
 
             // Act & Assert
-            await Assert.ThrowsAsync<ArgumentException>(async () =>
-                await _overpassService.CalculateOverpassesAsync(requestDto));
+            await Assert.ThrowsAsync<ArgumentException>(() => _overpassService.CalculateOverpassesAsync(requestDto));
         }
 
         [Theory]
-        [InlineData("", "validTleLine2")]
-        [InlineData("validTleLine1", "")]
-        [InlineData("", "")]
-        public async Task CalculateOverpassesAsync_ThrowsInvalidOperationException_WhenTLEDataIsMissing(string tleLine1, string tleLine2)
+        [MemberData(nameof(TleMissingData))]
+        public async Task CalculateOverpassesAsync_ShouldThrowInvalidOperationException_WhenTLEDataIsMissing(string tleLine1, string tleLine2)
         {
             // Arrange
-            var requestDto = new OverpassWindowsCalculationRequestDto
-            {
-                SatelliteId = 1,
-                GroundStationId = 1,
-                StartTime = DateTime.UtcNow,
-                EndTime = DateTime.UtcNow.AddHours(1),
-            };
-            var satellite = new Satellite
-            {
-                Id = requestDto.SatelliteId,
-                Name = "TestSat",
-                TleLine1 = tleLine1,
-                TleLine2 = tleLine2,
-            };
-            var groundStation = new GroundStation { Id = requestDto.GroundStationId, Name = "TestGS" };
+            var requestDto = new OverpassWindowsCalculationRequestDto { SatelliteId = 1, GroundStationId = 1 };
+            var satellite = new Satellite { Id = 1, Name = "TestSat", TleLine1 = tleLine1, TleLine2 = tleLine2 };
+            var groundStation = new GroundStation { Id = 1, Name = "TestGS" };
+
             _mockOverpassRepository.Setup(repo => repo.FindStoredOverpassesInTimeRange(
-                It.IsAny<int>(),
-                It.IsAny<int>(),
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()
-            )).ReturnsAsync([]);
-            _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId))
-                .ReturnsAsync(satellite);
-            _mockGroundStationService.Setup(s => s.GetAsync(requestDto.GroundStationId))
-                .ReturnsAsync(groundStation);
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()
+            )).ReturnsAsync(new List<Entity>());
+
+            _mockSatelliteService.Setup(s => s.GetAsync(1)).ReturnsAsync(satellite);
+            _mockGroundStationService.Setup(s => s.GetAsync(1)).ReturnsAsync(groundStation);
 
             // Act & Assert
-            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                await _overpassService.CalculateOverpassesAsync(requestDto));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => _overpassService.CalculateOverpassesAsync(requestDto));
         }
-
         [Fact]
         public async Task CalculateOverpassesAsync_ReturnsCalculatedOverpasses_WhenValidRequest()
         {
@@ -412,7 +237,7 @@ namespace SatOps.Tests
                     EndTime = new DateTime(2025, 10, 27, 16, 56, 0, DateTimeKind.Utc),
                     MaxElevationTime = new DateTime(2025, 10, 27, 16, 50, 0, DateTimeKind.Utc),
                 },
-                new() 
+                new()
                 {
                     SatelliteId = requestDto.SatelliteId,
                     SatelliteName = "TestSat",
@@ -498,15 +323,10 @@ namespace SatOps.Tests
                 }
             };
             _mockOverpassRepository.Setup(repo => repo.FindStoredOverpassesInTimeRange(
-                It.IsAny<int>(),
-                It.IsAny<int>(),
-                It.IsAny<DateTime>(),
-                It.IsAny<DateTime>()
-            )).ReturnsAsync([]);
-            _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId))
-                .ReturnsAsync(satellite);
-            _mockGroundStationService.Setup(s => s.GetAsync(requestDto.GroundStationId))
-                .ReturnsAsync(groundStation);
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()
+            )).ReturnsAsync(new List<Entity>());
+            _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId)).ReturnsAsync(satellite);
+            _mockGroundStationService.Setup(s => s.GetAsync(requestDto.GroundStationId)).ReturnsAsync(groundStation);
 
             // Act
             var result = await _overpassService.CalculateOverpassesAsync(requestDto);
@@ -795,5 +615,14 @@ namespace SatOps.Tests
                 ).WhenTypeIs<double>()
             );
         }
+
+        public static IEnumerable<object?[]> TleMissingData =>
+        new List<object?[]>
+        {
+            new object?[] { "", "validTleLine2" },
+            new object?[] { "validTleLine1", "" },
+            new object?[] { null, "validTleLine2" },
+            new object?[] { "validTleLine1", null }
+        };
     }
 }
