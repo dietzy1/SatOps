@@ -6,6 +6,7 @@ using SatOps.Modules.FlightPlan;
 using SatOps.Modules.GroundStationLink;
 using SatOps.Modules.Satellite;
 using System.Reflection;
+using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 
 namespace SatOps.Tests
 {
@@ -51,7 +52,7 @@ namespace SatOps.Tests
             var satId = 20;
             var scheduledTime = DateTime.UtcNow.AddMinutes(2);
             var plan = new FlightPlan { Id = planId, GroundStationId = gsId, SatelliteId = satId, ScheduledAt = scheduledTime };
-            var satellite = new Satellite { Id = satId, Name = "SAT-1" };
+            var satellite = new SatelliteEntity { Id = satId, Name = "SAT-1" };
             var script = new List<string> { "do_something" };
             var cts = new CancellationTokenSource();
 

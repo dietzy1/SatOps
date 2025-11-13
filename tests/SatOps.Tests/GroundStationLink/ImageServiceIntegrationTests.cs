@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Http;
 using FluentAssertions;
 using SatOps.Modules.GroundStationLink;
 using SatOps.Data;
-using SatOps.Modules.Satellite;
+using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.FlightPlan;
 using System.Text;
@@ -37,7 +37,7 @@ namespace SatOps.Tests
 
         private void SeedDatabase()
         {
-            _dbContext.Satellites.Add(new Satellite { Id = 1, Name = "TestSat" });
+            _dbContext.Satellites.Add(new SatelliteEntity { Id = 1, Name = "TestSat" });
             _dbContext.GroundStations.Add(new GroundStation { Id = 1, Name = "TestGS" });
             _dbContext.FlightPlans.Add(new FlightPlan { Id = 1, Name = "TestFP" });
             _dbContext.SaveChanges();

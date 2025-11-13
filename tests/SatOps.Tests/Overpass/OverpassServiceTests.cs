@@ -4,6 +4,8 @@ using FluentAssertions;
 using SatOps.Modules.Overpass;
 using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
+using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
+
 
 namespace SatOps.Tests
 {
@@ -149,7 +151,7 @@ namespace SatOps.Tests
                 It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()
             )).ReturnsAsync(new List<Entity>());
 
-            _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId)).ReturnsAsync((Satellite?)null);
+            _mockSatelliteService.Setup(s => s.GetAsync(requestDto.SatelliteId)).ReturnsAsync((SatelliteEntity?)null);
 
             // Act & Assert
             await Assert.ThrowsAsync<ArgumentException>(() => _overpassService.CalculateOverpassesAsync(requestDto));
@@ -160,7 +162,7 @@ namespace SatOps.Tests
         {
             // Arrange
             var requestDto = new OverpassWindowsCalculationRequestDto { SatelliteId = 1, GroundStationId = 1 };
-            var satellite = new Satellite { Id = requestDto.SatelliteId, Name = "TestSat" };
+            var satellite = new SatelliteEntity { Id = requestDto.SatelliteId, Name = "TestSat" };
 
             _mockOverpassRepository.Setup(repo => repo.FindStoredOverpassesInTimeRange(
                 It.IsAny<int>(), It.IsAny<int>(), It.IsAny<DateTime>(), It.IsAny<DateTime>()
@@ -179,7 +181,7 @@ namespace SatOps.Tests
         {
             // Arrange
             var requestDto = new OverpassWindowsCalculationRequestDto { SatelliteId = 1, GroundStationId = 1 };
-            var satellite = new Satellite { Id = 1, Name = "TestSat", TleLine1 = tleLine1, TleLine2 = tleLine2 };
+            var satellite = new SatelliteEntity { Id = 1, Name = "TestSat", TleLine1 = tleLine1, TleLine2 = tleLine2 };
             var groundStation = new GroundStation { Id = 1, Name = "TestGS" };
 
             _mockOverpassRepository.Setup(repo => repo.FindStoredOverpassesInTimeRange(
@@ -203,7 +205,7 @@ namespace SatOps.Tests
                 StartTime = new DateTime(2025, 10, 27, 12, 0, 0, DateTimeKind.Utc),
                 EndTime = new DateTime(2025, 10, 28, 12, 0, 0, DateTimeKind.Utc),
             };
-            var satellite = new Satellite
+            var satellite = new SatelliteEntity
             {
                 Id = requestDto.SatelliteId,
                 Name = "TestSat",
@@ -351,7 +353,7 @@ namespace SatOps.Tests
                 EndTime = new DateTime(2025, 10, 28, 12, 0, 0, DateTimeKind.Utc),
                 MinimumElevation = 20
             };
-            var satellite = new Satellite
+            var satellite = new SatelliteEntity
             {
                 Id = requestDto.SatelliteId,
                 Name = "TestSat",
@@ -448,7 +450,7 @@ namespace SatOps.Tests
                 EndTime = new DateTime(2025, 10, 28, 12, 0, 0, DateTimeKind.Utc),
                 MaxResults = 2
             };
-            var satellite = new Satellite
+            var satellite = new SatelliteEntity
             {
                 Id = requestDto.SatelliteId,
                 Name = "TestSat",
@@ -531,7 +533,7 @@ namespace SatOps.Tests
                 EndTime = new DateTime(2025, 10, 28, 12, 0, 0, DateTimeKind.Utc),
                 MinimumDurationSeconds = 600
             };
-            var satellite = new Satellite
+            var satellite = new SatelliteEntity
             {
                 Id = requestDto.SatelliteId,
                 Name = "TestSat",

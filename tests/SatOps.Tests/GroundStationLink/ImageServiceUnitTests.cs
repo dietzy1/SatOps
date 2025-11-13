@@ -7,9 +7,10 @@ using SatOps.Modules.GroundStationLink;
 using SatOps.Data;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
-using SatOps.Modules.Satellite;
 using SatOps.Modules.Groundstation;
 using Moq.EntityFrameworkCore;
+using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
+
 
 namespace SatOps.Tests.Unit.GroundStationLink
 {
@@ -57,7 +58,7 @@ namespace SatOps.Tests.Unit.GroundStationLink
             var expectedFileName = $"image_1_20251020_123000_{mockFile.FileName}";
             var capturedImageData = new List<ImageData>();
 
-            _mockDbContext.Setup(c => c.Satellites).ReturnsDbSet(new List<Satellite> { new() { Id = 1 } });
+            _mockDbContext.Setup(c => c.Satellites).ReturnsDbSet(new List<SatelliteEntity> { new() { Id = 1 } });
             _mockDbContext.Setup(c => c.GroundStations).ReturnsDbSet(new List<GroundStation> { new() { Id = 1 } });
 
             _mockDbContext.Setup(c => c.ImageData.Add(It.IsAny<ImageData>())).Callback<ImageData>(img => capturedImageData.Add(img));
@@ -88,7 +89,7 @@ namespace SatOps.Tests.Unit.GroundStationLink
             };
             var capturedImageData = new List<ImageData>();
 
-            _mockDbContext.Setup(c => c.Satellites).ReturnsDbSet(new List<Satellite> { new() { Id = 1 } });
+            _mockDbContext.Setup(c => c.Satellites).ReturnsDbSet(new List<SatelliteEntity> { new() { Id = 1 } });
             _mockDbContext.Setup(c => c.GroundStations).ReturnsDbSet(new List<GroundStation> { new() { Id = 1 } });
 
             _mockDbContext.Setup(c => c.ImageData.Add(It.IsAny<ImageData>())).Callback<ImageData>(img => capturedImageData.Add(img));
@@ -107,7 +108,7 @@ namespace SatOps.Tests.Unit.GroundStationLink
             // Arrange
             var dto = new ImageDataReceiveDto { SatelliteId = 999, GroundStationId = 1, ImageFile = CreateMockFormFile() };
 
-            _mockDbContext.Setup(c => c.Satellites).ReturnsDbSet(new List<Satellite>());
+            _mockDbContext.Setup(c => c.Satellites).ReturnsDbSet(new List<SatelliteEntity>());
             _mockDbContext.Setup(c => c.GroundStations).ReturnsDbSet(new List<GroundStation> { new() { Id = 1 } });
 
             // Act

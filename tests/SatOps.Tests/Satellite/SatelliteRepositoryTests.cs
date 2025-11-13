@@ -6,7 +6,7 @@ using SatOps.Modules.Satellite;
 using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 
 
-namespace SatOps.Tests.Integration.Satellite
+namespace SatOps.Tests.Satellite
 {
     public class SatelliteRepositoryTests
     {

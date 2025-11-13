@@ -4,6 +4,7 @@ using FluentAssertions;
 using SatOps.Modules.FlightPlan;
 using SatOps.Modules.User;
 using SatOps.Modules.Satellite;
+using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Overpass;
 
@@ -57,7 +58,7 @@ namespace SatOps.Tests
             // Setup mocks
             _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(testUserId);
             _mockGroundStationService.Setup(s => s.GetAsync(createDto.GsId)).ReturnsAsync(new GroundStation());
-            _mockSatelliteService.Setup(s => s.GetAsync(createDto.SatId)).ReturnsAsync(new Satellite());
+            _mockSatelliteService.Setup(s => s.GetAsync(createDto.SatId)).ReturnsAsync(new SatelliteEntity());
             _mockFlightPlanRepo.Setup(r => r.AddAsync(It.IsAny<FlightPlan>()))
                 .ReturnsAsync((FlightPlan fp) => fp);
 
