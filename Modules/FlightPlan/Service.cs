@@ -19,7 +19,7 @@ namespace SatOps.Modules.FlightPlan
         Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status);
         Task<(bool Success, string Message)> AssignOverpassAsync(int flightPlanId, AssignOverpassDto overpassRequest);
         Task<List<string>> CompileFlightPlanToCshAsync(int id);
-        Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request);
+        Task<ImagingTimingResponseDto> GetImagingOpportunity(int satelliteId, double targetLatitude, double targetLongitude, DateTime? commandReceptionTime = null);
         Task UpdateFlightPlanStatusAsync(int flightPlanId, FlightPlanStatus newStatus, string? failureReason = null);
         Task<List<FlightPlan>> GetPlansReadyForTransmissionAsync(TimeSpan lookahead);
     }
@@ -37,8 +37,6 @@ namespace SatOps.Modules.FlightPlan
         public Task<List<FlightPlan>> ListAsync() => repository.GetAllAsync();
 
         public Task<FlightPlan?> GetByIdAsync(int id) => repository.GetByIdReadOnlyAsync(id);
-
-
         public async Task<FlightPlan> CreateAsync(CreateFlightPlanDto createDto)
         {
             var currentUserId = currentUserProvider.GetUserId();
@@ -400,23 +398,17 @@ namespace SatOps.Modules.FlightPlan
             return await commands.CompileAllToCsh();
         }
 
-        public async Task<ImagingTimingResponseDto> GetImagingOpportunity(ImagingTimingRequestDto request)
+        public async Task<ImagingTimingResponseDto> GetImagingOpportunity(int satelliteId, double targetLatitude, double targetLongitude, DateTime? commandReceptionTime = null)
         {
-            var satellite = await satelliteService.GetAsync(request.SatelliteId);
+            var satellite = await satelliteService.GetAsync(satelliteId);
             if (satellite == null)
             {
-                return new ImagingTimingResponseDto
-                {
-                    Message = $"Satellite with ID {request.SatelliteId} not found."
-                };
+                throw new ArgumentException($"Satellite with ID {satelliteId} not found.", nameof(satelliteId));
             }
 
             if (string.IsNullOrWhiteSpace(satellite.TleLine1) || string.IsNullOrWhiteSpace(satellite.TleLine2))
             {
-                return new ImagingTimingResponseDto
-                {
-                    Message = $"Satellite with ID {request.SatelliteId} does not have valid TLE data."
-                };
+                throw new ArgumentException($"Satellite with ID {satelliteId} does not have valid TLE data.", nameof(satelliteId));
             }
 
             var tle = new Tle(satellite.Name, satellite.TleLine1, satellite.TleLine2);
@@ -428,21 +420,22 @@ namespace SatOps.Modules.FlightPlan
 
             // Create target coordinate
             var targetCoordinate = new GeodeticCoordinate(
-                Angle.FromDegrees(request.TargetLatitude),
-                Angle.FromDegrees(request.TargetLongitude),
+                Angle.FromDegrees(targetLatitude),
+                Angle.FromDegrees(targetLongitude),
                 0); // Assuming ground level target
 
-            var maxSearchDuration = TimeSpan.FromHours(request.MaxSearchDurationHours);
+            var maxSearchDuration = TimeSpan.FromHours(imagingOptions.Value.MaxSearchDurationHours);
 
             var imagingOpportunity = imagingCalculation.FindBestImagingOpportunity(
                 sgp4Satellite,
                 targetCoordinate,
-                request.CommandReceptionTime ?? DateTime.UtcNow,
+                commandReceptionTime ?? DateTime.UtcNow,
                 maxSearchDuration
             );
 
             var result = new ImagingTimingResponseDto
             {
+                Possible = true,
                 ImagingTime = imagingOpportunity.ImagingTime,
                 OffNadirDegrees = imagingOpportunity.OffNadirDegrees,
                 SatelliteAltitudeKm = imagingOpportunity.SatelliteAltitudeKm,
@@ -450,9 +443,13 @@ namespace SatOps.Modules.FlightPlan
                 TleAgeHours = tleAge.TotalHours,
             };
 
-            if (result.OffNadirDegrees > request.MaxOffNadirDegrees)
+            // If no opportunity found within constraints, include a message but still return 200 OK
+            // This is a valid calculation result, not an error condition
+            if (result.OffNadirDegrees > imagingOptions.Value.MaxOffNadirDegrees)
             {
-                result.Message = $"No imaging opportunity found within the off-nadir limit of {request.MaxOffNadirDegrees} degrees. Best one found was {result.OffNadirDegrees:F2} degrees off-nadir.";
+                Console.WriteLine($"No imaging opportunity found within the off-nadir limit of {imagingOptions.Value.MaxOffNadirDegrees}° in the next {imagingOptions.Value.MaxSearchDurationHours} hours. Best opportunity found was {result.OffNadirDegrees:F2}° off-nadir.");
+                result.Possible = false;
+                result.Message = $"No imaging opportunity found within the off-nadir limit of {imagingOptions.Value.MaxOffNadirDegrees}° in the next {imagingOptions.Value.MaxSearchDurationHours} hours. Best opportunity found was {result.OffNadirDegrees:F2}° off-nadir.";
             }
 
             return result;

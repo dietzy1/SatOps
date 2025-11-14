@@ -105,16 +105,11 @@ namespace SatOps.Modules.FlightPlan
         public DateTime? CommandReceptionTime { get; set; }
         public double TargetLatitude { get; set; }
         public double TargetLongitude { get; set; }
-
-        // Off-nadir imaging parameters (replaces fixed MaxDistanceKm)
-        public double MaxOffNadirDegrees { get; set; } = 10.0; // Default 10� off-nadir maximum
-
-        // Search parameters
-        public int MaxSearchDurationHours { get; set; } = 48; // Search up to 48 hours ahead
     }
 
     public class ImagingTimingResponseDto
     {
+        public bool Possible { get; set; }
         public DateTime? ImagingTime { get; set; }
         public double? OffNadirDegrees { get; set; }
         public double? SatelliteAltitudeKm { get; set; }
