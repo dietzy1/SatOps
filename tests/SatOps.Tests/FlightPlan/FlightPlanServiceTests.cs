@@ -8,7 +8,8 @@ using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Overpass;
 using FlightPlanEntity = SatOps.Modules.FlightPlan.FlightPlan;
-
+using Microsoft.Extensions.Options;
+using SatOps.Configuration;
 
 namespace SatOps.Tests
 {
@@ -19,12 +20,12 @@ namespace SatOps.Tests
         private readonly Mock<ISatelliteService> _mockSatelliteService;
         private readonly Mock<IGroundStationService> _mockGroundStationService;
         private readonly Mock<ICurrentUserProvider> _mockCurrentUserProvider;
+        private readonly Mock<IOptions<ImagingCalculationOptions>> _mockImagingOptions;
 
         private readonly FlightPlanService _sut;
 
         public FlightPlanServiceTests()
         {
-            // Initialize all the mocks
             _mockFlightPlanRepo = new Mock<IFlightPlanRepository>();
             _mockSatelliteService = new Mock<ISatelliteService>();
             _mockGroundStationService = new Mock<IGroundStationService>();
@@ -32,17 +33,19 @@ namespace SatOps.Tests
             var mockImagingCalculation = new Mock<IImagingCalculation>();
             _mockCurrentUserProvider = new Mock<ICurrentUserProvider>();
 
-            // Create the service instance
+            _mockImagingOptions = new Mock<IOptions<ImagingCalculationOptions>>();
+            _mockImagingOptions.Setup(o => o.Value).Returns(new ImagingCalculationOptions());
+
             _sut = new FlightPlanService(
                 _mockFlightPlanRepo.Object,
                 _mockSatelliteService.Object,
                 _mockGroundStationService.Object,
                 mockOverpassService.Object,
                 mockImagingCalculation.Object,
-                _mockCurrentUserProvider.Object
+                _mockCurrentUserProvider.Object,
+                _mockImagingOptions.Object
             );
         }
-
 
         [Fact]
         public async Task CreateAsync_WhenUserIsAuthenticated_AssignsCurrentUserIdToCreatedById()
@@ -54,7 +57,7 @@ namespace SatOps.Tests
                 Name = "Test Plan",
                 GsId = 1,
                 SatId = 1,
-                Commands = [] // Empty command list
+                Commands = [new Modules.FlightPlan.Commands.TriggerPipelineCommand { Mode = 1, ExecutionTime = System.DateTime.UtcNow }]
             };
 
             // Setup mocks
@@ -82,7 +85,7 @@ namespace SatOps.Tests
             var testUserId = 456;
             var planId = 1;
             var draftPlan = new FlightPlanEntity { Id = planId, Status = FlightPlanStatus.Draft };
-            draftPlan.SetCommands([]); // Ensure commands are valid
+            draftPlan.SetCommands([new Modules.FlightPlan.Commands.TriggerPipelineCommand { Mode = 1, ExecutionTime = System.DateTime.UtcNow }]); // Ensure commands are valid
 
             _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(testUserId);
             _mockFlightPlanRepo.Setup(r => r.GetByIdAsync(planId)).ReturnsAsync(draftPlan);

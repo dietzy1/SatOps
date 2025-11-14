@@ -8,6 +8,8 @@ using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
 using SatOps.Modules.Groundstation;
 using SatOps.Modules.Overpass;
 using SatOps.Modules.FlightPlan.Commands;
+using Microsoft.Extensions.Options;
+using SatOps.Configuration;
 
 namespace SatOps.Tests.FlightPlan
 {
@@ -28,13 +30,19 @@ namespace SatOps.Tests.FlightPlan
             var mockImagingCalculation = new Mock<IImagingCalculation>();
             _mockCurrentUserProvider = new Mock<ICurrentUserProvider>();
 
+            var mockImagingOptions = new Mock<IOptions<ImagingCalculationOptions>>();
+            mockImagingOptions.Setup(o => o.Value).Returns(new ImagingCalculationOptions());
+
             _sut = new FlightPlanService(
-                _mockFlightPlanRepo.Object, _mockSatelliteService.Object,
-                _mockGroundStationService.Object, mockOverpassService.Object,
-                mockImagingCalculation.Object, _mockCurrentUserProvider.Object
+                _mockFlightPlanRepo.Object,
+                _mockSatelliteService.Object,
+                _mockGroundStationService.Object,
+                mockOverpassService.Object,
+                mockImagingCalculation.Object,
+                _mockCurrentUserProvider.Object,
+                mockImagingOptions.Object
             );
 
-            // Default setup for mocks to return valid objects
             _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(1);
             _mockSatelliteService.Setup(s => s.GetAsync(It.IsAny<int>())).ReturnsAsync(new SatelliteEntity());
             _mockGroundStationService.Setup(s => s.GetAsync(It.IsAny<int>())).ReturnsAsync(new GroundStation());
