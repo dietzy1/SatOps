@@ -204,6 +204,10 @@ try
             .Build();
     });
 
+    // Imaging Calculation Configuration
+    builder.Services.Configure<ImagingCalculationOptions>(
+        builder.Configuration.GetSection("ImagingCalculation"));
+
     // Operation Services
     builder.Services.AddScoped<IObjectStorageService, ObjectStorageService>();
     builder.Services.AddScoped<IImageService, ImageService>();

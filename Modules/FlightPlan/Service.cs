@@ -5,6 +5,8 @@ using SGPdotNET.CoordinateSystem;
 using SGPdotNET.TLE;
 using SGPdotNET.Util;
 using SatOps.Modules.User;
+using Microsoft.Extensions.Options;
+using SatOps.Configuration;
 
 namespace SatOps.Modules.FlightPlan
 {
@@ -28,7 +30,8 @@ namespace SatOps.Modules.FlightPlan
         IGroundStationService groundStationService,
         IOverpassService overpassService,
         IImagingCalculation imagingCalculation,
-        ICurrentUserProvider currentUserProvider
+        ICurrentUserProvider currentUserProvider,
+        IOptions<ImagingCalculationOptions> imagingOptions
     ) : IFlightPlanService
     {
         public Task<List<FlightPlan>> ListAsync() => repository.GetAllAsync();
@@ -386,7 +389,7 @@ namespace SatOps.Modules.FlightPlan
             // Calculate execution times for commands that require it (e.g., TriggerCaptureCommand)
             try
             {
-                await commands.CalculateExecutionTimesAsync(satellite, imagingCalculation);
+                await commands.CalculateExecutionTimesAsync(satellite, imagingCalculation, imagingOptions.Value);
             }
             catch (InvalidOperationException ex)
             {

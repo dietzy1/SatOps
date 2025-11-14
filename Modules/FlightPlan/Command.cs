@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using SatOps.Modules.FlightPlan.Commands;
+using SatOps.Configuration;
 
 namespace SatOps.Modules.FlightPlan
 {
@@ -203,6 +204,7 @@ namespace SatOps.Modules.FlightPlan
             this List<Command> commands,
             Satellite.Satellite satellite,
             IImagingCalculation imagingCalculation,
+            ImagingCalculationOptions options,
             DateTime? commandReceptionTime = null)
         {
             if (string.IsNullOrWhiteSpace(satellite.TleLine1) || string.IsNullOrWhiteSpace(satellite.TleLine2))
@@ -231,8 +233,8 @@ namespace SatOps.Modules.FlightPlan
                         0); // Ground level
 
 
-                    var maxSearchDuration = TimeSpan.FromHours(48);
-                    var minOffNadirDegrees = 80.0;
+                    var maxSearchDuration = TimeSpan.FromHours(options.MaxSearchDurationHours);
+                    var minOffNadirDegrees = options.MaxOffNadirDegrees;
 
                     var imagingOpportunity = await Task.Run(() =>
                         imagingCalculation.FindBestImagingOpportunity(

@@ -17,7 +17,7 @@ namespace SatOps.Modules.FlightPlan
         public class Candidate
         {
             public DateTime Time { get; set; } = DateTime.MinValue;
-            public double OffNadirDegrees { get; set; } = 80.0;
+            public double OffNadirDegrees { get; set; } = double.MaxValue;
         }
 
         public class ImagingOpportunity
