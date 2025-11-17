@@ -1,0 +1,100 @@
+erDiagram
+    users ||--o{ flight_plans : "created_by"
+    users ||--o{ flight_plans : "approved_by"
+    
+    satellites ||--o{ flight_plans : "has"
+    satellites ||--o{ overpasses : "has"
+    satellites ||--o{ image_data : "captures"
+    
+    ground_stations ||--o{ flight_plans : "assigned_to"
+    ground_stations ||--o{ overpasses : "tracks"
+    ground_stations ||--o{ image_data : "receives"
+    
+    flight_plans ||--o| overpasses : "scheduled_for"
+    flight_plans ||--o| flight_plans : "supersedes"
+    flight_plans ||--o{ image_data : "generated"
+
+    users {
+        int id PK
+        string name
+        string email UK
+        string auth0_user_id
+        enum role
+        datetime created_at
+        datetime updated_at
+    }
+
+    satellites {
+        int id PK
+        string name
+        int norad_id UK
+        enum status
+        string tle_line1
+        string tle_line2
+        datetime created_at
+        datetime last_update
+    }
+
+    ground_stations {
+        int id PK
+        string name
+        double latitude
+        double longitude
+        double altitude
+        guid application_id UK
+        string api_key_hash
+        datetime created_at
+        datetime updated_at
+    }
+
+    flight_plans {
+        int id PK
+        string name
+        int ground_station_id FK
+        int satellite_id FK
+        int created_by_id FK
+        int approved_by_id FK
+        int previous_plan_id FK
+        jsonb commands
+        enum status
+        string failure_reason
+        datetime scheduled_at
+        datetime approval_date
+        datetime created_at
+        datetime updated_at
+    }
+
+    overpasses {
+        int id PK
+        int satellite_id FK
+        int ground_station_id FK
+        int flight_plan_id FK "UK"
+        datetime start_time
+        datetime end_time
+        datetime max_elevation_time
+        double max_elevation
+        int duration_seconds
+        double start_azimuth
+        double end_azimuth
+        string tle_line1
+        string tle_line2
+        datetime tle_update_time
+    }
+
+    image_data {
+        int id PK
+        int satellite_id FK
+        int ground_station_id FK
+        int flight_plan_id FK
+        datetime capture_time
+        string s3_object_path
+        string file_name
+        long file_size
+        string content_type
+        datetime received_at
+        double latitude
+        double longitude
+        int image_width
+        int image_height
+        jsonb metadata
+    }
