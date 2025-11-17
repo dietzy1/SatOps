@@ -68,12 +68,12 @@ namespace SatOps.Modules.GroundStationLink
             await connection.SendLock.WaitAsync();
             try
             {
-                var message = new ScheduleTransmissionMessage
+                var message = new WebSocketScheduleTransmissionMessage
                 {
                     RequestId = Guid.NewGuid(),
                     Type = "schedule_transmission",
                     Frames = 1,
-                    Data = new ScheduleTransmissionData
+                    Data = new WebSocketScheduleTransmissionData
                     {
                         Satellite = satelliteName,
                         Time = executionTime.ToString("o"),

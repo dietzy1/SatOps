@@ -29,24 +29,24 @@ type TokenResponse struct {
 	AccessToken string `json:"accessToken"`
 }
 
-type HelloMessage struct {
+type WebSocketConnectMessage struct {
 	Type  string `json:"type"`
 	Token string `json:"token"`
 }
 
-type ScheduleTransmissionMessage struct {
-	RequestID string                   `json:"request_id"`
-	Type      string                   `json:"type"`
-	Frames    int                      `json:"frames"`
-	Data      ScheduleTransmissionData `json:"data"`
+type WebSocketScheduleTransmissionMessage struct {
+	RequestID string                            `json:"requestId"`
+	Type      string                            `json:"type"`
+	Frames    int                               `json:"frames"`
+	Data      WebSocketScheduleTransmissionData `json:"data"`
 }
 
-type ScheduleTransmissionData struct {
+type WebSocketScheduleTransmissionData struct {
 	Satellite       string `json:"satellite"`
 	Time            string `json:"time"`
-	FlightPlanID    int    `json:"flight_plan_id"`
-	SatelliteID     int    `json:"satellite_id"`
-	GroundStationID int    `json:"ground_station_id"`
+	FlightPlanID    int    `json:"flightPlanId"`
+	SatelliteID     int    `json:"satelliteId"`
+	GroundStationID int    `json:"groundStationId"`
 }
 
 func main() {
@@ -80,7 +80,7 @@ func main() {
 			}
 			log.Printf("📩 Received WebSocket message: %s\n", string(message))
 
-			var scheduleMsg ScheduleTransmissionMessage
+			var scheduleMsg WebSocketScheduleTransmissionMessage
 			if err := json.Unmarshal(message, &scheduleMsg); err == nil && scheduleMsg.Type == "schedule_transmission" {
 				log.Printf("📋 Parsed schedule transmission for satellite '%s' (ID: %d), Flight Plan: %d, Ground Station: %d\n",
 					scheduleMsg.Data.Satellite,
@@ -167,12 +167,12 @@ func connectWebSocket(token string) (*websocket.Conn, error) {
 		return nil, err
 	}
 
-	hello := HelloMessage{
-		Type:  "hello",
+	connect := WebSocketConnectMessage{
+		Type:  "connect",
 		Token: token,
 	}
 
-	if err := conn.WriteJSON(hello); err != nil {
+	if err := conn.WriteJSON(connect); err != nil {
 		conn.Close()
 		return nil, err
 	}

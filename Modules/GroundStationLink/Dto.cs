@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace SatOps.Modules.GroundStationLink
 {
 
-    public class HelloMessageDto
+    public class WebSocketConnectMessage
     {
         [JsonPropertyName("type")]
         public string Type { get; set; } = string.Empty;
@@ -13,9 +13,9 @@ namespace SatOps.Modules.GroundStationLink
         public string Token { get; set; } = string.Empty;
     }
 
-    public class ScheduleTransmissionMessage
+    public class WebSocketScheduleTransmissionMessage
     {
-        [JsonPropertyName("request_id")]
+        [JsonPropertyName("requestId")]
         public Guid RequestId { get; set; }
 
         [JsonPropertyName("type")]
@@ -25,10 +25,10 @@ namespace SatOps.Modules.GroundStationLink
         public int Frames { get; set; }
 
         [JsonPropertyName("data")]
-        public ScheduleTransmissionData Data { get; set; } = new();
+        public WebSocketScheduleTransmissionData Data { get; set; } = new();
     }
 
-    public class ScheduleTransmissionData
+    public class WebSocketScheduleTransmissionData
     {
         [JsonPropertyName("satellite")]
         public string Satellite { get; set; } = string.Empty;
@@ -36,13 +36,13 @@ namespace SatOps.Modules.GroundStationLink
         [JsonPropertyName("time")]
         public string Time { get; set; } = string.Empty;
 
-        [JsonPropertyName("flight_plan_id")]
+        [JsonPropertyName("flightPlanId")]
         public int FlightPlanId { get; set; }
 
-        [JsonPropertyName("satellite_id")]
+        [JsonPropertyName("satelliteId")]
         public int SatelliteId { get; set; }
 
-        [JsonPropertyName("ground_station_id")]
+        [JsonPropertyName("groundStationId")]
         public int GroundStationId { get; set; }
     }
 

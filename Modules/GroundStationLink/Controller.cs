@@ -75,10 +75,10 @@ namespace SatOps.Modules.GroundStationLink
                 var receiveResult = await webSocket.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
                 if (receiveResult.MessageType == WebSocketMessageType.Close) return;
 
-                var helloJson = Encoding.UTF8.GetString(buffer, 0, receiveResult.Count);
-                var helloMessage = JsonSerializer.Deserialize<HelloMessageDto>(helloJson);
+                var connectJson = Encoding.UTF8.GetString(buffer, 0, receiveResult.Count);
+                var connectMessage = JsonSerializer.Deserialize<WebSocketConnectMessage>(connectJson);
 
-                if (helloMessage?.Type != "hello" || string.IsNullOrEmpty(helloMessage.Token))
+                if (connectMessage?.Type != "connect" || string.IsNullOrEmpty(connectMessage.Token))
                 {
                     await webSocket.CloseAsync(WebSocketCloseStatus.PolicyViolation, "Invalid hello message", CancellationToken.None);
                     return;
@@ -88,7 +88,7 @@ namespace SatOps.Modules.GroundStationLink
                 ClaimsPrincipal principal;
                 try
                 {
-                    principal = handler.ValidateToken(helloMessage.Token, _tokenValidationParameters, out _);
+                    principal = handler.ValidateToken(connectMessage.Token, _tokenValidationParameters, out _);
                 }
                 catch (Exception ex)
                 {
