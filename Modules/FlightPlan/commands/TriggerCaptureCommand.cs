@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Text.Json.Serialization;
 
 namespace SatOps.Modules.FlightPlan.Commands
@@ -17,7 +18,6 @@ namespace SatOps.Modules.FlightPlan.Commands
         public override bool RequiresExecutionTimeCalculation => true;
 
         // Hardcoded CSP node address for the Camera Controller.
-        // TODO: Find out if this is the correct node address. Might be in systemd.
         private const int CameraControllerNode = 2;
 
         /// <summary>
@@ -84,7 +84,6 @@ namespace SatOps.Modules.FlightPlan.Commands
 
         public override Task<List<string>> CompileToCsh()
         {
-            // ExecutionTime must be set before compilation (via CalculateExecutionTimes)
             if (!ExecutionTime.HasValue)
             {
                 throw new InvalidOperationException(
@@ -97,21 +96,37 @@ namespace SatOps.Modules.FlightPlan.Commands
                 throw new InvalidOperationException("CameraSettings is required for TriggerCaptureCommand compilation.");
             }
 
-            //TODO: We need to figure out how to sleep/wait until ExecutionTime before running the capture commands
-            // Then we add that stuff here infront :)
-
-            var script = new List<string>
+            if (CaptureLocation == null)
             {
-                $"set camera_id_param \"{CameraSettings.CameraId}\" -n {CameraControllerNode}",
-                $"set camera_type_param {(int)CameraSettings.Type} -n {CameraControllerNode}",
-                $"set exposure_param {CameraSettings.ExposureMicroseconds} -n {CameraControllerNode}",
-                $"set iso_param {CameraSettings.Iso} -n {CameraControllerNode}",
-                $"set num_images_param {CameraSettings.NumImages} -n {CameraControllerNode}",
-                $"set interval_param {CameraSettings.IntervalMicroseconds} -n {CameraControllerNode}",
-                $"set obid_param {CameraSettings.ObservationId} -n {CameraControllerNode}",
-                $"set pipeline_id_param {CameraSettings.PipelineId} -n {CameraControllerNode}",
-                $"set capture_param 1 -n {CameraControllerNode}"
+                throw new InvalidOperationException("CaptureLocation is required for TriggerCaptureCommand compilation.");
+            }
+
+            // Convert CameraType enum to the string expected by the satellite
+            string cameraTypeString = CameraSettings.Type switch
+            {
+                CameraType.VMB => "VMB",
+                CameraType.IR => "IR",
+                CameraType.Test => "TEST",
+                _ => throw new InvalidOperationException($"Unsupported CameraType: {CameraSettings.Type}")
             };
+
+            // Build the semicolon-delimited string payload
+            var commandPayload = new System.Text.StringBuilder();
+            commandPayload.Append($"CAMERA_ID={CameraSettings.CameraId};");
+            commandPayload.Append($"CAMERA_TYPE={cameraTypeString};");
+            commandPayload.Append($"NUM_IMAGES={CameraSettings.NumImages};");
+            commandPayload.Append($"EXPOSURE={CameraSettings.ExposureMicroseconds};");
+            commandPayload.Append($"ISO={CameraSettings.Iso.ToString(CultureInfo.InvariantCulture)};");
+            commandPayload.Append($"INTERVAL={CameraSettings.IntervalMicroseconds};");
+            commandPayload.Append($"OBID={CameraSettings.ObservationId};");
+            commandPayload.Append($"PIPELINE_ID={CameraSettings.PipelineId};");
+
+            // The satellite code does not parse OBID from this string... but it should.
+            // I am including it here assuming the satellite code will be fixed.
+
+            var cshCommand = $"set capture_param \"{commandPayload}\" -n {CameraControllerNode}";
+
+            var script = new List<string> { cshCommand };
 
             return Task.FromResult(script);
         }

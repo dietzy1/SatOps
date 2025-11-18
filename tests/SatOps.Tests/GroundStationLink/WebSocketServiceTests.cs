@@ -107,7 +107,7 @@ namespace SatOps.Tests
             scriptMessageJson.Should().NotBeNull("the script message (a JSON array) should have been sent");
 
             // Deserialize and verify the header message.
-            var headerMessage = JsonSerializer.Deserialize<ScheduleTransmissionMessage>(headerMessageJson!);
+            var headerMessage = JsonSerializer.Deserialize<WebSocketScheduleTransmissionMessage>(headerMessageJson!);
 
             headerMessage.Should().NotBeNull();
             headerMessage!.Type.Should().Be("schedule_transmission");
