@@ -106,6 +106,24 @@ namespace SatOps.Modules.FlightPlan.Commands
                 $"set capture_param 1 -n {CameraControllerNode}"
             };
 
+            // Build the semicolon-delimited string payload
+            var commandPayload = new System.Text.StringBuilder();
+            commandPayload.Append($"CAMERA_ID={CameraSettings.CameraId};");
+            commandPayload.Append($"CAMERA_TYPE={cameraTypeString};");
+            commandPayload.Append($"NUM_IMAGES={CameraSettings.NumImages};");
+            commandPayload.Append($"EXPOSURE={CameraSettings.ExposureMicroseconds};");
+            commandPayload.Append($"ISO={CameraSettings.Iso.ToString(CultureInfo.InvariantCulture)};");
+            commandPayload.Append($"INTERVAL={CameraSettings.IntervalMicroseconds};");
+            commandPayload.Append($"OBID={CameraSettings.ObservationId};");
+            commandPayload.Append($"PIPELINE_ID={CameraSettings.PipelineId};");
+
+            // The satellite code does not parse OBID from this string... but it should.
+            // I am including it here assuming the satellite code will be fixed.
+
+            var cshCommand = $"set capture_param \"{commandPayload}\" -n {CameraControllerNode}";
+
+            var script = new List<string> { cshCommand };
+
             return Task.FromResult(script);
         }
     }
