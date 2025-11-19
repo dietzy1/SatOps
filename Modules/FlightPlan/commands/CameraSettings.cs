@@ -18,12 +18,12 @@ namespace SatOps.Modules.FlightPlan.Commands
         public CameraType Type { get; set; }
 
         [Required(ErrorMessage = "ExposureMicroseconds is required")]
-        [Range(0, 2_000_000, ErrorMessage = "ExposureMicroseconds must be between 0 and 2,000,000")]
+        [Range(0, 150_000, ErrorMessage = "ExposureMicroseconds must be between 0 and 150,000")]
         [JsonPropertyName("exposureMicroseconds")]
         public int ExposureMicroseconds { get; set; }
 
         [Required(ErrorMessage = "Iso is required")]
-        [Range(0.1, 10.0, ErrorMessage = "Iso must be between 0.1 and 10.0")]
+        [Range(0.0, 100.0, ErrorMessage = "Iso must be positive")]
         [JsonPropertyName("iso")]
         public double Iso { get; set; }
 

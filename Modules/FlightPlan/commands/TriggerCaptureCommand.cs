@@ -12,41 +12,28 @@ namespace SatOps.Modules.FlightPlan.Commands
     {
         public override string CommandType => CommandTypeConstants.TriggerCapture;
 
-        /// <summary>
-        /// This command requires execution time calculation based on imaging opportunities
-        /// </summary>
         public override bool RequiresExecutionTimeCalculation => true;
 
         // Hardcoded CSP node address for the Camera Controller.
         private const int CameraControllerNode = 2;
 
-        /// <summary>
-        /// Geographic coordinates where the image should be captured.
-        /// The execution time will be calculated based on this location and the satellite's orbit.
-        /// </summary>
         [Required(ErrorMessage = "CaptureLocation is required")]
         [JsonPropertyName("captureLocation")]
         public CaptureLocation? CaptureLocation { get; set; }
 
-        /// <summary>
-        /// Camera configuration settings for the image capture
-        /// </summary>
         [Required(ErrorMessage = "CameraSettings is required")]
         [JsonPropertyName("cameraSettings")]
         public CameraSettings? CameraSettings { get; set; }
 
         public override IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
         {
-            // Call base validation (checks ExecutionTime requirements)
             foreach (var result in base.Validate(validationContext))
             {
                 yield return result;
             }
 
-            // Validate nested CameraSettings
             if (CameraSettings != null)
             {
-                // Custom validation: if capturing multiple images, interval must be > 0
                 if (CameraSettings.NumImages > 1 && CameraSettings.IntervalMicroseconds == 0)
                 {
                     yield return new ValidationResult(
@@ -55,7 +42,6 @@ namespace SatOps.Modules.FlightPlan.Commands
                     );
                 }
 
-                // Validate the CameraSettings object
                 var context = new ValidationContext(CameraSettings);
                 var results = new List<ValidationResult>();
                 if (!Validator.TryValidateObject(CameraSettings, context, results, validateAllProperties: true))
@@ -67,7 +53,6 @@ namespace SatOps.Modules.FlightPlan.Commands
                 }
             }
 
-            // Validate CaptureLocation
             if (CaptureLocation != null)
             {
                 var context = new ValidationContext(CaptureLocation);
@@ -87,46 +72,39 @@ namespace SatOps.Modules.FlightPlan.Commands
             if (!ExecutionTime.HasValue)
             {
                 throw new InvalidOperationException(
-                    "ExecutionTime must be calculated before compiling TriggerCaptureCommand. " +
-                    "Ensure CalculateExecutionTimes() is called before CompileToCsh().");
+                    "ExecutionTime must be calculated before compiling TriggerCaptureCommand.");
             }
 
             if (CameraSettings == null)
             {
-                throw new InvalidOperationException("CameraSettings is required for TriggerCaptureCommand compilation.");
+                throw new InvalidOperationException("CameraSettings is required for compilation.");
             }
 
-            if (CaptureLocation == null)
+            var script = new List<string>
             {
-                throw new InvalidOperationException("CaptureLocation is required for TriggerCaptureCommand compilation.");
-            }
+                // NOTE: In the C++ code, setting this parameter automatically sets camera_state_param to 0 (OFF).
+                $"set camera_id_param \"{CameraSettings.CameraId}\" -n {CameraControllerNode}",
 
-            // Convert CameraType enum to the string expected by the satellite
-            string cameraTypeString = CameraSettings.Type switch
-            {
-                CameraType.VMB => "VMB",
-                CameraType.IR => "IR",
-                CameraType.Test => "TEST",
-                _ => throw new InvalidOperationException($"Unsupported CameraType: {CameraSettings.Type}")
+                // Configure capture parameters
+                $"set camera_type_param {(int)CameraSettings.Type} -n {CameraControllerNode}",
+                $"set exposure_param {CameraSettings.ExposureMicroseconds} -n {CameraControllerNode}",
+                $"set iso_param {CameraSettings.Iso.ToString(CultureInfo.InvariantCulture)} -n {CameraControllerNode}",
+                $"set num_images_param {CameraSettings.NumImages} -n {CameraControllerNode}",
+                $"set interval_param {CameraSettings.IntervalMicroseconds} -n {CameraControllerNode}",
+                $"set obid_param {CameraSettings.ObservationId} -n {CameraControllerNode}",
+                $"set pipeline_id_param {CameraSettings.PipelineId} -n {CameraControllerNode}",
+
+                // Power ON the camera
+                $"set camera_state_param 1 -n {CameraControllerNode}",
+
+                // Wait for camera boot
+                // Vimba cameras need time to enumerate on USB after GPIO power-up.
+                "sleep 5",
+
+                // Trigger Capture
+                // Setting this to 1 invokes the callback that reads all the above params
+                $"set capture_param 1 -n {CameraControllerNode}"
             };
-
-            // Build the semicolon-delimited string payload
-            var commandPayload = new System.Text.StringBuilder();
-            commandPayload.Append($"CAMERA_ID={CameraSettings.CameraId};");
-            commandPayload.Append($"CAMERA_TYPE={cameraTypeString};");
-            commandPayload.Append($"NUM_IMAGES={CameraSettings.NumImages};");
-            commandPayload.Append($"EXPOSURE={CameraSettings.ExposureMicroseconds};");
-            commandPayload.Append($"ISO={CameraSettings.Iso.ToString(CultureInfo.InvariantCulture)};");
-            commandPayload.Append($"INTERVAL={CameraSettings.IntervalMicroseconds};");
-            commandPayload.Append($"OBID={CameraSettings.ObservationId};");
-            commandPayload.Append($"PIPELINE_ID={CameraSettings.PipelineId};");
-
-            // The satellite code does not parse OBID from this string... but it should.
-            // I am including it here assuming the satellite code will be fixed.
-
-            var cshCommand = $"set capture_param \"{commandPayload}\" -n {CameraControllerNode}";
-
-            var script = new List<string> { cshCommand };
 
             return Task.FromResult(script);
         }
