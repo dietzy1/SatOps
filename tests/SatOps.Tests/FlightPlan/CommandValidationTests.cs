@@ -96,8 +96,8 @@ namespace SatOps.Tests.FlightPlan
                     CameraId = "TestCam",
                     Type = CameraType.Test,
                     ExposureMicroseconds = 50000,
-                    NumImages = 0, // Invalid value
-                    Iso = 99, // Invalid value
+                    NumImages = 0,
+                    Iso = -1.0,
                     IntervalMicroseconds = 1000,
                     ObservationId = 1,
                     PipelineId = 1
@@ -111,7 +111,7 @@ namespace SatOps.Tests.FlightPlan
             isValid.Should().BeFalse();
             errors.Should().HaveCount(2);
             errors.Select(e => e.ErrorMessage).Should().Contain("NumImages must be between 1 and 1000");
-            errors.Select(e => e.ErrorMessage).Should().Contain("Iso must be between 0.1 and 10.0");
+            errors.Select(e => e.ErrorMessage).Should().Contain("Iso must be positive");
         }
 
         [Fact]
