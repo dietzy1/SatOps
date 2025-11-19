@@ -17,7 +17,8 @@ A backend API for satellite operations, designed to manage ground stations, trac
 - **Entity Framework Core**
 - **PostgreSQL** + **PostGIS** for relational and spatial data.
 - **Minio** for S3-compatible object storage.
-- **Docker** for containerization
+- **Docker** for containerization.
+- **Google.Protobuf** for parsing satellite binary containers.
 
 ## Getting Started
 
@@ -43,9 +44,57 @@ A backend API for satellite operations, designed to manage ground stations, trac
     ```
 
 3.  **Access the API:**
-    The SatOps API (Swagger) will be available at `http://localhost:7890`.
+    The SatOps API (Swagger) will be available at `http://localhost:5111/swagger`.
 
-### API Structure & Endpoints
+## Satellite Command Architecture (For Developers & Ops)
+
+The flight planning system uses a polymorphic command pattern to generate CSH (Cubesat Space Protocol Shell) scripts.
+
+### Extending with New Commands
+
+As the satellite capabilities evolve (e.g., adding `ConfigureModule` for AI tuning or `Reboot`), you will need to implement new command types.
+
+1.  **Define the Command Class:**
+    Create a new class in `Modules/FlightPlan/Commands/` inheriting from `Command`.
+
+    ```csharp
+    public class RebootCommand : Command
+    {
+        public override string CommandType => "REBOOT_SYSTEM";
+        public override Task<List<string>> CompileToCsh()
+        {
+            return Task.FromResult(new List<string> { $"cmp reboot -n {NodeId}" });
+        }
+    }
+    ```
+
+2.  **Register the Type:**
+    Update `CommandTypeConstants` in `Command.cs` with your new string discriminator.
+
+3.  **Update Serialization Logic:**
+    You **must** add the new case to the `CommandJsonConverter` class in `Command.cs` so the API can deserialize incoming JSON payloads into your new class.
+
+    ```csharp
+    return commandType switch
+    {
+        CommandTypeConstants.TriggerCapture => ...,
+        CommandTypeConstants.RebootSystem => JsonSerializer.Deserialize<RebootCommand>(...),
+        _ => throw new JsonException(...)
+    };
+    ```
+
+## Configuration & Known Limitations
+
+### CSP Node Addresses
+
+The satellite subsystems communicate via CSP (Cubesat Space Protocol). The Node IDs are currently **hardcoded** within the Command classes:
+
+- **Camera Controller (DCC):** Node `2` (See `TriggerCaptureCommand.cs`)
+- **Image Processing Pipeline (DIPP):** Node `162` (See `TriggerPipelineCommand.cs`)
+
+**⚠️ Ops Note:** These node IDs may be incorrect or change.
+
+## API Structure & Endpoints
 
 The platform exposes two distinct APIs, documented via separate Swagger UIs.
 

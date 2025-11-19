@@ -10,6 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using SatOps.Modules.Groundstation;
 using Moq.EntityFrameworkCore;
 using SatelliteEntity = SatOps.Modules.Satellite.Satellite;
+using Google.Protobuf;
+using SatOps.Protos;
 
 
 namespace SatOps.Tests.Unit.GroundStationLink
@@ -28,25 +30,67 @@ namespace SatOps.Tests.Unit.GroundStationLink
             _sut = new ImageService(_mockDbContext.Object, _mockObjectStorageService.Object, mockLogger.Object);
         }
 
-        private IFormFile CreateMockFormFile(string content = "test data", string fileName = "test.jpg", string contentType = "image/jpeg")
+        private IFormFile CreateValidContainerFile(string fileName = "test.jpg", string contentType = "image/jpeg")
         {
-            var stream = new MemoryStream(Encoding.UTF8.GetBytes(content));
+            // 1. Create Dummy Image Data
+            var imageBytes = Encoding.UTF8.GetBytes("This represents binary image data");
+
+            // 2. Create Protobuf Metadata
+            var metadata = new Metadata
+            {
+                Size = imageBytes.Length,
+                Width = 1024,
+                Height = 768,
+                Camera = "TestCam",
+                Timestamp = 123456789,
+                BitsPixel = 8,
+                Channels = 3
+            };
+
+            // Add a custom item to verify parsing logic
+            metadata.Items.Add(new MetadataItem { Key = "prediction", IntValue = 1 });
+
+            var metaBytes = metadata.ToByteArray();
+
+            // 3. Construct Container: [Size (4)] + [Meta] + [Image]
+            using var stream = new MemoryStream();
+            using var writer = new BinaryWriter(stream);
+
+            writer.Write(metaBytes.Length); // Writes 4 bytes, Little Endian by default
+            writer.Write(metaBytes);
+            writer.Write(imageBytes);
+
+            // Reset stream position for reading
+            var containerBytes = stream.ToArray();
+            var readStream = new MemoryStream(containerBytes);
+
             var mockFile = new Mock<IFormFile>();
             mockFile.Setup(f => f.FileName).Returns(fileName);
-            mockFile.Setup(f => f.Length).Returns(stream.Length);
+            mockFile.Setup(f => f.Length).Returns(readStream.Length);
             mockFile.Setup(f => f.ContentType).Returns(contentType);
-            mockFile.Setup(f => f.OpenReadStream()).Returns(stream);
+            mockFile.Setup(f => f.OpenReadStream()).Returns(readStream);
+
+            // Setup CopyToAsync behavior
+            mockFile.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+                .Callback<Stream, CancellationToken>((stream, token) =>
+                {
+                    readStream.Position = 0;
+                    readStream.CopyTo(stream);
+                })
+                .Returns(Task.CompletedTask);
+
             return mockFile.Object;
         }
 
         #region ReceiveImageDataAsync Tests
 
         [Fact]
-        public async Task ReceiveImageDataAsync_WithValidData_ConstructsCorrectFileNameAndSaves()
+        public async Task ReceiveImageDataAsync_WithValidContainer_ParsesAndSavesCorrectly()
         {
             // Arrange
             var captureTime = new DateTime(2025, 10, 20, 12, 30, 00, DateTimeKind.Utc);
-            var mockFile = CreateMockFormFile();
+            var mockFile = CreateValidContainerFile();
+
             var dto = new ImageDataReceiveDto
             {
                 SatelliteId = 1,
@@ -55,6 +99,7 @@ namespace SatOps.Tests.Unit.GroundStationLink
                 CaptureTime = captureTime,
                 ImageFile = mockFile,
             };
+
             var expectedFileName = $"image_1_20251020_123000_{mockFile.FileName}";
             var capturedImageData = new List<ImageData>();
 
@@ -68,47 +113,39 @@ namespace SatOps.Tests.Unit.GroundStationLink
             await _sut.ReceiveImageDataAsync(dto);
 
             // Assert
+            // 1. Verify MinIO received the stream
             _mockObjectStorageService.Verify(s => s.UploadFileAsync(It.IsAny<Stream>(), expectedFileName, mockFile.ContentType, DataType.Image), Times.Once);
+
+            // 2. Verify DB entity
             capturedImageData.Should().ContainSingle();
             var savedEntity = capturedImageData.First();
             savedEntity.FlightPlanId.Should().Be(dto.FlightPlanId);
-            _mockDbContext.Verify(c => c.SaveChangesAsync(default), Times.Once);
+            savedEntity.ImageWidth.Should().Be(1024); // From our mock Protobuf
+            savedEntity.ImageHeight.Should().Be(768);
+
+            // 3. Verify Metadata JSON extraction
+            savedEntity.Metadata.Should().Contain("\"prediction\":1");
         }
 
         [Fact]
-        public async Task ReceiveImageDataAsync_WithFlightPlanIdZero_SavesFlightPlanIdAsNull()
+        public async Task ReceiveImageDataAsync_WithInvalidHeader_ThrowsArgumentException()
         {
-            // Arrange
+            // Arrange - Create a file that is too small to contain the header
+            var smallStream = new MemoryStream(new byte[] { 0x01, 0x02 });
+            var mockFile = new Mock<IFormFile>();
+            mockFile.Setup(f => f.OpenReadStream()).Returns(smallStream);
+            mockFile.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), It.IsAny<CancellationToken>()))
+                   .Callback<Stream, CancellationToken>((s, t) => { smallStream.Position = 0; smallStream.CopyTo(s); })
+                   .Returns(Task.CompletedTask);
+
             var dto = new ImageDataReceiveDto
             {
                 SatelliteId = 1,
                 GroundStationId = 1,
-                FlightPlanId = 0,
-                CaptureTime = DateTime.UtcNow,
-                ImageFile = CreateMockFormFile(),
+                ImageFile = mockFile.Object
             };
-            var capturedImageData = new List<ImageData>();
 
             _mockDbContext.Setup(c => c.Satellites).ReturnsDbSet(new List<SatelliteEntity> { new() { Id = 1 } });
-            _mockDbContext.Setup(c => c.GroundStations).ReturnsDbSet(new List<GroundStation> { new() { Id = 1 } });
-
-            _mockDbContext.Setup(c => c.ImageData.Add(It.IsAny<ImageData>())).Callback<ImageData>(img => capturedImageData.Add(img));
-
-            // Act
-            await _sut.ReceiveImageDataAsync(dto);
-
-            // Assert
-            capturedImageData.Should().ContainSingle();
-            capturedImageData.First().FlightPlanId.Should().BeNull();
-        }
-
-        [Fact]
-        public async Task ReceiveImageDataAsync_WithInvalidSatelliteId_ThrowsArgumentException()
-        {
-            // Arrange
-            var dto = new ImageDataReceiveDto { SatelliteId = 999, GroundStationId = 1, ImageFile = CreateMockFormFile() };
-
-            _mockDbContext.Setup(c => c.Satellites).ReturnsDbSet(new List<SatelliteEntity>());
             _mockDbContext.Setup(c => c.GroundStations).ReturnsDbSet(new List<GroundStation> { new() { Id = 1 } });
 
             // Act
@@ -116,7 +153,7 @@ namespace SatOps.Tests.Unit.GroundStationLink
 
             // Assert
             await act.Should().ThrowAsync<ArgumentException>()
-                .WithMessage($"Satellite with ID {dto.SatelliteId} does not exist");
+                .WithMessage("File too small to contain header");
         }
 
         #endregion

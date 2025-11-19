@@ -1,5 +1,8 @@
 using SatOps.Data;
 using Microsoft.EntityFrameworkCore;
+using Google.Protobuf;
+using ProtoMetadata = SatOps.Protos.Metadata;
+using ProtoMetadataItem = SatOps.Protos.MetadataItem;
 
 namespace SatOps.Modules.GroundStationLink
 {
@@ -16,9 +19,59 @@ namespace SatOps.Modules.GroundStationLink
             try
             {
                 await ValidateReferencesAsync(dto.SatelliteId, dto.GroundStationId);
+
+                // 1. Read the raw stream into memory (we need random access to split it)
+                using var memoryStream = new MemoryStream();
+                await dto.ImageFile.CopyToAsync(memoryStream);
+                memoryStream.Position = 0;
+                var rawBytes = memoryStream.ToArray();
+
+                // 2. Parse the Header (First 4 bytes = Metadata Size, Little Endian)
+                if (rawBytes.Length < 4) throw new ArgumentException("File too small to contain header");
+
+                // Ensure we read Little Endian (Satellite uses Little Endian ARM/x86)
+                int metaSize = BitConverter.ToInt32(rawBytes, 0);
+
+                // 3. Extract and Parse Metadata
+                if (rawBytes.Length < 4 + metaSize) throw new ArgumentException("File incomplete (metadata truncated)");
+
+                // Slice the metadata bytes
+                var metaByteString = ByteString.CopyFrom(rawBytes, 4, metaSize);
+                var parsedMeta = ProtoMetadata.Parser.ParseFrom(metaByteString);
+
+                // 4. Extract the actual Image Data
+                int imageStartIndex = 4 + metaSize;
+                int imageLength = rawBytes.Length - imageStartIndex;
+
+                if (imageLength < 0) throw new ArgumentException("Invalid file format (metadata size exceeds file size)");
+
+                using var imageStream = new MemoryStream(rawBytes, imageStartIndex, imageLength);
+
+                // 5. Determine actual content type (optional logic, default to provided)
+                // If the pipeline used 'jpegxl_encode', this might be image/jxl
+                string contentType = dto.ImageFile.ContentType;
+
+                // 6. Upload ONLY the image part to MinIO
                 var fileName = $"image_{dto.SatelliteId}_{dto.CaptureTime:yyyyMMdd_HHmmss}_{Path.GetFileName(dto.ImageFile.FileName)}";
-                await using var fileStream = dto.ImageFile.OpenReadStream();
-                var s3ObjectPath = await objectStorageService.UploadFileAsync(fileStream, fileName, dto.ImageFile.ContentType ?? "image/jpeg", DataType.Image);
+                var s3ObjectPath = await objectStorageService.UploadFileAsync(imageStream, fileName, contentType, DataType.Image);
+
+                // 7. Extract AI/Custom Metadata
+                // Convert the Protobuf items to a dictionary for JSON storage
+                var metaDict = new Dictionary<string, object>();
+                foreach (var item in parsedMeta.Items)
+                {
+                    switch (item.ValueCase)
+                    {
+                        case ProtoMetadataItem.ValueOneofCase.IntValue: metaDict[item.Key] = item.IntValue; break;
+                        case ProtoMetadataItem.ValueOneofCase.FloatValue: metaDict[item.Key] = item.FloatValue; break;
+                        case ProtoMetadataItem.ValueOneofCase.StringValue: metaDict[item.Key] = item.StringValue; break;
+                        case ProtoMetadataItem.ValueOneofCase.BoolValue: metaDict[item.Key] = item.BoolValue; break;
+                    }
+                }
+
+                // Serialize metadata to JSON string for the database
+                string metadataJson = System.Text.Json.JsonSerializer.Serialize(metaDict);
+
                 var imageData = new ImageData
                 {
                     SatelliteId = dto.SatelliteId,
@@ -27,15 +80,22 @@ namespace SatOps.Modules.GroundStationLink
                     CaptureTime = dto.CaptureTime,
                     S3ObjectPath = s3ObjectPath,
                     FileName = fileName,
-                    FileSize = dto.ImageFile.Length,
-                    ContentType = dto.ImageFile.ContentType ?? "image/jpeg",
+                    FileSize = imageLength, // Store actual image size, not blob size
+                    ContentType = contentType,
                     ReceivedAt = DateTime.UtcNow,
                     Latitude = dto.Latitude,
                     Longitude = dto.Longitude,
+
+                    // Fill enriched fields from Protobuf
+                    ImageWidth = parsedMeta.Width,
+                    ImageHeight = parsedMeta.Height,
+                    Metadata = metadataJson
                 };
+
                 context.ImageData.Add(imageData);
                 await context.SaveChangesAsync();
-                logger.LogInformation("Stored image data {ImageId} from satellite {SatelliteId}", imageData.Id, dto.SatelliteId);
+                logger.LogInformation("Stored image {ImageId} (Size: {Size}, MetaSize: {MetaSize}). Parsed {MetaCount} metadata items.",
+                    imageData.Id, imageLength, metaSize, parsedMeta.Items.Count);
             }
             catch (Exception ex)
             {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -88,18 +90,13 @@ func main() {
 					scheduleMsg.Data.FlightPlanID,
 					scheduleMsg.Data.GroundStationID)
 
-				_, scriptMessage, err := conn.ReadMessage()
-				if err != nil {
-					log.Printf("⚠ Failed to read script message: %v\n", err)
-				} else {
-					log.Printf("📜 Received script: %s\n", string(scriptMessage))
-				}
+				_, _, _ = conn.ReadMessage()
 
-				log.Println("\n🖼️  Sending image data...")
+				log.Println("\n📦 Packing Binary Container (Meta + Image)...")
 				if err := sendImage(token, scheduleMsg.Data.GroundStationID, scheduleMsg.Data.SatelliteID, scheduleMsg.Data.FlightPlanID); err != nil {
 					log.Printf("⚠ Failed to send image: %v\n", err)
 				} else {
-					log.Println("✓ Image data sent successfully")
+					log.Println("✓ Binary container sent successfully")
 				}
 			}
 		}
@@ -112,10 +109,7 @@ func main() {
 		log.Println("WebSocket connection closed")
 	case <-interrupt:
 		log.Println("\nReceived interrupt signal, closing connection...")
-		err := conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-		if err != nil {
-			log.Println("Error during close:", err)
-		}
+		conn.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 		time.Sleep(time.Second)
 	}
 }
@@ -194,8 +188,58 @@ func sendImage(token string, groundStationID, satelliteID, flightPlanID int) err
 		return fmt.Errorf("failed to read memesat-1.png: %w", err)
 	}
 
-	var buf bytes.Buffer
-	writer := multipart.NewWriter(&buf)
+	// Create Protobuf Metadata
+	metadata := &Metadata{
+		Size:      int32(len(imageData)),
+		Height:    1000,
+		Width:     1000,
+		Channels:  3,
+		Timestamp: int32(time.Now().Unix()),
+		BitsPixel: 8,
+		Camera:    "Mock-Cam-Go",
+		Obid:      int32(flightPlanID),
+		Items: []*MetadataItem{
+			{
+				Key: "prediction",
+				Value: &MetadataItem_IntValue{
+					IntValue: 1, // Mock: AI detected a ship
+				},
+			},
+			{
+				Key: "confidence",
+				Value: &MetadataItem_FloatValue{
+					FloatValue: 0.99,
+				},
+			},
+		},
+	}
+
+	// Serialize Metadata to bytes
+	metaBytes, err := proto.Marshal(metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal protobuf: %v", err)
+	}
+
+	// Build the Binary Container
+	// Structure: [4 bytes Size (LE)] [Metadata Bytes] [Image Bytes]
+	containerBuffer := new(bytes.Buffer)
+
+	// Write Metadata Size (4 bytes, Little Endian)
+	metaSize := int32(len(metaBytes))
+	if err := binary.Write(containerBuffer, binary.LittleEndian, metaSize); err != nil {
+		return fmt.Errorf("failed to write meta size: %v", err)
+	}
+
+	containerBuffer.Write(metaBytes)
+
+	containerBuffer.Write(imageData)
+
+	log.Printf("  -> Constructed container: Header(%d) + Meta(%d) + Image(%d) = Total(%d)",
+		4, len(metaBytes), len(imageData), containerBuffer.Len())
+
+	// Create Multipart Request
+	var bodyBuf bytes.Buffer
+	writer := multipart.NewWriter(&bodyBuf)
 
 	writer.WriteField("SatelliteId", fmt.Sprintf("%d", satelliteID))
 	writer.WriteField("GroundStationId", fmt.Sprintf("%d", groundStationID))
@@ -203,17 +247,18 @@ func sendImage(token string, groundStationID, satelliteID, flightPlanID int) err
 	writer.WriteField("CaptureTime", time.Now().UTC().Format(time.RFC3339))
 	writer.WriteField("Latitude", "55.676098")
 	writer.WriteField("Longitude", "12.568337")
-	writer.WriteField("Metadata", `{"camera": "test", "resolution": "1x1"}`)
 
-	part, err := writer.CreateFormFile("ImageFile", "memesat-1.png")
+	part, err := writer.CreateFormFile("ImageFile", "satellite_data.png")
 	if err != nil {
 		return err
 	}
-	part.Write(imageData)
+
+	// Write the binary container, not just the image
+	part.Write(containerBuffer.Bytes())
 
 	writer.Close()
 
-	req, err := http.NewRequest("POST", baseURL+"/api/v1/ground-station-link/images", &buf)
+	req, err := http.NewRequest("POST", baseURL+"/api/v1/ground-station-link/images", &bodyBuf)
 	if err != nil {
 		return err
 	}
