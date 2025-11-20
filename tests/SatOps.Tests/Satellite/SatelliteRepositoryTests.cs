@@ -79,5 +79,23 @@ namespace SatOps.Tests.Satellite
             updatedSatellite.TleLine2.Should().Be(newTle2);
             updatedSatellite.LastUpdate.Should().BeAfter(originalTimestamp);
         }
+
+        [Fact]
+        public async Task UpdateLastUpdateTimestampAsync_ShouldOnlyUpdateTimestamp()
+        {
+            // Arrange
+            await SeedDatabase();
+            var id = 1;
+            var original = await _dbContext.Satellites.AsNoTracking().FirstAsync(s => s.Id == id);
+            var oldTle = original.TleLine1;
+
+            // Act
+            await _sut.UpdateLastUpdateTimestampAsync(id);
+
+            // Assert
+            var updated = await _dbContext.Satellites.AsNoTracking().FirstAsync(s => s.Id == id);
+            updated.LastUpdate.Should().BeAfter(original.LastUpdate);
+            updated.TleLine1.Should().Be(oldTle);
+        }
     }
 }

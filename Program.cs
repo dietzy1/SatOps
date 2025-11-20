@@ -219,6 +219,7 @@ try
     // Background services
     builder.Services.AddHostedService<GroundStationHealthCheckWorker>();
     builder.Services.AddHostedService<SchedulerService>();
+    builder.Services.AddHostedService<TleUpdateWorker>();
 
 
     var app = builder.Build();

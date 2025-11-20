@@ -8,6 +8,8 @@ namespace SatOps.Modules.Satellite
         Task<List<Satellite>> GetAllAsync();
         Task<Satellite?> GetByIdAsync(int id);
         Task UpdateTleAsync(int id, string tleLine1, string tleLine2);
+        Task UpdateLastUpdateTimestampAsync(int id);
+
     }
 
     public class SatelliteRepository(SatOpsDbContext dbContext) : ISatelliteRepository
@@ -32,6 +34,15 @@ namespace SatOps.Modules.Satellite
             existing.LastUpdate = DateTime.UtcNow;
 
             dbContext.Satellites.Update(existing);
+            await dbContext.SaveChangesAsync();
+        }
+
+        public async Task UpdateLastUpdateTimestampAsync(int id)
+        {
+            var existing = await dbContext.Satellites.FirstOrDefaultAsync(s => s.Id == id);
+            if (existing == null) return;
+
+            existing.LastUpdate = DateTime.UtcNow;
             await dbContext.SaveChangesAsync();
         }
     }
