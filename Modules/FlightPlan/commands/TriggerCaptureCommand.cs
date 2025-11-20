@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 
 namespace SatOps.Modules.FlightPlan.Commands
 {
@@ -78,6 +79,11 @@ namespace SatOps.Modules.FlightPlan.Commands
             if (CameraSettings == null)
             {
                 throw new InvalidOperationException("CameraSettings is required for compilation.");
+            }
+
+            if (!Regex.IsMatch(CameraSettings.CameraId, @"^[a-zA-Z0-9\s\-_]+$"))
+            {
+                throw new InvalidOperationException($"Invalid Camera ID format: {CameraSettings.CameraId}");
             }
 
             var script = new List<string>

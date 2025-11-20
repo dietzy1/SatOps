@@ -101,5 +101,34 @@ namespace SatOps.Tests.FlightPlan
             act.Should().ThrowAsync<InvalidOperationException>()
                .WithMessage("*ExecutionTime must be calculated before compiling*");
         }
+
+        [Fact]
+        public async Task TriggerCaptureCommand_CompileToCsh_WithMaliciousCameraId_ThrowsInvalidOperationException()
+        {
+            // Arrange
+            var command = new TriggerCaptureCommand
+            {
+                ExecutionTime = DateTime.UtcNow,
+                CaptureLocation = new CaptureLocation { Latitude = 0, Longitude = 0 },
+                CameraSettings = new CameraSettings
+                {
+                    CameraId = "\"; reboot; \"",
+                    Type = CameraType.VMB,
+                    ExposureMicroseconds = 100,
+                    Iso = 1.0,
+                    NumImages = 1,
+                    IntervalMicroseconds = 100,
+                    ObservationId = 1,
+                    PipelineId = 1
+                }
+            };
+
+            // Act
+            Func<Task> act = () => command.CompileToCsh();
+
+            // Assert
+            await act.Should().ThrowAsync<InvalidOperationException>()
+               .WithMessage("*Invalid Camera ID format*");
+        }
     }
 }

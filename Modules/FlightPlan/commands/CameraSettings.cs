@@ -10,6 +10,8 @@ namespace SatOps.Modules.FlightPlan.Commands
     {
         [Required(ErrorMessage = "CameraId is required")]
         [StringLength(128, MinimumLength = 1, ErrorMessage = "CameraId must be between 1 and 128 characters")]
+        // Allows: a-z, A-Z, 0-9, space, hyphen, underscore.
+        [RegularExpression(@"^[a-zA-Z0-9\s\-_]+$", ErrorMessage = "CameraId contains invalid characters. Only alphanumeric, spaces, hyphens, and underscores are allowed.")]
         [JsonPropertyName("cameraId")]
         public string CameraId { get; set; } = string.Empty;
 

@@ -142,6 +142,69 @@ namespace SatOps.Tests.FlightPlan
             errors.Should().ContainSingle(e => e.ErrorMessage!.Contains("IntervalMicroseconds must be greater than 0"));
         }
 
+        [Fact]
+        public void TriggerCapture_Validate_WithValidComplexCameraId_ReturnsSuccess()
+        {
+            // Arrange
+            var command = new TriggerCaptureCommand
+            {
+                CaptureLocation = new CaptureLocation { Latitude = 50, Longitude = 10 },
+                CameraSettings = new CameraSettings
+                {
+                    CameraId = "1800 U-500c",
+                    Type = CameraType.Test,
+                    ExposureMicroseconds = 50000,
+                    Iso = 1.0,
+                    NumImages = 1,
+                    IntervalMicroseconds = 0,
+                    ObservationId = 1,
+                    PipelineId = 1
+                },
+                ExecutionTime = null
+            };
+
+            // Act
+            var (isValid, errors) = ValidateCommand(command);
+
+            // Assert
+            isValid.Should().BeTrue();
+            errors.Should().BeEmpty();
+        }
+
+        [Theory]
+        [InlineData("Camera; rm -rf")]
+        [InlineData("Camera | echo")]
+        [InlineData("Camera > file")]
+        [InlineData("Camera' OR '1'='1")]
+        public void TriggerCapture_Validate_WithMaliciousCameraId_ReturnsError(string maliciousId)
+        {
+            // Arrange
+            var command = new TriggerCaptureCommand
+            {
+                CaptureLocation = new CaptureLocation { Latitude = 50, Longitude = 10 },
+                CameraSettings = new CameraSettings
+                {
+                    CameraId = maliciousId,
+                    Type = CameraType.Test,
+                    ExposureMicroseconds = 50000,
+                    Iso = 1.0,
+                    NumImages = 1,
+                    IntervalMicroseconds = 0,
+                    ObservationId = 1,
+                    PipelineId = 1
+                },
+                ExecutionTime = null
+            };
+
+            // Act
+            var (isValid, errors) = ValidateCommand(command);
+
+            // Assert
+            isValid.Should().BeFalse();
+            // Checks that the specific RegularExpression error is triggered
+            errors.Should().Contain(e => e.ErrorMessage!.Contains("CameraId contains invalid characters"));
+        }
+
         #endregion
 
         #region TriggerPipelineCommand Tests
