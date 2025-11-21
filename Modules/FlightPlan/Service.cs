@@ -40,34 +40,17 @@ namespace SatOps.Modules.FlightPlan
         public async Task<FlightPlan> CreateAsync(CreateFlightPlanDto createDto)
         {
             var currentUserId = currentUserProvider.GetUserId();
-            if (currentUserId == null)
-            {
-                throw new InvalidOperationException("User ID claim not found. User should be authenticated by this point.");
-            }
+            if (currentUserId == null) throw new InvalidOperationException("User ID claim not found.");
 
-            // Validate that the groundstation exists
             var groundStation = await groundStationService.GetAsync(createDto.GsId);
-            if (groundStation == null)
-            {
-                throw new ArgumentException($"Ground station with ID {createDto.GsId} not found.", nameof(createDto.GsId));
-            }
+            if (groundStation == null) throw new ArgumentException($"Ground station with ID {createDto.GsId} not found.", nameof(createDto.GsId));
 
-            // Validate that the satellite exists
             var satellite = await satelliteService.GetAsync(createDto.SatId);
-            if (satellite == null)
-            {
-                throw new ArgumentException($"Satellite with ID {createDto.SatId} not found.", nameof(createDto.SatId));
-            }
+            if (satellite == null) throw new ArgumentException($"Satellite with ID {createDto.SatId} not found.", nameof(createDto.SatId));
 
-            // Validate commands
             var (isValid, errors) = createDto.Commands.ValidateAll();
-            if (!isValid)
-            {
-                throw new ArgumentException(
-                    $"Command validation failed: {string.Join("; ", errors)}");
-            }
+            if (!isValid) throw new ArgumentException($"Command validation failed: {string.Join("; ", errors)}");
 
-            // Create entity
             var entity = new FlightPlan
             {
                 Name = createDto.Name,
@@ -78,7 +61,6 @@ namespace SatOps.Modules.FlightPlan
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
-
             entity.SetCommands(createDto.Commands);
             return await repository.AddAsync(entity);
         }
@@ -86,12 +68,8 @@ namespace SatOps.Modules.FlightPlan
         public async Task<FlightPlan?> CreateNewVersionAsync(int id, CreateFlightPlanDto updateDto)
         {
             var existing = await repository.GetByIdAsync(id);
-            if (existing == null)
-            {
-                return null;
-            }
+            if (existing == null) return null;
 
-            // Only certain statuses can be updated
             if (existing.Status != FlightPlanStatus.Draft &&
                 existing.Status != FlightPlanStatus.Approved &&
                 existing.Status != FlightPlanStatus.AssignedToOverpass)
@@ -99,34 +77,19 @@ namespace SatOps.Modules.FlightPlan
                 return null;
             }
 
-            // Validate that the groundstation exists
             var groundStation = await groundStationService.GetAsync(updateDto.GsId);
-            if (groundStation == null)
-            {
-                throw new ArgumentException($"Ground station with ID {updateDto.GsId} not found.", nameof(updateDto.GsId));
-            }
+            if (groundStation == null) throw new ArgumentException($"Ground station with ID {updateDto.GsId} not found.", nameof(updateDto.GsId));
 
-            // Validate that the satellite exists
             var satellite = await satelliteService.GetAsync(updateDto.SatId);
-            if (satellite == null)
-            {
-                throw new ArgumentException($"Satellite with ID {updateDto.SatId} not found.", nameof(updateDto.SatId));
-            }
+            if (satellite == null) throw new ArgumentException($"Satellite with ID {updateDto.SatId} not found.", nameof(updateDto.SatId));
 
-            // Validate commands using the new commands system
             var (isValid, errors) = updateDto.Commands.ValidateAll();
-            if (!isValid)
-            {
-                throw new ArgumentException(
-                    $"Command validation failed: {string.Join("; ", errors)}");
-            }
+            if (!isValid) throw new ArgumentException($"Command validation failed: {string.Join("; ", errors)}");
 
-            // Mark the old plan as superseded
             existing.Status = FlightPlanStatus.Superseded;
             existing.UpdatedAt = DateTime.UtcNow;
             await repository.UpdateAsync(existing);
 
-            // Create new version
             var newVersion = new FlightPlan
             {
                 Name = updateDto.Name,
@@ -138,61 +101,39 @@ namespace SatOps.Modules.FlightPlan
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
-
             newVersion.SetCommands(updateDto.Commands);
-
             return await repository.AddAsync(newVersion);
         }
 
         public async Task<(bool Success, string Message)> ApproveOrRejectAsync(int id, string status)
         {
             var currentUserId = currentUserProvider.GetUserId();
-            if (currentUserId == null)
-            {
-                throw new InvalidOperationException("User ID claim not found. User should be authenticated by this point.");
-            }
+            if (currentUserId == null) throw new InvalidOperationException("User ID claim not found.");
 
             var plan = await repository.GetByIdAsync(id);
-            if (plan == null)
-            {
-                return (false, "Flight plan not found.");
-            }
+            if (plan == null) return (false, "Flight plan not found.");
 
-            // Validate current status allows approval/rejection
             switch (plan.Status)
             {
-                case FlightPlanStatus.Draft:
-                    // Only draft plans can be approved or rejected
-                    break;
-                case FlightPlanStatus.Rejected:
-                    return (false, "Cannot modify a plan that has already been rejected.");
-                case FlightPlanStatus.Approved:
-                    return (false, "Cannot modify a plan that has already been approved.");
-                case FlightPlanStatus.AssignedToOverpass:
-                    return (false, "Cannot modify a plan that has been assigned to an overpass.");
-                case FlightPlanStatus.Transmitted:
-                    return (false, "Cannot modify a plan that has been transmitted.");
-                case FlightPlanStatus.Superseded:
-                    return (false, "Cannot modify a superseded plan.");
-                default:
-                    return (false, $"Unknown flight plan status: {plan.Status}");
+                case FlightPlanStatus.Draft: break;
+                case FlightPlanStatus.Rejected: return (false, "Cannot modify a plan that has already been rejected.");
+                case FlightPlanStatus.Approved: return (false, "Cannot modify a plan that has already been approved.");
+                case FlightPlanStatus.AssignedToOverpass: return (false, "Cannot modify a plan that has been assigned to an overpass.");
+                case FlightPlanStatus.Transmitted: return (false, "Cannot modify a plan that has been transmitted.");
+                case FlightPlanStatus.Superseded: return (false, "Cannot modify a superseded plan.");
+                default: return (false, $"Unknown flight plan status: {plan.Status}");
             }
 
             var newStatus = FlightPlanStatusExtensions.FromScreamCase(status);
 
             if (newStatus == FlightPlanStatus.Approved)
             {
-                // Re-validate before approval
                 var commands = plan.GetCommands();
                 var (isValid, errors) = commands.ValidateAll();
-                if (!isValid)
-                {
-                    return (false, $"Cannot approve invalid flight plan: {string.Join("; ", errors)}");
-                }
+                if (!isValid) return (false, $"Cannot approve invalid flight plan: {string.Join("; ", errors)}");
             }
 
             plan.Status = newStatus;
-
             plan.ApprovalDate = DateTime.UtcNow;
             plan.ApprovedById = currentUserId;
 
@@ -207,79 +148,36 @@ namespace SatOps.Modules.FlightPlan
             try
             {
                 var flightPlan = await repository.GetByIdAsync(id);
-                if (flightPlan == null)
+                if (flightPlan == null) return (false, "Flight plan not found.");
+
+                if (dto.StartTime < DateTime.UtcNow) return (false, "Cannot assign an overpass that starts in the past.");
+                if (dto.EndTime < DateTime.UtcNow) return (false, "Cannot assign an overpass that ends in the past.");
+                if (dto.StartTime >= dto.EndTime) return (false, "Start time must be before end time.");
+
+                if (flightPlan.Status != FlightPlanStatus.Approved)
                 {
-                    return (false, "Flight plan not found.");
+                    return (false, $"Flight plan must be in APPROVED status to assign an overpass. Current: {flightPlan.Status}");
                 }
 
-                // Validate that overpass time is not in the past
-                if (dto.StartTime < DateTime.UtcNow)
-                {
-                    return (false, "Cannot assign an overpass that starts in the past.");
-                }
-
-                if (dto.EndTime < DateTime.UtcNow)
-                {
-                    return (false, "Cannot assign an overpass that ends in the past.");
-                }
-
-                if (dto.StartTime >= dto.EndTime)
-                {
-                    return (false, "Start time must be before end time.");
-                }
-
-                // Check if the current status allows association with overpass
-                switch (flightPlan.Status)
-                {
-                    case FlightPlanStatus.Approved:
-                        // Only approved plans can be assigned to overpasses
-                        break;
-                    case FlightPlanStatus.Draft:
-                        return (false, "Cannot associate overpass with a draft flight plan. Flight plan must be approved first.");
-                    case FlightPlanStatus.Rejected:
-                        return (false, "Cannot associate overpass with a rejected flight plan.");
-                    case FlightPlanStatus.AssignedToOverpass:
-                        return (false, "Flight plan is already assigned to an overpass.");
-                    case FlightPlanStatus.Transmitted:
-                        return (false, "Cannot modify a transmitted flight plan.");
-                    case FlightPlanStatus.Superseded:
-                        return (false, "Cannot associate overpass with a superseded flight plan.");
-                    default:
-                        return (false, $"Unknown flight plan status: {flightPlan.Status}");
-                }
-
-                // Get satellite data for TLE information
                 var satellite = await satelliteService.GetAsync(flightPlan.SatelliteId);
-                if (satellite == null)
-                {
-                    return (false, "Associated satellite not found.");
-                }
+                if (satellite == null) return (false, "Associated satellite not found.");
 
-                // Calculate overpasses with a broader time window to allow for tolerance matching
-                // We use a 30-minute tolerance window on each side to account for TLE variations
                 var toleranceMinutes = 30;
                 var expandedStartTime = dto.StartTime.AddMinutes(-toleranceMinutes);
                 var expandedEndTime = dto.EndTime.AddMinutes(toleranceMinutes);
 
-                // Create overpass calculation request
-                var overpassCalculationRequest = new OverpassWindowsCalculationRequestDto
+                var availableOverpasses = await overpassService.CalculateOverpassesAsync(new OverpassWindowsCalculationRequestDto
                 {
                     SatelliteId = flightPlan.SatelliteId,
                     GroundStationId = flightPlan.GroundStationId,
                     StartTime = expandedStartTime,
                     EndTime = expandedEndTime,
-                };
+                });
 
-                var availableOverpasses = await overpassService.CalculateOverpassesAsync(overpassCalculationRequest);
                 if (availableOverpasses == null || availableOverpasses.Count == 0)
-                {
                     return (false, "No matching overpass found in the specified time window.");
-                }
 
-                // Define matching tolerance (in minutes)
-                var matchToleranceMinutes = 15; // Allow 15-minute tolerance for matching
-
-                // Find the best matching overpass based on multiple criteria
+                var matchToleranceMinutes = 15;
                 OverpassWindowDto? selectedOverpass = null;
                 double bestScore = double.MaxValue;
 
@@ -288,26 +186,11 @@ namespace SatOps.Modules.FlightPlan
                     var startTimeDiff = Math.Abs((candidate.StartTime - dto.StartTime).TotalMinutes);
                     var endTimeDiff = Math.Abs((candidate.EndTime - dto.EndTime).TotalMinutes);
 
-                    // Check if within tolerance
-                    if (startTimeDiff > matchToleranceMinutes || endTimeDiff > matchToleranceMinutes)
-                    {
-                        continue;
-                    }
+                    if (startTimeDiff > matchToleranceMinutes || endTimeDiff > matchToleranceMinutes) continue;
 
-                    // Calculate additional matching criteria if provided
-                    double elevationDiff = 0;
-                    if (dto.MaxElevation.HasValue)
-                    {
-                        elevationDiff = Math.Abs(candidate.MaxElevation - dto.MaxElevation.Value);
-                    }
+                    double elevationDiff = dto.MaxElevation.HasValue ? Math.Abs(candidate.MaxElevation - dto.MaxElevation.Value) : 0;
+                    double durationDiff = dto.DurationSeconds.HasValue ? Math.Abs(candidate.DurationSeconds - dto.DurationSeconds.Value) : 0;
 
-                    double durationDiff = 0;
-                    if (dto.DurationSeconds.HasValue)
-                    {
-                        durationDiff = Math.Abs(candidate.DurationSeconds - dto.DurationSeconds.Value);
-                    }
-
-                    // Composite score (weighted)
                     var score = (startTimeDiff * 2.0) + (endTimeDiff * 2.0) + (elevationDiff * 0.5) + (durationDiff / 60.0 * 0.5);
 
                     if (score < bestScore)
@@ -318,12 +201,54 @@ namespace SatOps.Modules.FlightPlan
                 }
 
                 if (selectedOverpass == null)
+                    return (false, $"No overpass found within {matchToleranceMinutes}-minute tolerance.");
+
+                var currentPlanCommands = flightPlan.GetCommands();
+
+                await currentPlanCommands.CalculateExecutionTimesAsync(satellite, imagingCalculation, imagingOptions.Value);
+
+                flightPlan.SetCommands(currentPlanCommands);
+
+                foreach (var cmd in currentPlanCommands)
                 {
-                    return (false, $"No overpass found within {matchToleranceMinutes}-minute tolerance of the specified time window.");
+                    if (cmd.ExecutionTime.HasValue)
+                    {
+                        if (cmd.ExecutionTime.Value <= selectedOverpass.EndTime)
+                        {
+                            return (false, $"Chronology Error: Command '{cmd.CommandType}' scheduled for {cmd.ExecutionTime.Value:O} occurs before or during the upload overpass (Ends: {selectedOverpass.EndTime:O}). Time travel is not supported.");
+                        }
+                    }
                 }
 
-                // Try to find or create an overpass record for this physical satellite pass
-                // This will check if an overpass already exists in the time window and reject if it's already assigned
+                var activePlans = await repository.GetActivePlansBySatelliteAsync(flightPlan.SatelliteId);
+
+                var conflictMargin = TimeSpan.FromMinutes(2);
+
+                foreach (var activePlan in activePlans)
+                {
+                    if (activePlan.Id == flightPlan.Id) continue;
+
+                    var activeCommands = activePlan.GetCommands();
+
+                    foreach (var newCmd in currentPlanCommands)
+                    {
+                        if (!newCmd.ExecutionTime.HasValue) continue;
+
+                        foreach (var existingCmd in activeCommands)
+                        {
+                            if (!existingCmd.ExecutionTime.HasValue) continue;
+
+                            var timeDiff = Math.Abs((newCmd.ExecutionTime.Value - existingCmd.ExecutionTime.Value).TotalSeconds);
+
+                            if (timeDiff < conflictMargin.TotalSeconds)
+                            {
+                                return (false, $"Conflict Error: This plan conflicts with active Flight Plan #{activePlan.Id} ('{activePlan.Name}'). " +
+                                               $"Command execution times overlap at {newCmd.ExecutionTime.Value:O} (Margin: {conflictMargin.TotalMinutes} min).");
+                            }
+                        }
+                    }
+                }
+
                 var (success, overpassEntity, message) = await overpassService.FindOrCreateOverpassForFlightPlanAsync(
                     selectedOverpass,
                     flightPlan.Id,
@@ -333,10 +258,7 @@ namespace SatOps.Modules.FlightPlan
                     DateTime.UtcNow
                 );
 
-                if (!success || overpassEntity == null)
-                {
-                    return (false, message);
-                }
+                if (!success || overpassEntity == null) return (false, message);
 
                 flightPlan.Status = FlightPlanStatus.AssignedToOverpass;
                 flightPlan.ScheduledAt = selectedOverpass.MaxElevationTime;
@@ -363,36 +285,22 @@ namespace SatOps.Modules.FlightPlan
         public async Task<List<string>> CompileFlightPlanToCshAsync(int flightPlanId)
         {
             var flightPlan = await repository.GetByIdAsync(flightPlanId);
-            if (flightPlan == null)
-            {
-                throw new ArgumentException($"Flight plan with ID {flightPlanId} not found.");
-            }
+            if (flightPlan == null) throw new ArgumentException($"Flight plan with ID {flightPlanId} not found.");
 
             var satellite = await satelliteService.GetAsync(flightPlan.SatelliteId);
-            if (satellite == null)
-            {
-                throw new ArgumentException($"Satellite with ID {flightPlan.SatelliteId} not found.");
-            }
+            if (satellite == null) throw new ArgumentException($"Satellite with ID {flightPlan.SatelliteId} not found.");
 
             var commands = flightPlan.GetCommands();
-
-            // Validate before calculating execution times
             var (isValid, errors) = commands.ValidateAll();
-            if (!isValid)
-            {
-                throw new InvalidOperationException(
-                    $"Cannot compile invalid flight plan. Errors: {string.Join("; ", errors)}");
-            }
+            if (!isValid) throw new InvalidOperationException($"Cannot compile invalid flight plan. Errors: {string.Join("; ", errors)}");
 
-            // Calculate execution times for commands that require it (e.g., TriggerCaptureCommand)
             try
             {
                 await commands.CalculateExecutionTimesAsync(satellite, imagingCalculation, imagingOptions.Value);
             }
             catch (InvalidOperationException ex)
             {
-                throw new InvalidOperationException(
-                    $"Failed to calculate execution times: {ex.Message}", ex);
+                throw new InvalidOperationException($"Failed to calculate execution times: {ex.Message}", ex);
             }
 
             return await commands.CompileAllToCsh();
@@ -401,29 +309,15 @@ namespace SatOps.Modules.FlightPlan
         public async Task<ImagingTimingResponseDto> GetImagingOpportunity(int satelliteId, double targetLatitude, double targetLongitude, DateTime? commandReceptionTime = null)
         {
             var satellite = await satelliteService.GetAsync(satelliteId);
-            if (satellite == null)
-            {
-                throw new ArgumentException($"Satellite with ID {satelliteId} not found.", nameof(satelliteId));
-            }
-
+            if (satellite == null) throw new ArgumentException($"Satellite with ID {satelliteId} not found.", nameof(satelliteId));
             if (string.IsNullOrWhiteSpace(satellite.TleLine1) || string.IsNullOrWhiteSpace(satellite.TleLine2))
-            {
                 throw new ArgumentException($"Satellite with ID {satelliteId} does not have valid TLE data.", nameof(satelliteId));
-            }
 
             var tle = new Tle(satellite.Name, satellite.TleLine1, satellite.TleLine2);
             var sgp4Satellite = new SGPdotNET.Observation.Satellite(tle);
-
-            // Check TLE age and warn if > 48 hours
             var tleAge = DateTime.UtcNow - tle.Epoch;
-            var tleAgeWarning = tleAge.TotalHours > 48;
 
-            // Create target coordinate
-            var targetCoordinate = new GeodeticCoordinate(
-                Angle.FromDegrees(targetLatitude),
-                Angle.FromDegrees(targetLongitude),
-                0); // Assuming ground level target
-
+            var targetCoordinate = new GeodeticCoordinate(Angle.FromDegrees(targetLatitude), Angle.FromDegrees(targetLongitude), 0);
             var maxSearchDuration = TimeSpan.FromHours(imagingOptions.Value.MaxSearchDurationHours);
 
             var imagingOpportunity = imagingCalculation.FindBestImagingOpportunity(
@@ -439,17 +333,14 @@ namespace SatOps.Modules.FlightPlan
                 ImagingTime = imagingOpportunity.ImagingTime,
                 OffNadirDegrees = imagingOpportunity.OffNadirDegrees,
                 SatelliteAltitudeKm = imagingOpportunity.SatelliteAltitudeKm,
-                TleAgeWarning = tleAgeWarning,
+                TleAgeWarning = tleAge.TotalHours > 48,
                 TleAgeHours = tleAge.TotalHours,
             };
 
-            // If no opportunity found within constraints, include a message but still return 200 OK
-            // This is a valid calculation result, not an error condition
             if (result.OffNadirDegrees > imagingOptions.Value.MaxOffNadirDegrees)
             {
-                Console.WriteLine($"No imaging opportunity found within the off-nadir limit of {imagingOptions.Value.MaxOffNadirDegrees}° in the next {imagingOptions.Value.MaxSearchDurationHours} hours. Best opportunity found was {result.OffNadirDegrees:F2}° off-nadir.");
                 result.Possible = false;
-                result.Message = $"No imaging opportunity found within the off-nadir limit of {imagingOptions.Value.MaxOffNadirDegrees}° in the next {imagingOptions.Value.MaxSearchDurationHours} hours. Best opportunity found was {result.OffNadirDegrees:F2}° off-nadir.";
+                result.Message = $"No imaging opportunity found within the off-nadir limit of {imagingOptions.Value.MaxOffNadirDegrees}° in the next {imagingOptions.Value.MaxSearchDurationHours} hours.";
             }
 
             return result;
