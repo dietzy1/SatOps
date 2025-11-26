@@ -23,6 +23,7 @@ sequenceDiagram
             Scheduler->>WSService: Send scheduled command<br/>(metadata + CSH script)
             WSService->>GS: Transmit via WebSocket
             GS-->>WSService: ACK
+            WSService -->> Scheduler: No error thrown
             
             Scheduler->>FPS: Update status to Transmitted
             FPS->>DB: UPDATE status
