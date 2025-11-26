@@ -1,4 +1,4 @@
-# SatOps API
+![Image](https://github.com/user-attachments/assets/73a7c920-af6a-4d6a-b66d-a10f37b7444d)
 
 A backend API for satellite operations, designed to manage ground stations, track satellites, calculate overpasses, and schedule flight plans.
 
