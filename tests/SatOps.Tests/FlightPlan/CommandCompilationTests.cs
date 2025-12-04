@@ -36,21 +36,21 @@ namespace SatOps.Tests.FlightPlan
             result.Count.Should().BeGreaterThan(5);
 
             // Verify specific lines are present in the correct order logic
-            result.Should().Contain($"set camera_id_param \"TestCam-123\" -n 2");
-            result.Should().Contain($"set camera_type_param 0 -n 2"); // Enum 0 = VMB
-            result.Should().Contain($"set exposure_param 50000 -n 2");
-            result.Should().Contain($"set iso_param 1.5 -n 2");
-            result.Should().Contain($"set num_images_param 5 -n 2");
-            result.Should().Contain($"set interval_param 10000 -n 2");
-            result.Should().Contain($"set obid_param 99 -n 2");
-            result.Should().Contain($"set pipeline_id_param 101 -n 2");
+            result.Should().Contain($"set camera_id_param \"TestCam-123\" -n 5422");
+            result.Should().Contain($"set camera_type_param 0 -n 5422"); // Enum 0 = VMB
+            result.Should().Contain($"set exposure_param 50000 -n 5422");
+            result.Should().Contain($"set iso_param 1.5 -n 5422");
+            result.Should().Contain($"set num_images_param 5 -n 5422");
+            result.Should().Contain($"set interval_param 10000 -n 5422");
+            result.Should().Contain($"set obid_param 99 -n 5422");
+            result.Should().Contain($"set pipeline_id_param 101 -n 5422");
 
             // Verify the power-on sequence
-            result.Should().Contain($"set camera_state_param 1 -n 2");
+            result.Should().Contain($"set camera_state_param 1 -n 5422");
             result.Should().Contain("sleep 5");
 
             // Verify the trigger is the LAST command
-            result.Last().Should().Be($"set capture_param 1 -n 2");
+            result.Last().Should().Be($"set capture_param 1 -n 5422");
         }
 
         [Fact]
@@ -62,7 +62,7 @@ namespace SatOps.Tests.FlightPlan
                 ExecutionTime = DateTime.UtcNow,
                 Mode = 2
             };
-            var expectedCsh = "set pipeline_run 2 -n 162";
+            var expectedCsh = "set pipeline_run 2 -n 5423";
 
             // Act
             var result = await command.CompileToCsh();
@@ -129,6 +129,23 @@ namespace SatOps.Tests.FlightPlan
             // Assert
             await act.Should().ThrowAsync<InvalidOperationException>()
                .WithMessage("*Invalid Camera ID format*");
+        }
+
+        [Fact]
+        public async Task ConfigureSomCommand_CompileToCsh_GeneratesCorrectManagerSettings()
+        {
+            // Arrange
+            var command = new ConfigureSomCommand();
+
+            // Act
+            var result = await command.CompileToCsh();
+
+            // Assert
+            result.Should().NotBeNull();
+            result.Should().HaveCount(2);
+
+            result.Should().Contain("set mng_dipp 5423 -n 5421");
+            result.Should().Contain("set mng_camera_control 5422 -n 5421");
         }
     }
 }
