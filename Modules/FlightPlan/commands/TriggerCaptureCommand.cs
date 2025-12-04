@@ -16,7 +16,7 @@ namespace SatOps.Modules.FlightPlan.Commands
         public override bool RequiresExecutionTimeCalculation => true;
 
         // Hardcoded CSP node address for the Camera Controller.
-        private const int CameraControllerNode = 2;
+        private const int CameraControllerNode = 5422;
 
         [Required(ErrorMessage = "CaptureLocation is required")]
         [JsonPropertyName("captureLocation")]

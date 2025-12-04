@@ -10,7 +10,7 @@ namespace SatOps.Modules.FlightPlan.Commands
     {
         public override string CommandType => CommandTypeConstants.TriggerPipeline;
 
-        private const int DippNode = 162;
+        private const int DippNode = 5423;
 
         [Required(ErrorMessage = "Mode is required")]
         [Range(0, int.MaxValue, ErrorMessage = "Mode must be a non-negative integer")]

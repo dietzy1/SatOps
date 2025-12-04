@@ -13,6 +13,8 @@ namespace SatOps.Modules.FlightPlan
     {
         public const string TriggerCapture = "TRIGGER_CAPTURE";
         public const string TriggerPipeline = "TRIGGER_PIPELINE";
+        public const string ConfigureSom = "CONFIGURE_SOM";
+
     }
 
     /// <summary>
@@ -113,7 +115,8 @@ namespace SatOps.Modules.FlightPlan
                     {
                         CommandTypeConstants.TriggerCapture => JsonSerializer.Deserialize<TriggerCaptureCommand>(root.GetRawText(), options),
                         CommandTypeConstants.TriggerPipeline => JsonSerializer.Deserialize<TriggerPipelineCommand>(root.GetRawText(), options),
-                        _ => throw new JsonException($"Unknown commandType '{commandType}'. Supported types: '{CommandTypeConstants.TriggerCapture}', '{CommandTypeConstants.TriggerPipeline}'")
+                        CommandTypeConstants.ConfigureSom => JsonSerializer.Deserialize<ConfigureSomCommand>(root.GetRawText(), options),
+                        _ => throw new JsonException($"Unknown commandType '{commandType}'. Supported types: '{CommandTypeConstants.TriggerCapture}', '{CommandTypeConstants.TriggerPipeline}', '{CommandTypeConstants.ConfigureSom}'")
                     };
                 }
                 catch (JsonException)
