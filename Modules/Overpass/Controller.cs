@@ -8,6 +8,17 @@ namespace SatOps.Modules.Overpass
     [Authorize]
     public class OverpassesController(IOverpassService overpassService) : ControllerBase
     {
+        /// <summary>
+        /// Calculates overpass windows for a satellite over a ground station
+        /// </summary>
+        /// <param name="satelliteId">The ID of the satellite</param>
+        /// <param name="groundStationId">The ID of the ground station</param>
+        /// <param name="startTime">Start of the time window (defaults to now)</param>
+        /// <param name="endTime">End of the time window (defaults to 7 days from start)</param>
+        /// <param name="minimumElevation">Minimum elevation angle in degrees</param>
+        /// <param name="maxResults">Maximum number of results to return</param>
+        /// <param name="minimumDuration">Minimum overpass duration in seconds</param>
+        /// <returns>List of calculated overpass windows</returns>
         [HttpGet("satellite/{satelliteId:int}/groundstation/{groundStationId:int}")]
         [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<List<OverpassWindowDto>>> GetOverpassWindows(

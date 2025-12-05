@@ -8,6 +8,10 @@ namespace SatOps.Modules.Satellite
     [Authorize]
     public class SatellitesController(ISatelliteService service) : ControllerBase
     {
+        /// <summary>
+        /// Retrieves all satellites
+        /// </summary>
+        /// <returns>A list of all satellites in the system</returns>
         [HttpGet]
         [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<List<SatelliteDto>>> List()
@@ -16,6 +20,11 @@ namespace SatOps.Modules.Satellite
             return Ok(items.Select(MapToDto).ToList());
         }
 
+        /// <summary>
+        /// Retrieves a specific satellite by ID
+        /// </summary>
+        /// <param name="id">The unique identifier of the satellite</param>
+        /// <returns>The satellite details including TLE data</returns>
         [HttpGet("{id:int}")]
         [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<SatelliteDto>> Get(int id)
@@ -28,6 +37,11 @@ namespace SatOps.Modules.Satellite
             return Ok(MapToDto(item));
         }
 
+        /// <summary>
+        /// Refreshes TLE data for a satellite from external sources
+        /// </summary>
+        /// <param name="id">The unique identifier of the satellite</param>
+        /// <returns>True if TLE data was updated, false otherwise</returns>
         [HttpPost("{id:int}/tle")]
         [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<ActionResult<bool>> RefreshTleData(int id)

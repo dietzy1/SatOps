@@ -12,6 +12,10 @@ namespace SatOps.Modules.FlightPlan
         IImageService imageService,
         ILogger<FlightPlansController> logger) : ControllerBase
     {
+        /// <summary>
+        /// Retrieves all flight plans
+        /// </summary>
+        /// <returns>A list of all flight plans in the system</returns>
         [HttpGet]
         [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<List<FlightPlanDto>>> List()
@@ -20,6 +24,11 @@ namespace SatOps.Modules.FlightPlan
             return Ok(items.Select(Mappers.ToDto).ToList());
         }
 
+        /// <summary>
+        /// Retrieves a specific flight plan by ID
+        /// </summary>
+        /// <param name="id">The unique identifier of the flight plan</param>
+        /// <returns>The flight plan details</returns>
         [HttpGet("{id}")]
         [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<FlightPlanDto>> Get(int id)
@@ -29,6 +38,11 @@ namespace SatOps.Modules.FlightPlan
             return Ok(item.ToDto());
         }
 
+        /// <summary>
+        /// Creates a new flight plan
+        /// </summary>
+        /// <param name="input">The flight plan creation data</param>
+        /// <returns>The newly created flight plan</returns>
         [HttpPost]
         [Authorize(Policy = Authorization.Policies.RequireOperator)]
         public async Task<ActionResult<FlightPlanDto>> Create([FromBody] CreateFlightPlanDto input)
@@ -46,6 +60,12 @@ namespace SatOps.Modules.FlightPlan
             }
         }
 
+        /// <summary>
+        /// Updates an existing flight plan by creating a new version
+        /// </summary>
+        /// <param name="id">The ID of the flight plan to update</param>
+        /// <param name="input">The updated flight plan data</param>
+        /// <returns>The updated flight plan</returns>
         [HttpPut("{id}")]
         [Authorize(Policy = Authorization.Policies.RequireOperator)]
         public async Task<ActionResult<FlightPlanDto>> Update(
@@ -72,6 +92,12 @@ namespace SatOps.Modules.FlightPlan
             }
         }
 
+        /// <summary>
+        /// Approves or rejects a flight plan
+        /// </summary>
+        /// <param name="id">The ID of the flight plan to approve/reject</param>
+        /// <param name="input">The approval status (APPROVED or REJECTED)</param>
+        /// <returns>Success status and message</returns>
         // TODO: Should we be able to approve flight plans which cannot compile? Potentially we need to fix this.
         [HttpPatch("{id}")]
         [Authorize(Policy = Authorization.Policies.RequireOperator)]
@@ -94,6 +120,12 @@ namespace SatOps.Modules.FlightPlan
             return Ok(new { success = true, message });
         }
 
+        /// <summary>
+        /// Assigns an overpass window to a flight plan
+        /// </summary>
+        /// <param name="id">The ID of the flight plan</param>
+        /// <param name="input">The overpass assignment details</param>
+        /// <returns>Success status and message</returns>
         [HttpPost("{id}/overpasses")]
         [Authorize(Policy = Authorization.Policies.RequireOperator)]
         public async Task<ActionResult> AssignOverpass(
@@ -109,6 +141,11 @@ namespace SatOps.Modules.FlightPlan
             return Ok(new { success = true, message });
         }
 
+        /// <summary>
+        /// Compiles a flight plan to CSH commands
+        /// </summary>
+        /// <param name="id">The ID of the flight plan to compile</param>
+        /// <returns>List of compiled CSH command strings</returns>
         [HttpGet("{id}/csh")]
         [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<List<string>>> CompileFlightPlan(int id)
@@ -159,6 +196,11 @@ namespace SatOps.Modules.FlightPlan
             }
         }
 
+        /// <summary>
+        /// Calculates imaging opportunities for a target location
+        /// </summary>
+        /// <param name="request">The imaging timing request parameters</param>
+        /// <returns>Imaging timing response with opportunity windows</returns>
         [HttpGet("imaging-opportunities")]
         [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<ImagingTimingResponseDto>> GetImagingOpportunity([FromQuery] ImagingTimingRequestDto request)

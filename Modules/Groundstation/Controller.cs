@@ -11,6 +11,10 @@ namespace SatOps.Modules.Groundstation
         IGroundStationService service,
         IWebSocketService gatewayService) : ControllerBase
     {
+        /// <summary>
+        /// Retrieves all ground stations
+        /// </summary>
+        /// <returns>A list of all ground stations in the system</returns>
         [HttpGet]
         [Authorize(Policy = Authorization.Policies.RequireViewer)]
         public async Task<ActionResult<List<GroundStationDto>>> List()
@@ -19,6 +23,11 @@ namespace SatOps.Modules.Groundstation
             return Ok(items.Select(MapToDto).ToList());
         }
 
+        /// <summary>
+        /// Retrieves a specific ground station by ID
+        /// </summary>
+        /// <param name="id">The unique identifier of the ground station</param>
+        /// <returns>The ground station details</returns>
         [HttpGet("{id:int}")]
         [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<ActionResult<GroundStationDto>> Get(int id)
@@ -28,6 +37,11 @@ namespace SatOps.Modules.Groundstation
             return Ok(MapToDto(item));
         }
 
+        /// <summary>
+        /// Gets the health status of a ground station
+        /// </summary>
+        /// <param name="id">The unique identifier of the ground station</param>
+        /// <returns>The ground station health status including connection state</returns>
         [HttpGet("{id:int}/health")]
         [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<ActionResult<GroundStationHealthDto>> GetHealth(int id)
@@ -50,6 +64,11 @@ namespace SatOps.Modules.Groundstation
             return Ok(healthDto);
         }
 
+        /// <summary>
+        /// Creates a new ground station
+        /// </summary>
+        /// <param name="input">The ground station creation data including location</param>
+        /// <returns>The newly created ground station with API key</returns>
         [HttpPost]
         [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<ActionResult<GroundStationWithApiKeyDto>> Create([FromBody] GroundStationCreateDto input)
@@ -69,6 +88,12 @@ namespace SatOps.Modules.Groundstation
             return CreatedAtAction(nameof(Get), new { id = created.Id }, responseDto);
         }
 
+        /// <summary>
+        /// Partially updates a ground station
+        /// </summary>
+        /// <param name="id">The unique identifier of the ground station</param>
+        /// <param name="input">The fields to update</param>
+        /// <returns>The updated ground station</returns>
         [HttpPatch("{id:int}")]
         [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<ActionResult<GroundStationDto>> Patch(int id, [FromBody] GroundStationPatchDto input)
@@ -78,6 +103,11 @@ namespace SatOps.Modules.Groundstation
             return Ok(MapToDto(updatedEntity));
         }
 
+        /// <summary>
+        /// Deletes a ground station
+        /// </summary>
+        /// <param name="id">The unique identifier of the ground station to delete</param>
+        /// <returns>No content on success</returns>
         [HttpDelete("{id:int}")]
         [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<IActionResult> Delete(int id)

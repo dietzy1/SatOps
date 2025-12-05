@@ -3,6 +3,7 @@ using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using SatOps.Modules.FlightPlan;
 using SatOps.Modules.FlightPlan.Commands;
+using System.Reflection;
 
 namespace SatOps.Configuration
 {
@@ -12,6 +13,10 @@ namespace SatOps.Configuration
         {
             services.AddSwaggerGen(options =>
             {
+                // Include XML comments for API documentation
+                var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+                options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
+
                 // Public API documentation
                 options.SwaggerDoc("v1", new OpenApiInfo
                 {

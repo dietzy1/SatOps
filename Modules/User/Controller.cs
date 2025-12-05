@@ -8,8 +8,10 @@ namespace SatOps.Modules.User
     [Authorize]
     public class UserController(IUserService userService, ICurrentUserProvider currentUserProvider) : ControllerBase
     {
-
-
+        /// <summary>
+        /// Retrieves all users in the system
+        /// </summary>
+        /// <returns>A list of all users</returns>
         [HttpGet]
         [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers()
@@ -58,6 +60,11 @@ namespace SatOps.Modules.User
             return Ok(userDto);
         }
 
+        /// <summary>
+        /// Retrieves a specific user by ID
+        /// </summary>
+        /// <param name="id">The unique identifier of the user</param>
+        /// <returns>The user details</returns>
         [HttpGet("{id}")]
         [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<ActionResult<UserDto>> GetUser(int id)
@@ -80,6 +87,12 @@ namespace SatOps.Modules.User
             return Ok(userDto);
         }
 
+        /// <summary>
+        /// Updates a user's role
+        /// </summary>
+        /// <param name="id">The unique identifier of the user</param>
+        /// <param name="request">The new role to assign</param>
+        /// <returns>No content on success</returns>
         [HttpPut("{id}/role")]
         [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<IActionResult> UpdateUserRole(int id, [FromBody] UpdateUserRoleRequestDto request)
@@ -94,6 +107,11 @@ namespace SatOps.Modules.User
             return NoContent();
         }
 
+        /// <summary>
+        /// Deletes a user from the system
+        /// </summary>
+        /// <param name="id">The unique identifier of the user to delete</param>
+        /// <returns>No content on success</returns>
         [HttpDelete("{id}")]
         [Authorize(Policy = Authorization.Policies.RequireAdmin)]
         public async Task<IActionResult> DeleteUser(int id)

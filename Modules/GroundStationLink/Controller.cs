@@ -48,6 +48,11 @@ namespace SatOps.Modules.GroundStationLink
             };
         }
 
+        /// <summary>
+        /// Authenticates a ground station and returns an access token
+        /// </summary>
+        /// <param name="request">The ground station credentials</param>
+        /// <returns>An access token for ground station operations</returns>
         [HttpPost("/api/v1/ground-station-link/token")]
         [AllowAnonymous]
         public async Task<ActionResult<TokenResponseDto>> GetStationToken([FromBody] TokenRequestDto request)
@@ -57,6 +62,12 @@ namespace SatOps.Modules.GroundStationLink
             return Ok(new TokenResponseDto { AccessToken = token });
         }
 
+        /// <summary>
+        /// Establishes a WebSocket connection for a ground station
+        /// </summary>
+        /// <remarks>
+        /// The ground station must send a connect message with a valid JWT token after the WebSocket connection is established.
+        /// </remarks>
         [HttpGet("/api/v1/ground-station-link/connect")]
         public async Task HandleConnection()
         {
@@ -142,6 +153,11 @@ namespace SatOps.Modules.GroundStationLink
             }
         }
 
+        /// <summary>
+        /// Receives image data from a ground station
+        /// </summary>
+        /// <param name="dto">The image data including file and metadata</param>
+        /// <returns>Success confirmation</returns>
         [HttpPost("/api/v1/ground-station-link/images")]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(105 * 1024 * 1024)]
