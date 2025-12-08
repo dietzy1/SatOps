@@ -180,7 +180,8 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
                     Mapping = new Dictionary<string, string>
                     {
                         [CommandTypeConstants.TriggerCapture] = "#/components/schemas/TriggerCaptureCommand",
-                        [CommandTypeConstants.TriggerPipeline] = "#/components/schemas/TriggerPipelineCommand"
+                        [CommandTypeConstants.TriggerPipeline] = "#/components/schemas/TriggerPipelineCommand",
+                        [CommandTypeConstants.ConfigureSom] = "#/components/schemas/ConfigureSomCommand"
                     }
                 };
             }
@@ -226,6 +227,13 @@ A comprehensive **ASP.NET Core Web API** for managing satellite operations inclu
                     ["commandType"] = new OpenApiString(CommandTypeConstants.TriggerPipeline),
                     ["executionTime"] = new OpenApiString("2025-10-10T12:05:00Z"),
                     ["mode"] = new OpenApiInteger(1)
+                };
+            }
+            else if (context.Type == typeof(ConfigureSomCommand))
+            {
+                schema.Example = new OpenApiObject
+                {
+                    ["commandType"] = new OpenApiString(CommandTypeConstants.ConfigureSom)
                 };
             }
             else if (context.Type == typeof(CreateFlightPlanDto))
