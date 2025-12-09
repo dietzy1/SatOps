@@ -11,24 +11,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checks out the repository's code onto the virtual machine.
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Sets up the required .NET SDK version.
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+      - name: Start MinIO
+        run: |
+          docker run -d \
+            -p 9000:9000 \
+            -p 9001:9001 \
+            -e MINIO_ROOT_USER=minioadmin \
+            -e MINIO_ROOT_PASSWORD=minioadmin \
+            minio/minio:latest \
+            server /data --console-address ":9001"
 
-      # Restores all the NuGet packages for solution.
       - name: Restore dependencies
         run: dotnet restore SatOps.sln
 
-      # Builds the entire solution in 'Release' mode.
       - name: Build
         run: dotnet build SatOps.sln --configuration Release --no-restore
 
-      # Runs all the tests found in solution.
       - name: Test
         run: dotnet test SatOps.sln --configuration Release --no-build --verbosity normal
+        env:
+          MinIO__Endpoint: localhost:9000
+          MinIO__AccessKey: minioadmin
+          MinIO__SecretKey: minioadmin
+          MinIO__BucketName: satops-data
+          MinIO__Secure: false
