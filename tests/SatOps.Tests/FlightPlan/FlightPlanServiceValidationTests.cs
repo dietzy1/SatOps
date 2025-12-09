@@ -10,6 +10,7 @@ using SatOps.Modules.Overpass;
 using SatOps.Modules.FlightPlan.Commands;
 using Microsoft.Extensions.Options;
 using SatOps.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace SatOps.Tests.FlightPlan
 {
@@ -29,6 +30,7 @@ namespace SatOps.Tests.FlightPlan
             var mockOverpassService = new Mock<IOverpassService>();
             var mockImagingCalculation = new Mock<IImagingCalculation>();
             _mockCurrentUserProvider = new Mock<ICurrentUserProvider>();
+            var mockLogger = new Mock<ILogger<FlightPlanService>>();
 
             var mockImagingOptions = new Mock<IOptions<ImagingCalculationOptions>>();
             mockImagingOptions.Setup(o => o.Value).Returns(new ImagingCalculationOptions());
@@ -40,7 +42,8 @@ namespace SatOps.Tests.FlightPlan
                 mockOverpassService.Object,
                 mockImagingCalculation.Object,
                 _mockCurrentUserProvider.Object,
-                mockImagingOptions.Object
+                mockImagingOptions.Object,
+                mockLogger.Object
             );
 
             _mockCurrentUserProvider.Setup(p => p.GetUserId()).Returns(1);

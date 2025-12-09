@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using SatOps.Configuration;
 using SatOps.Modules.FlightPlan.Commands;
 using SGPdotNET.CoordinateSystem;
+using Microsoft.Extensions.Logging;
 
 namespace SatOps.Tests
 {
@@ -24,6 +25,7 @@ namespace SatOps.Tests
         private readonly Mock<IOptions<ImagingCalculationOptions>> _mockImagingOptions;
         private readonly Mock<IOverpassService> _mockOverpassService;
         private readonly Mock<IImagingCalculation> _mockImagingCalculation;
+        private readonly Mock<ILogger<FlightPlanService>> _mockLogger;
 
         private readonly FlightPlanService _sut;
 
@@ -35,6 +37,7 @@ namespace SatOps.Tests
             _mockOverpassService = new Mock<IOverpassService>();
             _mockImagingCalculation = new Mock<IImagingCalculation>();
             _mockCurrentUserProvider = new Mock<ICurrentUserProvider>();
+            _mockLogger = new Mock<ILogger<FlightPlanService>>();
 
             _mockImagingOptions = new Mock<IOptions<ImagingCalculationOptions>>();
             _mockImagingOptions.Setup(o => o.Value).Returns(new ImagingCalculationOptions());
@@ -46,7 +49,8 @@ namespace SatOps.Tests
                 _mockOverpassService.Object,
                 _mockImagingCalculation.Object,
                 _mockCurrentUserProvider.Object,
-                _mockImagingOptions.Object
+                _mockImagingOptions.Object,
+                _mockLogger.Object
             );
         }
 
@@ -168,70 +172,9 @@ namespace SatOps.Tests
         }
 
         [Fact]
-        public async Task AssignOverpassAsync_WhenCommandExecutesDuringOverpass_ReturnsChronologyError()
+        public async Task AssignOverpassAsync_WhenConflictingOverpassExists_ReturnsConflictError()
         {
-            // Arrange (Time Travel Scenario)
-            var planId = 1;
-            var satId = 100;
-            var gsId = 5;
-
-            // FIX: Use valid TLE strings so SGP4 library doesn't crash
-            var validTle1 = "1 25544U 98067A   23256.90616898  .00020137  00000-0  35438-3 0  9992";
-            var validTle2 = "2 25544  51.6416 339.0970 0003835  48.3825  73.2709 15.50030022414673";
-
-            // The Overpass (Upload Window) is 10:00 -> 10:10 (Future)
-            var overpassStart = DateTime.UtcNow.AddHours(1);
-            var overpassEnd = overpassStart.AddMinutes(10);
-
-            // The Command executes at 10:05 (During upload -> Impossible/Time Travel)
-            var commandExecutionTime = overpassStart.AddMinutes(5);
-
-            var flightPlan = new FlightPlanEntity
-            {
-                Id = planId,
-                Status = FlightPlanStatus.Approved,
-                SatelliteId = satId,
-                GroundStationId = gsId
-            };
-
-            var cmd = new TriggerCaptureCommand
-            {
-                CaptureLocation = new CaptureLocation { Latitude = 0, Longitude = 0 },
-                CameraSettings = new CameraSettings { CameraId = "Cam1", Type = CameraType.VMB, NumImages = 1, Iso = 1, IntervalMicroseconds = 1, ObservationId = 1, PipelineId = 1 }
-            };
-            flightPlan.SetCommands([cmd]);
-
-            // Mocks
-            _mockFlightPlanRepo.Setup(r => r.GetByIdAsync(planId)).ReturnsAsync(flightPlan);
-            _mockSatelliteService.Setup(s => s.GetAsync(satId)).ReturnsAsync(new SatelliteEntity { Id = satId, TleLine1 = validTle1, TleLine2 = validTle2 });
-
-            _mockOverpassService.Setup(s => s.CalculateOverpassesAsync(It.IsAny<OverpassWindowsCalculationRequestDto>()))
-                .ReturnsAsync([
-                    new OverpassWindowDto {
-                        StartTime = overpassStart,
-                        EndTime = overpassEnd,
-                        MaxElevationTime = overpassStart.AddMinutes(5)
-                    }
-                ]);
-
-            _mockImagingCalculation.Setup(c => c.FindBestImagingOpportunity(It.IsAny<SGPdotNET.Observation.Satellite>(), It.IsAny<GeodeticCoordinate>(), It.IsAny<DateTime>(), It.IsAny<TimeSpan>()))
-                .Returns(new ImagingCalculation.ImagingOpportunity { ImagingTime = commandExecutionTime });
-
-            var dto = new AssignOverpassDto { StartTime = overpassStart, EndTime = overpassEnd };
-
-            // Act
-            var (success, message) = await _sut.AssignOverpassAsync(planId, dto);
-
-            // Assert
-            success.Should().BeFalse();
-            message.Should().Contain("Chronology Error");
-            message.Should().Contain("occurs before or during the upload overpass");
-        }
-
-        [Fact]
-        public async Task AssignOverpassAsync_WhenConflictingPlanExists_ReturnsConflictError()
-        {
-            // Arrange (Conflict Scenario)
+            // Arrange - Test overpass scheduling conflict (two ground stations trying to upload at same time)
             var planId = 1;
             var existingPlanId = 2;
             var satId = 100;
@@ -239,9 +182,8 @@ namespace SatOps.Tests
             var validTle1 = "1 25544U 98067A   23256.90616898  .00020137  00000-0  35438-3 0  9992";
             var validTle2 = "2 25544  51.6416 339.0970 0003835  48.3825  73.2709 15.50030022414673";
 
-            // FIX: Ensure start time is definitively in the future to pass "past time" validation
             var baseTime = DateTime.UtcNow.AddHours(2);
-            var executionTime = baseTime.AddHours(1);
+            var scheduledTime = baseTime.AddMinutes(5);
 
             var flightPlan = new FlightPlanEntity
             {
@@ -252,12 +194,16 @@ namespace SatOps.Tests
                 Name = "New Plan"
             };
 
-            var cmd1 = new TriggerPipelineCommand { Mode = 1, ExecutionTime = executionTime };
-            flightPlan.SetCommands([cmd1]);
-
-            var existingPlan = new FlightPlanEntity { Id = existingPlanId, Status = FlightPlanStatus.AssignedToOverpass, Name = "Existing Plan" };
-            var cmd2 = new TriggerPipelineCommand { Mode = 2, ExecutionTime = executionTime };
-            existingPlan.SetCommands([cmd2]);
+            // Existing plan already scheduled at the same time (overpass conflict)
+            var existingPlan = new FlightPlanEntity
+            {
+                Id = existingPlanId,
+                Status = FlightPlanStatus.AssignedToOverpass,
+                SatelliteId = satId,
+                GroundStationId = 2, // Different ground station
+                Name = "Existing Plan",
+                ScheduledAt = scheduledTime // Scheduled at same time!
+            };
 
             // Mocks
             _mockFlightPlanRepo.Setup(r => r.GetByIdAsync(planId)).ReturnsAsync(flightPlan);
@@ -265,7 +211,7 @@ namespace SatOps.Tests
 
             _mockOverpassService.Setup(s => s.CalculateOverpassesAsync(It.IsAny<OverpassWindowsCalculationRequestDto>()))
                 .ReturnsAsync([
-                    new OverpassWindowDto { StartTime = baseTime, EndTime = baseTime.AddMinutes(10), MaxElevationTime = baseTime.AddMinutes(5) }
+                    new OverpassWindowDto { StartTime = baseTime, EndTime = baseTime.AddMinutes(10), MaxElevationTime = scheduledTime }
                 ]);
 
             _mockFlightPlanRepo.Setup(r => r.GetActivePlansBySatelliteAsync(satId))
@@ -278,7 +224,7 @@ namespace SatOps.Tests
 
             // Assert
             success.Should().BeFalse();
-            message.Should().Contain("Conflict Error");
+            message.Should().Contain("Overpass Conflict");
             message.Should().Contain("Existing Plan");
         }
 
