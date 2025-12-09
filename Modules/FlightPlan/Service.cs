@@ -31,7 +31,8 @@ namespace SatOps.Modules.FlightPlan
         IOverpassService overpassService,
         IImagingCalculation imagingCalculation,
         ICurrentUserProvider currentUserProvider,
-        IOptions<ImagingCalculationOptions> imagingOptions
+        IOptions<ImagingCalculationOptions> imagingOptions,
+        ILogger<FlightPlanService> logger
     ) : IFlightPlanService
     {
         public Task<List<FlightPlan>> ListAsync() => repository.GetAllAsync();
@@ -208,51 +209,31 @@ namespace SatOps.Modules.FlightPlan
                 if (selectedOverpass == null)
                     return (false, $"No overpass found within {matchToleranceMinutes}-minute tolerance.");
 
-                var currentPlanCommands = flightPlan.GetCommands();
-
-                await currentPlanCommands.CalculateExecutionTimesAsync(satellite, imagingCalculation, imagingOptions.Value);
-
-                flightPlan.SetCommands(currentPlanCommands);
-
-                foreach (var cmd in currentPlanCommands)
-                {
-                    if (cmd.ExecutionTime.HasValue)
-                    {
-                        if (cmd.ExecutionTime.Value <= selectedOverpass.EndTime)
-                        {
-                            return (false, $"Chronology Error: Command '{cmd.CommandType}' scheduled for {cmd.ExecutionTime.Value:O} occurs before or during the upload overpass (Ends: {selectedOverpass.EndTime:O}). Time travel is not supported.");
-                        }
-                    }
-                }
-
+                // Check for overpass conflicts: prevent two ground stations from uploading to the same satellite
+                // at overlapping times. This prevents race conditions where nearby ground stations could
+                // both attempt to communicate with the satellite simultaneously.
+                var overpassConflictMargin = TimeSpan.FromMinutes(5);
                 var activePlans = await repository.GetActivePlansBySatelliteAsync(flightPlan.SatelliteId);
-
-                var conflictMargin = TimeSpan.FromMinutes(2);
 
                 foreach (var activePlan in activePlans)
                 {
                     if (activePlan.Id == flightPlan.Id) continue;
+                    if (!activePlan.ScheduledAt.HasValue) continue;
 
-                    var activeCommands = activePlan.GetCommands();
+                    // Check if the scheduled transmission times overlap (with margin)
+                    var timeDiff = Math.Abs((selectedOverpass.MaxElevationTime - activePlan.ScheduledAt.Value).TotalSeconds);
 
-                    foreach (var newCmd in currentPlanCommands)
+                    if (timeDiff < overpassConflictMargin.TotalSeconds)
                     {
-                        if (!newCmd.ExecutionTime.HasValue) continue;
-
-                        foreach (var existingCmd in activeCommands)
-                        {
-                            if (!existingCmd.ExecutionTime.HasValue) continue;
-
-                            var timeDiff = Math.Abs((newCmd.ExecutionTime.Value - existingCmd.ExecutionTime.Value).TotalSeconds);
-
-                            if (timeDiff < conflictMargin.TotalSeconds)
-                            {
-                                return (false, $"Conflict Error: This plan conflicts with active Flight Plan #{activePlan.Id} ('{activePlan.Name}'). " +
-                                               $"Command execution times overlap at {newCmd.ExecutionTime.Value:O} (Margin: {conflictMargin.TotalMinutes} min).");
-                            }
-                        }
+                        return (false, $"Overpass Conflict: This overpass conflicts with Flight Plan #{activePlan.Id} ('{activePlan.Name}'). " +
+                                       $"Scheduled transmission times overlap at {selectedOverpass.MaxElevationTime:O} vs {activePlan.ScheduledAt.Value:O} " +
+                                       $"(Margin: {overpassConflictMargin.TotalMinutes} min). Choose a different overpass window.");
                     }
                 }
+
+                // Note: Execution time calculation and conflict checking for command overlap is deferred
+                // to transmission time in CompileFlightPlanToCshAsync. This avoids duplicate calculations
+                // and ensures we use the most up-to-date TLE data when the plan is actually transmitted.
 
                 var (success, overpassEntity, message) = await overpassService.FindOrCreateOverpassForFlightPlanAsync(
                     selectedOverpass,
@@ -289,6 +270,8 @@ namespace SatOps.Modules.FlightPlan
 
         public async Task<List<string>> CompileFlightPlanToCshAsync(int flightPlanId)
         {
+            logger.LogInformation("Compiling flight plan {FlightPlanId} to CSH", flightPlanId);
+
             var flightPlan = await repository.GetByIdAsync(flightPlanId);
             if (flightPlan == null) throw new ArgumentException($"Flight plan with ID {flightPlanId} not found.");
 
@@ -299,16 +282,54 @@ namespace SatOps.Modules.FlightPlan
             var (isValid, errors) = commands.ValidateAll();
             if (!isValid) throw new InvalidOperationException($"Cannot compile invalid flight plan. Errors: {string.Join("; ", errors)}");
 
+            // Collect blocked times from transmitted flight plans for this satellite.
+            // Only transmitted plans have finalized execution times - plans still in
+            // AssignedToOverpass status will calculate their own times when transmitted.
+            var conflictMargin = TimeSpan.FromMinutes(2);
+            var blockedTimes = new List<DateTime>();
+            var transmittedPlans = await repository.GetTransmittedPlansBySatelliteAsync(flightPlan.SatelliteId);
+
+            logger.LogDebug("Found {TransmittedPlanCount} transmitted flight plans for satellite {SatelliteId}",
+                transmittedPlans.Count, flightPlan.SatelliteId);
+
+            foreach (var transmittedPlan in transmittedPlans)
+            {
+                var transmittedCommands = transmittedPlan.GetCommands();
+                foreach (var cmd in transmittedCommands)
+                {
+                    if (cmd.ExecutionTime.HasValue)
+                    {
+                        blockedTimes.Add(cmd.ExecutionTime.Value);
+                        logger.LogDebug("Blocked time from transmitted flight plan {PlanId}: {Time:O}",
+                            transmittedPlan.Id, cmd.ExecutionTime.Value);
+                    }
+                }
+            }
+
+            logger.LogInformation("Calculating execution times for {CommandCount} commands with {BlockedCount} blocked time slots",
+                commands.Count, blockedTimes.Count);
+
             try
             {
-                await commands.CalculateExecutionTimesAsync(satellite, imagingCalculation, imagingOptions.Value);
+                await commands.CalculateExecutionTimesAsync(
+                    satellite,
+                    imagingCalculation,
+                    imagingOptions.Value,
+                    blockedTimes,
+                    conflictMargin,
+                    logger);
             }
             catch (InvalidOperationException ex)
             {
+                logger.LogError(ex, "Failed to calculate execution times for flight plan {FlightPlanId}", flightPlanId);
                 throw new InvalidOperationException($"Failed to calculate execution times: {ex.Message}", ex);
             }
 
-            return await commands.CompileAllToCsh();
+            var cshCommands = await commands.CompileAllToCsh();
+            logger.LogInformation("Successfully compiled flight plan {FlightPlanId} to {CshCommandCount} CSH commands",
+                flightPlanId, cshCommands.Count);
+
+            return cshCommands;
         }
 
         public async Task<ImagingTimingResponseDto> GetImagingOpportunity(int satelliteId, double targetLatitude, double targetLongitude, DateTime? commandReceptionTime = null)
