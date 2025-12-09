@@ -56,7 +56,13 @@ namespace SatOps.Modules.FlightPlan
             catch (ArgumentException ex)
             {
                 logger.LogWarning(ex, "Invalid flight plan JSON: {Message}", ex.Message);
-                return BadRequest(new { detail = ex.Message });
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Flight Plan",
+                    Detail = ex.Message,
+                    Status = StatusCodes.Status400BadRequest,
+                    Instance = HttpContext.Request.Path
+                });
             }
         }
 
@@ -77,10 +83,12 @@ namespace SatOps.Modules.FlightPlan
                 var newVersion = await service.CreateNewVersionAsync(id, input);
                 if (newVersion == null)
                 {
-                    return BadRequest(new
+                    return BadRequest(new ProblemDetails
                     {
-                        detail = "Could not update the flight plan. " +
-                                "It may not be in an updateable state."
+                        Title = "Update Failed",
+                        Detail = "Could not update the flight plan. It may not be in an updateable state.",
+                        Status = StatusCodes.Status400BadRequest,
+                        Instance = HttpContext.Request.Path
                     });
                 }
                 return Ok(newVersion.ToDto());
@@ -88,7 +96,13 @@ namespace SatOps.Modules.FlightPlan
             catch (ArgumentException ex)
             {
                 logger.LogWarning(ex, "Invalid flight plan update: {Message}", ex.Message);
-                return BadRequest(new { detail = ex.Message });
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Flight Plan Update",
+                    Detail = ex.Message,
+                    Status = StatusCodes.Status400BadRequest,
+                    Instance = HttpContext.Request.Path
+                });
             }
         }
 
@@ -105,16 +119,25 @@ namespace SatOps.Modules.FlightPlan
         {
             if (input.Status != "APPROVED" && input.Status != "REJECTED")
             {
-                return BadRequest(new
+                return BadRequest(new ProblemDetails
                 {
-                    detail = "Invalid status. Must be APPROVED or REJECTED"
+                    Title = "Invalid Status",
+                    Detail = "Invalid status. Must be APPROVED or REJECTED",
+                    Status = StatusCodes.Status400BadRequest,
+                    Instance = HttpContext.Request.Path
                 });
             }
 
             var (success, message) = await service.ApproveOrRejectAsync(id, input.Status);
             if (!success)
             {
-                return Conflict(new { detail = message });
+                return Conflict(new ProblemDetails
+                {
+                    Title = "Approval Conflict",
+                    Detail = message,
+                    Status = StatusCodes.Status409Conflict,
+                    Instance = HttpContext.Request.Path
+                });
             }
 
             return Ok(new { success = true, message });
@@ -135,7 +158,13 @@ namespace SatOps.Modules.FlightPlan
             var (success, message) = await service.AssignOverpassAsync(id, input);
             if (!success)
             {
-                return Conflict(new { detail = message });
+                return Conflict(new ProblemDetails
+                {
+                    Title = "Assignment Conflict",
+                    Detail = message,
+                    Status = StatusCodes.Status409Conflict,
+                    Instance = HttpContext.Request.Path
+                });
             }
 
             return Ok(new { success = true, message });
@@ -161,7 +190,13 @@ namespace SatOps.Modules.FlightPlan
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(new { detail = ex.Message });
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Compilation Failed",
+                    Detail = ex.Message,
+                    Status = StatusCodes.Status400BadRequest,
+                    Instance = HttpContext.Request.Path
+                });
             }
         }
 

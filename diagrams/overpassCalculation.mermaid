@@ -1,0 +1,65 @@
+sequenceDiagram
+    participant Client
+    participant CalculateOverpasses
+    participant Repository
+    participant SatelliteService
+    participant GroundStationService
+    participant SGPdotNET
+    participant MergeAndEnrich
+
+    Client->>CalculateOverpasses: CalculateOverpassesAsync(request)
+    
+    Note over CalculateOverpasses: Check for stored overpasses
+    CalculateOverpasses->>Repository: FindStoredOverpassesInTimeRange()
+    Repository-->>CalculateOverpasses: storedOverpasses
+    
+    Note over CalculateOverpasses: Fetch satellite data
+    CalculateOverpasses->>SatelliteService: GetAsync(satelliteId)
+    SatelliteService-->>CalculateOverpasses: satellite (with TLE data)
+    
+    Note over CalculateOverpasses: Fetch ground station data
+    CalculateOverpasses->>GroundStationService: GetAsync(groundStationId)
+    GroundStationService-->>CalculateOverpasses: groundStation (with location)
+    
+    Note over CalculateOverpasses: Initialize SGP4 propagator
+    CalculateOverpasses->>SGPdotNET: new Tle(name, line1, line2)
+    SGPdotNET-->>CalculateOverpasses: tle
+    CalculateOverpasses->>SGPdotNET: new Satellite(tle)
+    SGPdotNET-->>CalculateOverpasses: sat
+    CalculateOverpasses->>SGPdotNET: new GroundStation(location)
+    SGPdotNET-->>CalculateOverpasses: groundStation
+    
+    Note over CalculateOverpasses: Time-stepping loop
+    loop For each time step (1 minute)
+        CalculateOverpasses->>SGPdotNET: groundStation.Observe(sat, currentTime)
+        SGPdotNET-->>CalculateOverpasses: observation (elevation, azimuth)
+        
+        alt Elevation >= MinimumElevation && not in overpass
+            Note over CalculateOverpasses: Start new overpass<br/>Record start time, azimuth<br/>Track max elevation
+        else Elevation >= MinimumElevation && in overpass
+            Note over CalculateOverpasses: Continue overpass<br/>Update max elevation if higher
+        else Elevation < MinimumElevation && in overpass
+            Note over CalculateOverpasses: End overpass<br/>Calculate duration<br/>Check minimum duration filter
+            alt Duration meets minimum
+                Note over CalculateOverpasses: Add to overpassWindows list
+            end
+            alt MaxResults reached
+                Note over CalculateOverpasses: Break loop
+            end
+        end
+    end
+    
+    Note over CalculateOverpasses: Merge calculated with stored data
+    CalculateOverpasses->>MergeAndEnrich: MergeAndEnrichOverpasses(calculated, stored)
+    
+    loop For each calculated overpass
+        MergeAndEnrich->>MergeAndEnrich: Find matching stored overpass<br/>(tolerance: 10 minutes)
+        alt Match found
+            MergeAndEnrich->>Repository: GetAssociatedFlightPlanAsync(overpassId)
+            Repository-->>MergeAndEnrich: flightPlan
+            Note over MergeAndEnrich: Enrich with flight plan details
+        end
+    end
+    
+    MergeAndEnrich-->>CalculateOverpasses: mergedOverpasses (sorted by start time)
+    CalculateOverpasses-->>Client: List<OverpassWindowDto>
