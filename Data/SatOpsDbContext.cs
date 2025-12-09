@@ -171,7 +171,6 @@ namespace SatOps.Data
                 entity.Property(e => e.ReceivedAt).HasDefaultValueSql("timezone('utc', now())");
                 entity.Property(e => e.Latitude).HasPrecision(9, 6);
                 entity.Property(e => e.Longitude).HasPrecision(9, 6);
-                entity.Property(e => e.Metadata).HasColumnType("jsonb");
 
                 // --- Relationships ---
                 // Images are dependent data. Cascade deletes are appropriate.

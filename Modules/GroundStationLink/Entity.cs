@@ -26,8 +26,5 @@ namespace SatOps.Modules.GroundStationLink
         public DateTime ReceivedAt { get; set; }
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
-        public int? ImageWidth { get; set; }
-        public int? ImageHeight { get; set; }
-        public string? Metadata { get; set; }
     }
 }
