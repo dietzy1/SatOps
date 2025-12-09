@@ -61,15 +61,33 @@ namespace SatOps.Modules.Overpass
             }
             catch (ArgumentException ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid Request",
+                    Detail = ex.Message,
+                    Status = StatusCodes.Status400BadRequest,
+                    Instance = HttpContext.Request.Path
+                });
             }
             catch (InvalidOperationException ex)
             {
-                return StatusCode(500, ex.Message);
+                return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+                {
+                    Title = "Internal Server Error",
+                    Detail = ex.Message,
+                    Status = StatusCodes.Status500InternalServerError,
+                    Instance = HttpContext.Request.Path
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"An unexpected error occurred: {ex.Message}");
+                return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+                {
+                    Title = "Unexpected Error",
+                    Detail = $"An unexpected error occurred: {ex.Message}",
+                    Status = StatusCodes.Status500InternalServerError,
+                    Instance = HttpContext.Request.Path
+                });
             }
         }
     }

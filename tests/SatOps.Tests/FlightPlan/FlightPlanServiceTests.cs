@@ -248,6 +248,7 @@ namespace SatOps.Tests
                 Id = planId,
                 Status = FlightPlanStatus.Approved,
                 SatelliteId = satId,
+                GroundStationId = 1,
                 Name = "New Plan"
             };
 

@@ -21,7 +21,7 @@ namespace SatOps.Modules.FlightPlan
         public string Name { get; set; } = string.Empty;
 
         // --- Foreign Key Properties ---
-        public int GroundStationId { get; set; }
+        public int? GroundStationId { get; set; }
         public int SatelliteId { get; set; }
         public int? PreviousPlanId { get; set; }
         public int CreatedById { get; set; }
@@ -29,7 +29,7 @@ namespace SatOps.Modules.FlightPlan
 
         // --- Navigation Properties ---
         [ForeignKey(nameof(GroundStationId))]
-        public virtual Groundstation.GroundStation GroundStation { get; set; } = null!;
+        public virtual Groundstation.GroundStation? GroundStation { get; set; }
 
         [ForeignKey(nameof(SatelliteId))]
         public virtual Satellite.Satellite Satellite { get; set; } = null!;

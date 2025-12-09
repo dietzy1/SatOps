@@ -4,21 +4,30 @@ classDiagram
         +string CommandType*
         +DateTime? ExecutionTime
         +bool RequiresExecutionTimeCalculation
-        +Validate() IEnumerable~ValidationResult~
+        +Validate() IEnumerable~ValidationResult~*
         +CompileToCsh()* Task~List~string~~
     }
 
     class TriggerCaptureCommand {
         +CommandType = "TRIGGER_CAPTURE"
         +RequiresExecutionTimeCalculation = true
+        -int CameraControllerNode = 5422
         +CaptureLocation? CaptureLocation
         +CameraSettings? CameraSettings
+        +Validate() IEnumerable~ValidationResult~
         +CompileToCsh() Task~List~string~~
     }
 
     class TriggerPipelineCommand {
         +CommandType = "TRIGGER_PIPELINE"
+        -int DippNode = 5423
         +int? Mode
+        +CompileToCsh() Task~List~string~~
+    }
+
+    class ConfigureSOMCommand {
+        +CommandType = "CONFIGURE_SOM"
+        -int AppSysNode = 5421
         +CompileToCsh() Task~List~string~~
     }
 
@@ -40,13 +49,14 @@ classDiagram
 
     class CameraType {
         <<enumeration>>
-        VMB
-        IR
-        Test
+        VMB = 0
+        IR = 1
+        Test = 2
     }
 
     Command <|-- TriggerCaptureCommand : inherits
     Command <|-- TriggerPipelineCommand : inherits
+    Command <|-- ConfigureSOMCommand : inherits
     TriggerCaptureCommand --> CaptureLocation : uses
     TriggerCaptureCommand --> CameraSettings : uses
     CameraSettings --> CameraType : uses

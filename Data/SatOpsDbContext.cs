@@ -108,7 +108,7 @@ namespace SatOps.Data
                 entity.HasOne(fp => fp.GroundStation)
                     .WithMany(gs => gs.FlightPlans)
                     .HasForeignKey(fp => fp.GroundStationId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                    .OnDelete(DeleteBehavior.SetNull);
 
                 entity.HasOne(fp => fp.Satellite)
                     .WithMany(s => s.FlightPlans)

@@ -159,6 +159,11 @@ namespace SatOps.Modules.FlightPlan
                     return (false, $"Flight plan must be in APPROVED status to assign an overpass. Current: {flightPlan.Status}");
                 }
 
+                if (!flightPlan.GroundStationId.HasValue)
+                {
+                    return (false, "Flight plan has no assigned ground station.");
+                }
+
                 var satellite = await satelliteService.GetAsync(flightPlan.SatelliteId);
                 if (satellite == null) return (false, "Associated satellite not found.");
 
@@ -169,7 +174,7 @@ namespace SatOps.Modules.FlightPlan
                 var availableOverpasses = await overpassService.CalculateOverpassesAsync(new OverpassWindowsCalculationRequestDto
                 {
                     SatelliteId = flightPlan.SatelliteId,
-                    GroundStationId = flightPlan.GroundStationId,
+                    GroundStationId = flightPlan.GroundStationId.Value,
                     StartTime = expandedStartTime,
                     EndTime = expandedEndTime,
                 });
