@@ -6,7 +6,7 @@ namespace SatOps.Modules.FlightPlan
     {
         public int Id { get; set; }
         public int? PreviousPlanId { get; set; }
-        public int GsId { get; set; }
+        public int? GsId { get; set; }
         public int SatId { get; set; }
         public int? OverpassId { get; set; }
 

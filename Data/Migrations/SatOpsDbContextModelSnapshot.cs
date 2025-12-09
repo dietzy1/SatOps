@@ -52,7 +52,7 @@ namespace SatOps.data.migrations
                     b.Property<string>("FailureReason")
                         .HasColumnType("text");
 
-                    b.Property<int>("GroundStationId")
+                    b.Property<int?>("GroundStationId")
                         .HasColumnType("integer");
 
                     b.Property<string>("Name")
@@ -207,10 +207,10 @@ namespace SatOps.data.migrations
                         {
                             Id = 1,
                             ApiKeyHash = "",
-                            ApplicationId = new Guid("eecf3fa7-de5b-41e0-83ac-ce6d14cd9b86"),
-                            CreatedAt = new DateTime(2025, 11, 12, 20, 16, 41, 276, DateTimeKind.Utc).AddTicks(5207),
+                            ApplicationId = new Guid("c4bd6c61-8e11-43cf-868a-fdd0a4be81b2"),
+                            CreatedAt = new DateTime(2025, 12, 9, 14, 19, 32, 968, DateTimeKind.Utc).AddTicks(9380),
                             Name = "Aarhus",
-                            UpdatedAt = new DateTime(2025, 11, 12, 20, 16, 41, 276, DateTimeKind.Utc).AddTicks(5208)
+                            UpdatedAt = new DateTime(2025, 12, 9, 14, 19, 32, 968, DateTimeKind.Utc).AddTicks(9380)
                         });
                 });
 
@@ -322,8 +322,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 11, 12, 20, 16, 41, 276, DateTimeKind.Utc).AddTicks(5387),
-                            LastUpdate = new DateTime(2025, 11, 12, 20, 16, 41, 276, DateTimeKind.Utc).AddTicks(5388),
+                            CreatedAt = new DateTime(2025, 12, 9, 14, 19, 32, 968, DateTimeKind.Utc).AddTicks(9710),
+                            LastUpdate = new DateTime(2025, 12, 9, 14, 19, 32, 968, DateTimeKind.Utc).AddTicks(9710),
                             Name = "International Space Station (ISS)",
                             NoradId = 25544,
                             Status = 0,
@@ -333,8 +333,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 11, 12, 20, 16, 41, 276, DateTimeKind.Utc).AddTicks(5391),
-                            LastUpdate = new DateTime(2025, 11, 12, 20, 16, 41, 276, DateTimeKind.Utc).AddTicks(5391),
+                            CreatedAt = new DateTime(2025, 12, 9, 14, 19, 32, 968, DateTimeKind.Utc).AddTicks(9710),
+                            LastUpdate = new DateTime(2025, 12, 9, 14, 19, 32, 968, DateTimeKind.Utc).AddTicks(9710),
                             Name = "SENTINEL-2C",
                             NoradId = 60989,
                             Status = 0,
@@ -404,8 +404,7 @@ namespace SatOps.data.migrations
                     b.HasOne("SatOps.Modules.Groundstation.GroundStation", "GroundStation")
                         .WithMany("FlightPlans")
                         .HasForeignKey("GroundStationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("SatOps.Modules.FlightPlan.FlightPlan", "PreviousPlan")
                         .WithMany()
