@@ -12,6 +12,7 @@ namespace SatOps.Modules.FlightPlan
         Task UpdateAsync(FlightPlan entity);
         Task<List<FlightPlan>> GetPlansReadyForTransmissionAsync(DateTime horizon);
         Task<List<FlightPlan>> GetActivePlansBySatelliteAsync(int satelliteId);
+        Task<List<FlightPlan>> GetTransmittedPlansBySatelliteAsync(int satelliteId);
     }
 
     public class FlightPlanRepository(SatOpsDbContext dbContext) : IFlightPlanRepository
@@ -65,6 +66,20 @@ namespace SatOps.Modules.FlightPlan
                 .Where(fp => fp.SatelliteId == satelliteId &&
                              (fp.Status == FlightPlanStatus.AssignedToOverpass ||
                               fp.Status == FlightPlanStatus.Transmitted))
+                .ToListAsync();
+        }
+
+        /// <summary>
+        /// Gets only transmitted flight plans for a satellite.
+        /// Used for execution time conflict checking - only transmitted plans have
+        /// finalized execution times that must be avoided.
+        /// </summary>
+        public Task<List<FlightPlan>> GetTransmittedPlansBySatelliteAsync(int satelliteId)
+        {
+            return dbContext.FlightPlans
+                .AsNoTracking()
+                .Where(fp => fp.SatelliteId == satelliteId &&
+                             fp.Status == FlightPlanStatus.Transmitted)
                 .ToListAsync();
         }
     }

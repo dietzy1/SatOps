@@ -4,7 +4,7 @@ import { Trend, Rate } from 'k6/metrics';
 
 // --- Configuration ---
 // PASTE VALID JWT HERE
-const AUTH_TOKEN = 'TOKEN_HERE_YES_VERY_NICE_TOKEN_HERE_YES_VERY_NICE_TOKEN_HERE_YES_VERY_NICE_TOKEN_HERE_YES_VERY_NICE_TOKEN_HERE_YES_VERY_NICE_'; 
+const AUTH_TOKEN = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IlljcXZJZm9rQ2ZlZWMzVFpxTEdQOSJ9.eyJpc3MiOiJodHRwczovL2Rldi03Nmd2djhpMHp1N2NxYzNkLnVzLmF1dGgwLmNvbS8iLCJzdWIiOiJnb29nbGUtb2F1dGgyfDExMTY3MDc4ODY1NjA5MjY1MzYzNSIsImF1ZCI6WyJodHRwOi8vbG9jYWxob3N0OjUxMTEiLCJodHRwczovL2Rldi03Nmd2djhpMHp1N2NxYzNkLnVzLmF1dGgwLmNvbS91c2VyaW5mbyJdLCJpYXQiOjE3NjUzMTU3NDMsImV4cCI6MTc2NTQwMjE0Mywic2NvcGUiOiJvcGVuaWQgcHJvZmlsZSBlbWFpbCIsImF6cCI6ImRzNXB5ZE5OcjFrQlJaM3N5eHJLS1FIdkRqN09GYkJRIn0.flBJT2RLhsQAB27-K0Fooa2pI3WXgSrqb3IbN_Nz_ymyoWOKavGHJqFxpLeT6g3ezZVmaZBtgoNedrMQIu27v8Mbq7rYv54g0D4zkxjmW7sa8Jk9Rh2EgkG6LS_EhXmqRIisfxCmosbgF7-e6JR6GJa96I26dH5KXd68983-bB10tE8reEk6SVAQRNs45O-ncE3zzmM496u9SsHMxf8A-8paJhC7ItrFnIOKUXPqFVABQIzs42zrCkARS3MTZ43l05DGenaM_1wy77Qaf5uUkWnJq9l3EUEAwiVedpqTK9S43hgpuzPOeF7-x5kzOSf2f9mIAtmdzRtJ-fumf_zHwg'; 
 
 const BASE_URL = 'http://localhost:5111';
 const SATELLITE_ID = 2;
@@ -35,7 +35,17 @@ export const options = {
 // --- Test Logic ---
 // This is the main function that each virtual user will execute repeatedly.
 export default function () {
-  const url = `${BASE_URL}/api/v1/overpasses/satellite/${SATELLITE_ID}/groundstation/${GROUND_STATION_ID}`;
+  // Calculate 7-day window from current moment
+  const startTime = new Date();
+  const endTime = new Date(startTime);
+  endTime.setDate(endTime.getDate() + 7); // Add 7 days
+  
+  // Format as ISO 8601 strings
+  const startTimeStr = startTime.toISOString();
+  const endTimeStr = endTime.toISOString();
+  
+  // Build URL with query parameters
+  const url = `${BASE_URL}/api/v1/overpasses/satellite/${SATELLITE_ID}/groundstation/${GROUND_STATION_ID}?startTime=${encodeURIComponent(startTimeStr)}&endTime=${encodeURIComponent(endTimeStr)}`;
   
   const params = {
     headers: {
@@ -44,7 +54,6 @@ export default function () {
     },
   };
 
-  // The controller defaults to a 7-day window
   const res = http.get(url, params);
 
   // 1. Check if the request was successful (HTTP 200)

@@ -123,12 +123,6 @@ namespace SatOps.data.migrations
                     b.Property<int>("GroundStationId")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("ImageHeight")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("ImageWidth")
-                        .HasColumnType("integer");
-
                     b.Property<double?>("Latitude")
                         .HasPrecision(9, 6)
                         .HasColumnType("double precision");
@@ -136,9 +130,6 @@ namespace SatOps.data.migrations
                     b.Property<double?>("Longitude")
                         .HasPrecision(9, 6)
                         .HasColumnType("double precision");
-
-                    b.Property<string>("Metadata")
-                        .HasColumnType("jsonb");
 
                     b.Property<DateTime>("ReceivedAt")
                         .ValueGeneratedOnAdd()
@@ -207,10 +198,10 @@ namespace SatOps.data.migrations
                         {
                             Id = 1,
                             ApiKeyHash = "",
-                            ApplicationId = new Guid("c4bd6c61-8e11-43cf-868a-fdd0a4be81b2"),
-                            CreatedAt = new DateTime(2025, 12, 9, 14, 19, 32, 968, DateTimeKind.Utc).AddTicks(9380),
+                            ApplicationId = new Guid("250749f0-4728-4a87-8d94-a83df2bffe77"),
+                            CreatedAt = new DateTime(2025, 12, 9, 20, 37, 9, 846, DateTimeKind.Utc).AddTicks(6090),
                             Name = "Aarhus",
-                            UpdatedAt = new DateTime(2025, 12, 9, 14, 19, 32, 968, DateTimeKind.Utc).AddTicks(9380)
+                            UpdatedAt = new DateTime(2025, 12, 9, 20, 37, 9, 846, DateTimeKind.Utc).AddTicks(6090)
                         });
                 });
 
@@ -322,8 +313,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2025, 12, 9, 14, 19, 32, 968, DateTimeKind.Utc).AddTicks(9710),
-                            LastUpdate = new DateTime(2025, 12, 9, 14, 19, 32, 968, DateTimeKind.Utc).AddTicks(9710),
+                            CreatedAt = new DateTime(2025, 12, 9, 20, 37, 9, 846, DateTimeKind.Utc).AddTicks(6260),
+                            LastUpdate = new DateTime(2025, 12, 9, 20, 37, 9, 846, DateTimeKind.Utc).AddTicks(6260),
                             Name = "International Space Station (ISS)",
                             NoradId = 25544,
                             Status = 0,
@@ -333,8 +324,8 @@ namespace SatOps.data.migrations
                         new
                         {
                             Id = 2,
-                            CreatedAt = new DateTime(2025, 12, 9, 14, 19, 32, 968, DateTimeKind.Utc).AddTicks(9710),
-                            LastUpdate = new DateTime(2025, 12, 9, 14, 19, 32, 968, DateTimeKind.Utc).AddTicks(9710),
+                            CreatedAt = new DateTime(2025, 12, 9, 20, 37, 9, 846, DateTimeKind.Utc).AddTicks(6260),
+                            LastUpdate = new DateTime(2025, 12, 9, 20, 37, 9, 846, DateTimeKind.Utc).AddTicks(6260),
                             Name = "SENTINEL-2C",
                             NoradId = 60989,
                             Status = 0,

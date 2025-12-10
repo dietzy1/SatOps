@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using SatOps.Modules.FlightPlan.Commands;
 using SatOps.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace SatOps.Modules.FlightPlan
 {
@@ -203,11 +204,22 @@ namespace SatOps.Modules.FlightPlan
         /// Calculates execution times for commands that require it (e.g., TriggerCaptureCommand).
         /// This should be called before CompileAllToCsh() for flight plans containing such commands.
         /// </summary>
+        /// <param name="commands">The list of commands to calculate execution times for.</param>
+        /// <param name="satellite">The satellite to use for orbital calculations.</param>
+        /// <param name="imagingCalculation">The imaging calculation service.</param>
+        /// <param name="options">Configuration options for imaging calculations.</param>
+        /// <param name="blockedTimes">Optional list of blocked time windows (from other active flight plans) to avoid conflicts.</param>
+        /// <param name="conflictMargin">Time margin around blocked times to avoid conflicts. Defaults to 2 minutes.</param>
+        /// <param name="logger">Optional logger for diagnostic output.</param>
+        /// <param name="commandReceptionTime">Optional start time for searching. Defaults to UTC now.</param>
         public static async Task CalculateExecutionTimesAsync(
             this List<Command> commands,
             Satellite.Satellite satellite,
             IImagingCalculation imagingCalculation,
             ImagingCalculationOptions options,
+            List<DateTime>? blockedTimes = null,
+            TimeSpan? conflictMargin = null,
+            ILogger? logger = null,
             DateTime? commandReceptionTime = null)
         {
             if (string.IsNullOrWhiteSpace(satellite.TleLine1) || string.IsNullOrWhiteSpace(satellite.TleLine2))
@@ -218,9 +230,20 @@ namespace SatOps.Modules.FlightPlan
             var tle = new SGPdotNET.TLE.Tle(satellite.Name, satellite.TleLine1, satellite.TleLine2);
             var sgp4Satellite = new SGPdotNET.Observation.Satellite(tle);
             var receptionTime = commandReceptionTime ?? DateTime.UtcNow;
+            var margin = conflictMargin ?? TimeSpan.FromMinutes(2);
+            var maxRetries = 10; // Limit retries to avoid infinite loops
+
+            logger?.LogDebug("Starting execution time calculation for {CommandCount} commands on satellite '{SatelliteName}'",
+                commands.Count, satellite.Name);
+            logger?.LogDebug("Blocked times from other flight plans: {BlockedCount}", blockedTimes?.Count ?? 0);
+
+            // Collect execution times from this flight plan's commands to avoid internal conflicts
+            var usedTimes = new List<DateTime>();
+            var commandIndex = 0;
 
             foreach (var command in commands)
             {
+                commandIndex++;
                 if (command is TriggerCaptureCommand captureCommand && captureCommand.RequiresExecutionTimeCalculation)
                 {
                     if (captureCommand.CaptureLocation == null)
@@ -229,38 +252,126 @@ namespace SatOps.Modules.FlightPlan
                             "TriggerCaptureCommand requires CaptureLocation to calculate execution time.");
                     }
 
+                    logger?.LogDebug("Processing command {Index}/{Total}: TRIGGER_CAPTURE at ({Lat:F4}, {Lon:F4})",
+                        commandIndex, commands.Count,
+                        captureCommand.CaptureLocation.Latitude,
+                        captureCommand.CaptureLocation.Longitude);
+
                     // Create target coordinate
                     var targetCoordinate = new SGPdotNET.CoordinateSystem.GeodeticCoordinate(
                         SGPdotNET.Util.Angle.FromDegrees(captureCommand.CaptureLocation.Latitude),
                         SGPdotNET.Util.Angle.FromDegrees(captureCommand.CaptureLocation.Longitude),
                         0); // Ground level
 
-
                     var maxSearchDuration = TimeSpan.FromHours(options.MaxSearchDurationHours);
                     var minOffNadirDegrees = options.MaxOffNadirDegrees;
+                    var searchStartTime = receptionTime;
+                    var retryCount = 0;
 
-                    var imagingOpportunity = await Task.Run(() =>
-                        imagingCalculation.FindBestImagingOpportunity(
-                            sgp4Satellite,
-                            targetCoordinate,
-                            receptionTime,
-                            maxSearchDuration
-                        )
-                    );
+                    ImagingCalculation.ImagingOpportunity? validOpportunity = null;
 
-                    // Check if the opportunity is within acceptable off-nadir angle
-                    if (imagingOpportunity.OffNadirDegrees > minOffNadirDegrees)
+                    while (validOpportunity == null && retryCount < maxRetries)
                     {
-                        throw new InvalidOperationException(
-                            $"No imaging opportunity found within the off-nadir limit of {minOffNadirDegrees} degrees. " +
-                            $"Best opportunity found was {imagingOpportunity.OffNadirDegrees:F2} degrees off-nadir at {imagingOpportunity.ImagingTime:yyyy-MM-dd HH:mm:ss} UTC. " +
-                            $"Consider increasing MaxOffNadirDegrees or choosing a different target location.");
+                        var imagingOpportunity = await Task.Run(() =>
+                            imagingCalculation.FindBestImagingOpportunity(
+                                sgp4Satellite,
+                                targetCoordinate,
+                                searchStartTime,
+                                maxSearchDuration
+                            )
+                        );
+
+                        logger?.LogDebug("Found imaging opportunity at {Time:O} with off-nadir {OffNadir:F2}° (attempt {Attempt})",
+                            imagingOpportunity.ImagingTime, imagingOpportunity.OffNadirDegrees, retryCount + 1);
+
+                        // Check if the opportunity is within acceptable off-nadir angle
+                        if (imagingOpportunity.OffNadirDegrees > minOffNadirDegrees)
+                        {
+                            logger?.LogWarning("Imaging opportunity rejected: off-nadir {OffNadir:F2}° exceeds limit of {Limit}°",
+                                imagingOpportunity.OffNadirDegrees, minOffNadirDegrees);
+                            throw new InvalidOperationException(
+                                $"No imaging opportunity found within the off-nadir limit of {minOffNadirDegrees} degrees. " +
+                                $"Best opportunity found was {imagingOpportunity.OffNadirDegrees:F2} degrees off-nadir at {imagingOpportunity.ImagingTime:yyyy-MM-dd HH:mm:ss} UTC. " +
+                                $"Consider increasing MaxOffNadirDegrees or choosing a different target location.");
+                        }
+
+                        // Check for conflicts with blocked times from other flight plans
+                        var hasConflict = false;
+                        DateTime? conflictTime = null;
+                        var conflictSource = "";
+
+                        if (blockedTimes != null)
+                        {
+                            foreach (var blockedTime in blockedTimes)
+                            {
+                                var timeDiff = Math.Abs((imagingOpportunity.ImagingTime - blockedTime).TotalSeconds);
+                                if (timeDiff < margin.TotalSeconds)
+                                {
+                                    hasConflict = true;
+                                    conflictTime = blockedTime;
+                                    conflictSource = "another flight plan";
+                                    break;
+                                }
+                            }
+                        }
+
+                        // Also check for conflicts with other commands in this same flight plan
+                        if (!hasConflict)
+                        {
+                            foreach (var usedTime in usedTimes)
+                            {
+                                var timeDiff = Math.Abs((imagingOpportunity.ImagingTime - usedTime).TotalSeconds);
+                                if (timeDiff < margin.TotalSeconds)
+                                {
+                                    hasConflict = true;
+                                    conflictTime = usedTime;
+                                    conflictSource = "this flight plan";
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (hasConflict && conflictTime.HasValue)
+                        {
+                            logger?.LogInformation(
+                                "Conflict detected at {OpportunityTime:O} with command from {Source} at {ConflictTime:O}. " +
+                                "Searching for next opportunity after {NewStartTime:O}",
+                                imagingOpportunity.ImagingTime, conflictSource, conflictTime.Value,
+                                conflictTime.Value.Add(margin));
+
+                            // Move search start time past the conflict and try again
+                            searchStartTime = conflictTime.Value.Add(margin).Add(TimeSpan.FromSeconds(1));
+                            retryCount++;
+                        }
+                        else
+                        {
+                            validOpportunity = imagingOpportunity;
+                        }
                     }
 
-                    // Set the calculated execution time
-                    captureCommand.ExecutionTime = imagingOpportunity.ImagingTime;
+                    if (validOpportunity == null)
+                    {
+                        logger?.LogError(
+                            "Failed to find non-conflicting imaging opportunity for target at ({Lat:F4}, {Lon:F4}) after {Retries} attempts",
+                            captureCommand.CaptureLocation.Latitude, captureCommand.CaptureLocation.Longitude, maxRetries);
+                        throw new InvalidOperationException(
+                            $"Could not find a non-conflicting imaging opportunity for target at " +
+                            $"({captureCommand.CaptureLocation.Latitude:F4}, {captureCommand.CaptureLocation.Longitude:F4}) " +
+                            $"after {maxRetries} attempts. Consider rescheduling conflicting flight plans.");
+                    }
+
+                    // Set the calculated execution time and track it
+                    captureCommand.ExecutionTime = validOpportunity.ImagingTime;
+                    usedTimes.Add(validOpportunity.ImagingTime);
+
+                    logger?.LogInformation(
+                        "Scheduled TRIGGER_CAPTURE for ({Lat:F4}, {Lon:F4}) at {Time:O} with off-nadir {OffNadir:F2}°",
+                        captureCommand.CaptureLocation.Latitude, captureCommand.CaptureLocation.Longitude,
+                        validOpportunity.ImagingTime, validOpportunity.OffNadirDegrees);
                 }
             }
+
+            logger?.LogDebug("Execution time calculation completed. Assigned {Count} execution times.", usedTimes.Count);
         }
 
         /// <summary>
