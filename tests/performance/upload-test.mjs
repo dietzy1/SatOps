@@ -4,8 +4,8 @@ import crypto from 'node:crypto';
 
 const API_URL = 'http://localhost:5111';
 
-const APPLICATION_ID = '7db1e716-8c60-4ac8-bfcf-b7aa565907c1';
-const API_KEY = 'aY1SZM6LYZyzagn__dKIq5A-gLvI1oG58YqG89zewtI=';
+const APPLICATION_ID = '05ea40f1-e0c9-49ac-a92f-fc975a86dfc8';
+const API_KEY = '-X1GAmZfq8SBzqmVlDHjQbJ1WpyZ8dz9jWaS6U5yhEs=';
 
 const SATELLITE_ID = 1;
 const GROUND_STATION_ID = 1;
@@ -13,6 +13,9 @@ const GROUND_STATION_ID = 1;
 
 const FILE_NAME = 'dummy-50mb.bin';
 const FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MiB
+
+const TEST_DURATION_MS = 30 * 1000; // 30 seconds
+const UPLOAD_THRESHOLD_MS = 3000; // 3 seconds - performance requirement
 
 /**
  * Creates a large dummy file for testing.
@@ -68,38 +71,122 @@ async function getToken() {
 }
 
 /**
- * Uploads the test file to the API.
+ * Uploads the test file to the API and returns the duration in ms.
  */
-async function uploadFile(token) {
-  console.log(`Step 2: Uploading ${FILE_NAME}... (this may take a moment)`);
-  try {
-    const fileContent = await fs.readFile(FILE_NAME);
-    const fileBlob = new Blob([fileContent]);
+async function uploadFile(token, fileContent, uploadNumber) {
+  const fileBlob = new Blob([fileContent]);
 
-    const formData = new FormData();
-    formData.append('SatelliteId', SATELLITE_ID);
-    formData.append('GroundStationId', GROUND_STATION_ID);
-    formData.append('CaptureTime', new Date().toISOString());
-    formData.append('ImageFile', fileBlob, FILE_NAME);
+  const formData = new FormData();
+  formData.append('SatelliteId', SATELLITE_ID);
+  formData.append('GroundStationId', GROUND_STATION_ID);
+  formData.append('CaptureTime', new Date().toISOString());
+  formData.append('ImageFile', fileBlob, FILE_NAME);
 
-    const response = await fetch(`${API_URL}/api/v1/ground-station-link/images`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-      body: formData,
-    });
+  const startTime = performance.now();
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Upload failed. Status: ${response.status}. Body: ${errorText}`);
+  const response = await fetch(`${API_URL}/api/v1/ground-station-link/images`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  const endTime = performance.now();
+  const durationMs = endTime - startTime;
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Upload #${uploadNumber} failed. Status: ${response.status}. Body: ${errorText}`);
+  }
+
+  return durationMs;
+}
+
+/**
+ * Runs multiple uploads over a specified duration and reports statistics.
+ */
+async function runUploadTest(token) {
+  console.log(`\nStep 2: Running upload test for ${TEST_DURATION_MS / 1000} seconds...`);
+  console.log(`Performance requirement: Each upload should complete within ${UPLOAD_THRESHOLD_MS / 1000}s\n`);
+
+  // Pre-load file content once
+  const fileContent = await fs.readFile(FILE_NAME);
+
+  const durations = [];
+  const startTime = performance.now();
+  let uploadCount = 0;
+  let successCount = 0;
+  let failCount = 0;
+
+  while (performance.now() - startTime < TEST_DURATION_MS) {
+    uploadCount++;
+    const elapsedSec = ((performance.now() - startTime) / 1000).toFixed(1);
+    console.log(`[${elapsedSec}s] Upload #${uploadCount} starting...`);
+
+    try {
+      const durationMs = await uploadFile(token, fileContent, uploadCount);
+      durations.push(durationMs);
+
+      const durationSec = (durationMs / 1000).toFixed(2);
+      const passed = durationMs < UPLOAD_THRESHOLD_MS;
+
+      if (passed) {
+        successCount++;
+        console.log(`  ✓ Upload #${uploadCount} completed in ${durationSec}s`);
+      } else {
+        failCount++;
+        console.log(`  ⚠ Upload #${uploadCount} completed in ${durationSec}s (exceeded ${UPLOAD_THRESHOLD_MS / 1000}s threshold)`);
+      }
+    } catch (error) {
+      failCount++;
+      console.error(`  ✗ Upload #${uploadCount} failed: ${error.message}`);
     }
+  }
 
-    const successText = await response.text();
-    console.log('✓ Upload successful! The API responded with:');
-    console.log(successText);
-  } catch (error) {
-    console.error(`✗ UPLOAD FAILED. Error: ${error.message}`);
+  // Calculate and display statistics
+  console.log('\n' + '='.repeat(60));
+  console.log('UPLOAD TEST RESULTS');
+  console.log('='.repeat(60));
+
+  if (durations.length === 0) {
+    console.log('No successful uploads completed.');
+    process.exit(1);
+  }
+
+  const totalDuration = durations.reduce((sum, d) => sum + d, 0);
+  const avgDuration = totalDuration / durations.length;
+  const minDuration = Math.min(...durations);
+  const maxDuration = Math.max(...durations);
+
+  // Calculate percentiles
+  const sortedDurations = [...durations].sort((a, b) => a - b);
+  const p50 = sortedDurations[Math.floor(sortedDurations.length * 0.5)];
+  const p95 = sortedDurations[Math.floor(sortedDurations.length * 0.95)];
+  const p99 = sortedDurations[Math.floor(sortedDurations.length * 0.99)];
+
+  const passedThreshold = durations.filter(d => d < UPLOAD_THRESHOLD_MS).length;
+
+  console.log(`\nTest Duration:     ${TEST_DURATION_MS / 1000}s`);
+  console.log(`Total Uploads:     ${uploadCount}`);
+  console.log(`Successful:        ${durations.length}`);
+  console.log(`Failed:            ${uploadCount - durations.length}`);
+  console.log(`\nUpload Duration Statistics:`);
+  console.log(`  Average:         ${(avgDuration / 1000).toFixed(2)}s`);
+  console.log(`  Min:             ${(minDuration / 1000).toFixed(2)}s`);
+  console.log(`  Max:             ${(maxDuration / 1000).toFixed(2)}s`);
+  console.log(`  P50 (median):    ${(p50 / 1000).toFixed(2)}s`);
+  console.log(`  P95:             ${(p95 / 1000).toFixed(2)}s`);
+  console.log(`  P99:             ${(p99 / 1000).toFixed(2)}s`);
+  console.log(`\nPerformance Threshold (${UPLOAD_THRESHOLD_MS / 1000}s):`);
+  console.log(`  Passed:          ${passedThreshold}/${durations.length} (${((passedThreshold / durations.length) * 100).toFixed(1)}%)`);
+
+  console.log('\n' + '='.repeat(60));
+
+  if (avgDuration < UPLOAD_THRESHOLD_MS) {
+    console.log(`✓ PASSED: Average upload time (${(avgDuration / 1000).toFixed(2)}s) is within ${UPLOAD_THRESHOLD_MS / 1000}s threshold`);
+  } else {
+    console.log(`✗ FAILED: Average upload time (${(avgDuration / 1000).toFixed(2)}s) exceeds ${UPLOAD_THRESHOLD_MS / 1000}s threshold`);
     process.exit(1);
   }
 }
@@ -110,7 +197,7 @@ async function uploadFile(token) {
 async function main() {
   await createTestFile();
   const token = await getToken();
-  await uploadFile(token);
+  await runUploadTest(token);
 }
 
 main();
