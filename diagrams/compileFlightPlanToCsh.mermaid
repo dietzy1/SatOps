@@ -1,0 +1,78 @@
+sequenceDiagram
+    autonumber
+    participant Client
+    participant FlightPlanService
+    participant Repository as FlightPlanRepository
+    participant SatelliteService
+    participant CommandExtensions
+    participant ImagingCalculation
+    participant Command
+
+    Client->>FlightPlanService: CompileFlightPlanToCshAsync(flightPlanId)
+    
+    %% Fetch flight plan and satellite data
+    FlightPlanService->>Repository: GetByIdAsync(flightPlanId)
+    Repository-->>FlightPlanService: FlightPlan
+    
+    FlightPlanService->>SatelliteService: GetAsync(satelliteId)
+    SatelliteService-->>FlightPlanService: Satellite (with TLE data)
+    
+    %% Validate commands
+    FlightPlanService->>FlightPlanService: GetCommands()
+    FlightPlanService->>CommandExtensions: ValidateAll(commands)
+    CommandExtensions-->>FlightPlanService: (isValid, errors)
+    
+    alt Validation Failed
+        FlightPlanService-->>Client: InvalidOperationException
+    end
+
+    %% Collect blocked times from transmitted plans
+    FlightPlanService->>Repository: GetTransmittedPlansBySatelliteAsync(satelliteId)
+    Repository-->>FlightPlanService: List<FlightPlan> (transmitted)
+    
+    loop For each transmitted plan
+        FlightPlanService->>FlightPlanService: Extract ExecutionTimes from commands
+        FlightPlanService->>FlightPlanService: Add to blockedTimes list
+    end
+
+    %% Calculate execution times
+    FlightPlanService->>CommandExtensions: CalculateExecutionTimesAsync(satellite, blockedTimes, conflictMargin)
+    
+    Note over CommandExtensions: Parse TLE and create SGP4 satellite model
+    
+    loop For each TriggerCaptureCommand
+        CommandExtensions->>CommandExtensions: Check RequiresExecutionTimeCalculation
+        
+        alt Requires Calculation
+            CommandExtensions->>ImagingCalculation: FindBestImagingOpportunity(satellite, targetCoord, startTime, maxDuration)
+            ImagingCalculation-->>CommandExtensions: ImagingOpportunity (time, offNadir, altitude)
+            
+            alt Off-nadir exceeds limit
+                CommandExtensions-->>FlightPlanService: InvalidOperationException
+            end
+            
+            CommandExtensions->>CommandExtensions: Check conflicts with blockedTimes
+            CommandExtensions->>CommandExtensions: Check conflicts with usedTimes (same plan)
+            
+            alt Conflict Detected
+                CommandExtensions->>CommandExtensions: Retry with new startTime
+                Note over CommandExtensions: Max 10 retries
+            end
+            
+            CommandExtensions->>CommandExtensions: Set ExecutionTime on command
+            CommandExtensions->>CommandExtensions: Add to usedTimes
+        end
+    end
+    
+    CommandExtensions-->>FlightPlanService: Execution times calculated
+    
+    %% Compile to CSH
+    FlightPlanService->>CommandExtensions: CompileAllToCsh(commands)
+    
+    loop For each Command
+        CommandExtensions->>Command: CompileToCsh()
+        Command-->>CommandExtensions: List<string> (CSH commands)
+    end
+    
+    CommandExtensions-->>FlightPlanService: List<string> (all CSH commands)
+    FlightPlanService-->>Client: List<string> (compiled CSH)
