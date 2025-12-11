@@ -43,7 +43,7 @@ A backend API for satellite operations, designed to manage ground stations, trac
     ```
 
 3.  **Access the API:**
-    The SatOps API (Swagger) will be available at `http://localhost:7890`.
+    The SatOps API (Swagger) will be available at `http://localhost:5111/`.
 
 ### API Structure & Endpoints
 
