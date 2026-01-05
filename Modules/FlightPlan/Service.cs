@@ -353,6 +353,20 @@ namespace SatOps.Modules.FlightPlan
                 maxSearchDuration
             );
 
+            if (imagingOpportunity == null)
+            {
+                return new ImagingTimingResponseDto
+                {
+                    Possible = false,
+                    Message = $"No satellite pass found over target ({targetLatitude:F4}, {targetLongitude:F4}) within the next {imagingOptions.Value.MaxSearchDurationHours} hours.",
+                    TleAgeWarning = tleAge.TotalHours > 48,
+                    TleAgeHours = tleAge.TotalHours,
+                    ImagingTime = DateTime.MinValue,
+                    OffNadirDegrees = 0,
+                    SatelliteAltitudeKm = 0
+                };
+            }
+
             var result = new ImagingTimingResponseDto
             {
                 Possible = true,
