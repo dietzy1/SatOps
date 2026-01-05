@@ -109,6 +109,7 @@ namespace SatOps.Modules.FlightPlan
             for (int i = 0; i < top5Candidates.Count; i++)
             {
                 var bestOffNadir = top5Candidates[i].OffNadirDegrees;
+                var candidateBestTime = top5Candidates[i].Time;
                 var refineStart = top5Candidates[i].Time.Subtract(coarseTimeStep);
                 var refineEnd = top5Candidates[i].Time.Add(coarseTimeStep);
                 currentTime = refineStart;
@@ -122,7 +123,7 @@ namespace SatOps.Modules.FlightPlan
 
                         if (offNadirDeg < bestOffNadir)
                         {
-                            bestTime = currentTime;
+                            candidateBestTime = currentTime;
                             bestOffNadir = offNadirDeg;
                         }
                     }
@@ -135,7 +136,7 @@ namespace SatOps.Modules.FlightPlan
                     currentTime = currentTime.Add(refiningTimeStep);
                 }
 
-                top5Candidates[i].Time = bestTime;
+                top5Candidates[i].Time = candidateBestTime;
                 top5Candidates[i].OffNadirDegrees = bestOffNadir;
             }
 
@@ -143,6 +144,7 @@ namespace SatOps.Modules.FlightPlan
             for (int i = 0; i < top5Candidates.Count; i++)
             {
                 var bestOffNadir = top5Candidates[i].OffNadirDegrees;
+                var candidateBestTime = top5Candidates[i].Time;
                 var refineStart = top5Candidates[i].Time.Subtract(refiningTimeStep);
                 var refineEnd = top5Candidates[i].Time.Add(refiningTimeStep);
                 currentTime = refineStart;
@@ -156,7 +158,7 @@ namespace SatOps.Modules.FlightPlan
 
                         if (offNadirDeg < bestOffNadir)
                         {
-                            bestTime = currentTime;
+                            candidateBestTime = currentTime;
                             bestOffNadir = offNadirDeg;
                         }
                     }
@@ -169,7 +171,7 @@ namespace SatOps.Modules.FlightPlan
                     currentTime = currentTime.Add(finalTimeStep);
                 }
 
-                top5Candidates[i].Time = bestTime;
+                top5Candidates[i].Time = candidateBestTime;
                 top5Candidates[i].OffNadirDegrees = bestOffNadir;
             }
 
