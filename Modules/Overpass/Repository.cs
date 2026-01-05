@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SatOps.Data;
 
+
 namespace SatOps.Modules.Overpass
 {
     public interface IOverpassRepository
@@ -80,17 +81,19 @@ namespace SatOps.Modules.Overpass
 
         public async Task<Entity?> FindOverpassInTimeWindowAsync(int satelliteId, int groundStationId, DateTime startTime, DateTime endTime, int toleranceMinutes)
         {
-            // Find any existing overpass (assigned or not) that overlaps with the requested time window
-            // This prevents creating duplicate overpass records for the same physical satellite pass
-            // Uses tolerance to account for TLE data variations between calculations
+            // Pre-calculate boundaries in C#
+            var minStart = startTime.AddMinutes(-toleranceMinutes);
+            var maxStart = startTime.AddMinutes(toleranceMinutes);
+            var minEnd = endTime.AddMinutes(-toleranceMinutes);
+            var maxEnd = endTime.AddMinutes(toleranceMinutes);
 
             return await dbContext.Overpasses
                 .Include(o => o.FlightPlan)
                 .Where(o => o.SatelliteId == satelliteId &&
                            o.GroundStationId == groundStationId &&
-                           Math.Abs((o.StartTime - startTime).TotalMinutes) <= toleranceMinutes &&
-                           Math.Abs((o.EndTime - endTime).TotalMinutes) <= toleranceMinutes)
-                .OrderBy(o => Math.Abs((o.StartTime - startTime).TotalMinutes) + Math.Abs((o.EndTime - endTime).TotalMinutes))
+                           o.StartTime >= minStart && o.StartTime <= maxStart &&
+                           o.EndTime >= minEnd && o.EndTime <= maxEnd)
+                .OrderBy(o => o.StartTime)
                 .FirstOrDefaultAsync();
         }
 
