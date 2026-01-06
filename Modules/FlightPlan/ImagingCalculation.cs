@@ -67,62 +67,54 @@ namespace SatOps.Modules.FlightPlan
 
             var exceptionCount = 0;
 
-            // Local function to evaluate a single point in time
             PassPoint Evaluate(DateTime t)
             {
-                try
+                var satEci = satellite.Predict(t);
+
+
+                var targetEci = target.ToEci(t);
+
+                // Create Range Vector (Target Position - Sat Position)
+                var rangeVector = targetEci.Position - satEci.Position;
+
+                var slantRangeKm = rangeVector.Length;
+
+                // Calculate Off-Nadir Angle
+                // Use Dot Product formula: A . B = |A| * |B| * cos(angle)
+
+                // Vector A: Satellite Position (Vector from Earth Center -> Satellite)
+                // Vector B: Range Vector (Vector from Satellite -> Target)
+                var satPosVector = satEci.Position;
+
+                // Calculate the Dot Product
+                var dot = satPosVector.Dot(rangeVector);
+
+                // Calculate magnitudes
+                var magSat = satPosVector.Length;
+                var magRange = rangeVector.Length; // same as slantRangeKm
+
+                // Calculate Cosine of the angle
+                // "UP" is SatPos and "DOWN" is Range.
+                var cosTheta = dot / (magSat * magRange);
+
+                // Clamp for floating point safety
+                if (cosTheta > 1.0) cosTheta = 1.0;
+                if (cosTheta < -1.0) cosTheta = -1.0;
+
+                // Acos gives radians. 
+                // Since the vectors point in opposite general directions,
+                // The Off-Nadir angle is PI (180 deg) minus the calculated angle.
+                var angleRadians = Math.Acos(cosTheta);
+                var offNadirRadians = Math.PI - angleRadians;
+                var offNadirDeg = offNadirRadians * (180.0 / Math.PI);
+
+                // Horizon Check
+                if (!target.CanSee(satEci))
                 {
-                    var eci = satellite.Predict(t);
-                    var satGeo = eci.ToGeodetic();
-
-                    // --- 1. Geometric Setup ---
-                    // We model the Earth Center (C), Target (T), and Satellite (S) as a triangle.
-                    // Re = Radius of Earth
-                    // Rs = Radius of Satellite orbit (Re + Altitude)
-                    // Theta (θ) = Central angle between Target and Satellite Nadir
-                    double earthRadius = SgpConstants.EarthRadiusKm;
-                    double satRadius = earthRadius + satGeo.Altitude;
-
-                    // AngleTo returns the angular distance between two points on the sphere
-                    var theta = target.AngleTo(satGeo).Radians;
-                    var cosTheta = Math.Cos(theta);
-
-                    // --- 2. Horizon Check ---
-                    // The target must be visible from the satellite (Elevation > 0).
-                    // The geometric limit is when the line of sight is tangent to the Earth's surface.
-                    // This occurs when cos(theta_max) = Re / Rs.
-                    // If theta > theta_max (or cos(theta) < Re/Rs), the target is over the horizon.
-                    if (cosTheta < earthRadius / satRadius)
-                    {
-                        return PassPoint.Empty;
-                    }
-
-                    // --- 3. Slant Range Calculation (Law of Cosines) ---
-                    // Solves for side 'c' (Slant Range) in triangle CTS:
-                    // c² = a² + b² - 2ab * cos(θ)
-                    var slantRangeSq = (earthRadius * earthRadius) + (satRadius * satRadius)
-                                       - (2 * earthRadius * satRadius * cosTheta);
-                    var slantRange = Math.Sqrt(slantRangeSq);
-
-                    // --- 4. Off-Nadir Angle Calculation (Law of Sines) ---
-                    // Solves for angle 'S' (Off-Nadir) in triangle CTS:
-                    // a / sin(A) = c / sin(C)  =>  Re / sin(OffNadir) = SlantRange / sin(Theta)
-                    var sinOffNadir = earthRadius * Math.Sin(theta) / slantRange;
-
-                    // Clamp value to [-1, 1] range to handle potential floating point 
-                    // epsilon errors before calling Arcsin.
-                    if (sinOffNadir > 1.0) sinOffNadir = 1.0;
-                    if (sinOffNadir < -1.0) sinOffNadir = -1.0;
-
-                    var offNadirDeg = Math.Asin(sinOffNadir) * (180.0 / Math.PI);
-
-                    return new PassPoint(t, offNadirDeg, slantRange, satGeo);
-                }
-                catch (Exception)
-                {
-                    exceptionCount++;
                     return PassPoint.Empty;
                 }
+
+                return new PassPoint(t, offNadirDeg, slantRangeKm, satEci.ToGeodetic());
             }
 
             // Step 1: Coarse Search (120s step)
