@@ -281,6 +281,18 @@ namespace SatOps.Modules.FlightPlan
                             )
                         );
 
+                        if (imagingOpportunity == null)
+                        {
+                            // If null, the satellite never rises above the horizon for this target 
+                            // within the search duration. Retrying won't help.
+                            logger?.LogError("No satellite pass found for target at ({Lat:F4}, {Lon:F4}) within {Duration} hours.",
+                                captureCommand.CaptureLocation.Latitude, captureCommand.CaptureLocation.Longitude, options.MaxSearchDurationHours);
+
+                            throw new InvalidOperationException(
+                                $"No satellite pass detected for target ({captureCommand.CaptureLocation.Latitude:F4}, " +
+                                $"{captureCommand.CaptureLocation.Longitude:F4}) within the {options.MaxSearchDurationHours}-hour search window.");
+                        }
+
                         logger?.LogDebug("Found imaging opportunity at {Time:O} with off-nadir {OffNadir:F2}° (attempt {Attempt})",
                             imagingOpportunity.ImagingTime, imagingOpportunity.OffNadirDegrees, retryCount + 1);
 

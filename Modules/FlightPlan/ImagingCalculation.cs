@@ -1,10 +1,11 @@
 using SGPdotNET.CoordinateSystem;
+using SGPdotNET.Propagation;
 
 namespace SatOps.Modules.FlightPlan
 {
     public interface IImagingCalculation
     {
-        ImagingCalculation.ImagingOpportunity FindBestImagingOpportunity(
+        ImagingCalculation.ImagingOpportunity? FindBestImagingOpportunity(
             SGPdotNET.Observation.Satellite satellite,
             GeodeticCoordinate target,
             DateTime commandReceptionTime,
@@ -14,10 +15,22 @@ namespace SatOps.Modules.FlightPlan
 
     public class ImagingCalculation(ILogger<ImagingCalculation> logger) : IImagingCalculation
     {
-        public class Candidate
+        private readonly struct PassPoint
         {
-            public DateTime Time { get; set; } = DateTime.MinValue;
-            public double OffNadirDegrees { get; set; } = double.MaxValue;
+            public DateTime Time { get; }
+            public double OffNadirDegrees { get; }
+            public double SlantRangeKm { get; }
+            public GeodeticCoordinate? SatelliteGeo { get; }
+
+            public PassPoint(DateTime time, double offNadir, double slantRange, GeodeticCoordinate? geo)
+            {
+                Time = time;
+                OffNadirDegrees = offNadir;
+                SlantRangeKm = slantRange;
+                SatelliteGeo = geo;
+            }
+
+            public static PassPoint Empty => new(DateTime.MinValue, double.MaxValue, 0, null);
         }
 
         public class ImagingOpportunity
@@ -32,27 +45,10 @@ namespace SatOps.Modules.FlightPlan
         }
 
         /// <summary>
-        /// Core algorithm: Find the best imaging opportunity using SGP4 orbital propagation with off-nadir calculations
-        /// 
-        /// Algorithm Steps:
-        /// 1. Start from command reception time
-        /// 2. Use coarse time steps (120s) to find candidate windows
-        /// 3. Refine around candidates with fine steps (2s) for better accuracy
-        /// 4. Refine around candidates with finest steps (0.1s) for precision
-        /// 5. For each time step:
-        ///    - Use SGP4 to calculate satellite position
-        ///    - Convert ECI coordinates to geodetic using SGPdotNET's built-in ToGeodetic() method
-        ///    - Calculate dynamic max distance based on altitude and off-nadir angle
-        ///    - Calculate off-nadir angle using fast approximation: atan(groundDistance / altitude)
-        ///    - Check if within acceptable off-nadir range
-        /// 6. Return the best opportunity within range
-        /// 
-        /// Note: All units are correctly handled by SGPdotNET library:
-        /// - DistanceTo() returns kilometers
-        /// - GeodeticCoordinate.Altitude is in kilometers
-        /// - Latitude/Longitude angles use .Degrees property for conversion
+        /// Find the best imaging opportunity using SGP4 orbital propagation.
+        /// Returns null if no valid opportunity is found within maxSearchDuration.
         /// </summary>
-        public ImagingOpportunity FindBestImagingOpportunity(
+        public ImagingOpportunity? FindBestImagingOpportunity(
             SGPdotNET.Observation.Satellite satellite,
             GeodeticCoordinate target,
             DateTime commandReceptionTime,
@@ -65,161 +61,149 @@ namespace SatOps.Modules.FlightPlan
 
             var currentTime = commandReceptionTime;
             var searchEndTime = commandReceptionTime.Add(maxSearchDuration);
-            DateTime bestTime = DateTime.Now;
-            var position = satellite.Predict(currentTime);
 
-            // Step 1: Coarse search to find candidate windows
-            var top5Candidates = new List<Candidate>();
-            for (int i = 0; i < 5; i++)
+            var top5Candidates = new PassPoint[5];
+            Array.Fill(top5Candidates, PassPoint.Empty);
+
+            var exceptionCount = 0;
+
+            PassPoint Evaluate(DateTime t)
             {
-                top5Candidates.Add(new Candidate());
+                var satEci = satellite.Predict(t);
+
+
+                var targetEci = target.ToEci(t);
+
+                // Create Range Vector (Target Position - Sat Position)
+                var rangeVector = targetEci.Position - satEci.Position;
+
+                var slantRangeKm = rangeVector.Length;
+
+                // Calculate Off-Nadir Angle
+                // Use Dot Product formula: A . B = |A| * |B| * cos(angle)
+
+                // Vector A: Satellite Position (Vector from Earth Center -> Satellite)
+                // Vector B: Range Vector (Vector from Satellite -> Target)
+                var satPosVector = satEci.Position;
+
+                // Calculate the Dot Product
+                var dot = satPosVector.Dot(rangeVector);
+
+                // Calculate magnitudes
+                var magSat = satPosVector.Length;
+                var magRange = rangeVector.Length; // same as slantRangeKm
+
+                // Calculate Cosine of the angle
+                // "UP" is SatPos and "DOWN" is Range.
+                var cosTheta = dot / (magSat * magRange);
+
+                // Clamp for floating point safety
+                if (cosTheta > 1.0) cosTheta = 1.0;
+                if (cosTheta < -1.0) cosTheta = -1.0;
+
+                // Acos gives radians. 
+                // Since the vectors point in opposite general directions,
+                // The Off-Nadir angle is PI (180 deg) minus the calculated angle.
+                var angleRadians = Math.Acos(cosTheta);
+                var offNadirRadians = Math.PI - angleRadians;
+                var offNadirDeg = offNadirRadians * (180.0 / Math.PI);
+
+                // Horizon Check
+                if (!target.CanSee(satEci))
+                {
+                    return PassPoint.Empty;
+                }
+
+                return new PassPoint(t, offNadirDeg, slantRangeKm, satEci.ToGeodetic());
             }
 
-            // Create array of exception times for logging/debugging if needed
-            var exceptionTimes = new List<DateTime>();
-
+            // Step 1: Coarse Search (120s step)
             while (currentTime <= searchEndTime)
             {
-                try
+                var currentPoint = Evaluate(currentTime);
+                if (currentPoint.Time != DateTime.MinValue)
                 {
-                    // Get satellite position at current time using SGP4
-                    position = satellite.Predict(currentTime);
-
-                    var offNadirDeg = OffNadirDegrees(target, position, currentTime);
-
-                    var worstCandidate = top5Candidates.MaxBy(c => c.OffNadirDegrees);
-
-                    // Check if the current time step is better than our worst candidate.
-                    if (worstCandidate != null && offNadirDeg < worstCandidate.OffNadirDegrees)
+                    // Basic eviction policy: Keep the top 5 lowest Off-Nadir angles
+                    int worstIndex = -1;
+                    double worstOffNadir = double.MinValue;
+                    for (int i = 0; i < top5Candidates.Length; i++)
                     {
-                        // Replace the worst candidate's values.
-                        worstCandidate.Time = currentTime;
-                        worstCandidate.OffNadirDegrees = offNadirDeg;
+                        if (top5Candidates[i].OffNadirDegrees > worstOffNadir)
+                        {
+                            worstOffNadir = top5Candidates[i].OffNadirDegrees;
+                            worstIndex = i;
+                        }
                     }
+                    if (worstIndex != -1 && currentPoint.OffNadirDegrees < worstOffNadir)
+                        top5Candidates[worstIndex] = currentPoint;
                 }
-                catch (Exception)
-                {
-                    exceptionTimes.Add(currentTime);
-                }
-
                 currentTime = currentTime.Add(coarseTimeStep);
             }
 
-            // Step 2: Refinement around best candidates
-            for (int i = 0; i < top5Candidates.Count; i++)
+            // Step 2: Refinement (2s step)
+            for (int i = 0; i < top5Candidates.Length; i++)
             {
-                var bestOffNadir = top5Candidates[i].OffNadirDegrees;
-                var refineStart = top5Candidates[i].Time.Subtract(coarseTimeStep);
-                var refineEnd = top5Candidates[i].Time.Add(coarseTimeStep);
-                currentTime = refineStart;
-                while (currentTime <= refineEnd)
+                if (top5Candidates[i].Time == DateTime.MinValue) continue;
+                var bestLocal = top5Candidates[i];
+                var start = bestLocal.Time.Subtract(coarseTimeStep);
+                var end = bestLocal.Time.Add(coarseTimeStep);
+                var t = start;
+                while (t <= end)
                 {
-                    try
-                    {
-                        position = satellite.Predict(currentTime);
-
-                        var offNadirDeg = OffNadirDegrees(target, position, currentTime);
-
-                        if (offNadirDeg < bestOffNadir)
-                        {
-                            bestTime = currentTime;
-                            bestOffNadir = offNadirDeg;
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        // Skip this time step if calculation fails
-                        exceptionTimes.Add(currentTime);
-                    }
-
-                    currentTime = currentTime.Add(refiningTimeStep);
+                    var p = Evaluate(t);
+                    if (p.Time != DateTime.MinValue && p.OffNadirDegrees < bestLocal.OffNadirDegrees)
+                        bestLocal = p;
+                    t = t.Add(refiningTimeStep);
                 }
-
-                top5Candidates[i].Time = bestTime;
-                top5Candidates[i].OffNadirDegrees = bestOffNadir;
+                top5Candidates[i] = bestLocal;
             }
 
-            // Step 3: Final refinement around best time found
-            for (int i = 0; i < top5Candidates.Count; i++)
+            // Step 3: Final Refinement (0.1s step)
+            for (int i = 0; i < top5Candidates.Length; i++)
             {
-                var bestOffNadir = top5Candidates[i].OffNadirDegrees;
-                var refineStart = top5Candidates[i].Time.Subtract(refiningTimeStep);
-                var refineEnd = top5Candidates[i].Time.Add(refiningTimeStep);
-                currentTime = refineStart;
-                while (currentTime <= refineEnd)
+                if (top5Candidates[i].Time == DateTime.MinValue) continue;
+                var bestLocal = top5Candidates[i];
+                var start = bestLocal.Time.Subtract(refiningTimeStep);
+                var end = bestLocal.Time.Add(refiningTimeStep);
+                var t = start;
+                while (t <= end)
                 {
-                    try
-                    {
-                        position = satellite.Predict(currentTime);
-
-                        var offNadirDeg = OffNadirDegrees(target, position, currentTime);
-
-                        if (offNadirDeg < bestOffNadir)
-                        {
-                            bestTime = currentTime;
-                            bestOffNadir = offNadirDeg;
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        // Skip this time step if calculation fails
-                        exceptionTimes.Add(currentTime);
-                    }
-
-                    currentTime = currentTime.Add(finalTimeStep);
+                    var p = Evaluate(t);
+                    if (p.Time != DateTime.MinValue && p.OffNadirDegrees < bestLocal.OffNadirDegrees)
+                        bestLocal = p;
+                    t = t.Add(finalTimeStep);
                 }
-
-                top5Candidates[i].Time = bestTime;
-                top5Candidates[i].OffNadirDegrees = bestOffNadir;
+                top5Candidates[i] = bestLocal;
             }
 
-            // Log the exception times if needed for debugging
-            if (exceptionTimes.Count > 0)
+            if (exceptionCount > 0)
+                logger.LogWarning("Exceptions occurred during SGP4 propagation at {ExceptionCount} steps.", exceptionCount);
+
+            // Select absolute best
+            var bestCandidate = top5Candidates
+                .Where(c => c.Time != DateTime.MinValue)
+                .OrderBy(c => c.OffNadirDegrees)
+                .FirstOrDefault();
+
+            var finalGeo = bestCandidate.SatelliteGeo;
+            if (bestCandidate.Time == DateTime.MinValue || finalGeo == null)
             {
-                logger.LogWarning("Exceptions occurred during SGP4 propagation at {ExceptionCount} time steps.", exceptionTimes.Count);
+                return null;
             }
 
-            var bestCandidate = top5Candidates.OrderBy(c => c.OffNadirDegrees).First();
-
-            position = satellite.Predict(bestCandidate.Time);
-            var eciCoordinate = new EciCoordinate(bestCandidate.Time, position.Position, position.Velocity);
-            var geodetic = eciCoordinate.ToGeodetic();
-            var satelliteCoordinate = new GeodeticCoordinate(
-                geodetic.Latitude,
-                geodetic.Longitude,
-                geodetic.Altitude);
-
-            var groundDistanceKm = target.DistanceTo(satelliteCoordinate);
-            var slantRangeKm = Math.Sqrt(groundDistanceKm * groundDistanceKm + geodetic.Altitude * geodetic.Altitude);
+            // Arc length = Radius * Angle(radians)
+            var groundDistanceKm = SgpConstants.EarthRadiusKm * target.AngleTo(finalGeo).Radians;
 
             return new ImagingOpportunity
             {
                 ImagingTime = bestCandidate.Time,
                 DistanceKm = groundDistanceKm,
                 OffNadirDegrees = bestCandidate.OffNadirDegrees,
-                SlantRangeKm = slantRangeKm,
-                SatelliteLatitude = geodetic.Latitude.Degrees,
-                SatelliteLongitude = geodetic.Longitude.Degrees,
-                SatelliteAltitudeKm = geodetic.Altitude
+                SlantRangeKm = bestCandidate.SlantRangeKm,
+                SatelliteLatitude = finalGeo.Latitude.Degrees,
+                SatelliteLongitude = finalGeo.Longitude.Degrees,
+                SatelliteAltitudeKm = finalGeo.Altitude
             };
-        }
-
-        private double OffNadirDegrees(GeodeticCoordinate target, EciCoordinate satellite, DateTime currentTime)
-        {
-            // Create EciCoordinate from the prediction result and convert to geodetic using SGPdotNET's built-in method
-            var eciCoordinate = new EciCoordinate(currentTime, satellite.Position, satellite.Velocity);
-            var geodetic = eciCoordinate.ToGeodetic();
-
-            // Calculate distance between satellite ground track and target using SGPdotNET's built-in method
-            var satelliteCoordinate = new GeodeticCoordinate(
-                geodetic.Latitude,
-                geodetic.Longitude,
-                geodetic.Altitude);
-            var groundDistanceKm = target.DistanceTo(satelliteCoordinate);
-
-            var offNadirRad = Math.Atan(groundDistanceKm / geodetic.Altitude);
-
-            return offNadirRad * 180.0 / Math.PI;
         }
     }
 }
